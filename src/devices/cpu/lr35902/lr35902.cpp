@@ -41,6 +41,7 @@
 
 #include "emu.h"
 #include "lr35902.h"
+#include "lr35902d.h"
 #include "debugger.h"
 
 /* Flag bit definitions */
@@ -86,6 +87,12 @@ lr35902_cpu_device::lr35902_cpu_device(const machine_config &mconfig, const char
 {
 }
 
+device_memory_interface::space_config_vector lr35902_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 /****************************************************************************/
 /* Memory functions                                                         */
@@ -225,13 +232,10 @@ void lr35902_cpu_device::device_reset()
 	m_entering_halt = false;
 }
 
-
-offs_t lr35902_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *lr35902_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( lr35902 );
-	return CPU_DISASSEMBLE_NAME(lr35902)(this, stream, pc, oprom, opram, options);
+	return new lr35902_disassembler;
 }
-
 
 void lr35902_cpu_device::check_interrupts()
 {

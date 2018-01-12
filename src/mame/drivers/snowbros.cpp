@@ -88,10 +88,15 @@ a joystick.  This is not an emulation bug.
 #include "speaker.h"
 
 
-WRITE16_MEMBER(snowbros_state::snowbros_flipscreen_w)
+WRITE8_MEMBER(snowbros_state::snowbros_flipscreen_w)
 {
-	if (ACCESSING_BITS_8_15)
-		flip_screen_set(~data & 0x8000);
+	m_pandora->flip_screen_set(!BIT(data, 7));
+}
+
+
+WRITE8_MEMBER(snowbros_state::bootleg_flipscreen_w)
+{
+	flip_screen_set(~data & 0x80);
 }
 
 
@@ -177,32 +182,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(snowbros_state::snowbros3_irq)
 
 }
 
-
-/* Sound Routines */
-
-READ16_MEMBER(snowbros_state::snowbros_68000_sound_r)
-{
-	return m_soundlatch->read(space,offset);
-}
-
-
-WRITE16_MEMBER(snowbros_state::snowbros_68000_sound_w)
-{
-	if (ACCESSING_BITS_0_7)
-	{
-		m_soundlatch->write(space, offset, data & 0xff);
-		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	}
-}
-
-WRITE16_MEMBER(snowbros_state::semicom_soundcmd_w)
-{
-	if (ACCESSING_BITS_0_7) m_soundlatch->write(space,0,data & 0xff);
-}
-
 READ16_MEMBER(snowbros_state::toto_read)
 {
-	int pc = space.device().safe_pc();
+	int pc = m_maincpu->pc();
 	if ((pc!= 0x3f010) && (pc!= 0x38008)) printf("toto prot %08x %04x\n", pc, mem_mask);
 	return 0x0700;
 }
@@ -213,8 +195,9 @@ static ADDRESS_MAP_START( snowbros_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM
 	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0x300000, 0x300001) AM_READWRITE(snowbros_68000_sound_r,snowbros_68000_sound_w)
-	AM_RANGE(0x400000, 0x400001) AM_WRITE(snowbros_flipscreen_w)
+	AM_RANGE(0x300000, 0x300001) AM_DEVREAD8("soundlatch2", generic_latch_8_device, read, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
+	AM_RANGE(0x400000, 0x400001) AM_WRITE8(snowbros_flipscreen_w, 0xff00)
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
@@ -233,7 +216,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, snowbros_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
-	AM_RANGE(0x04, 0x04) AM_DEVREADWRITE("soundlatch", generic_latch_8_device, read, write) /* goes back to the main CPU, checked during boot */
+	AM_RANGE(0x04, 0x04) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
+	AM_RANGE(0x04, 0x04) AM_DEVWRITE("soundlatch2", generic_latch_8_device, write) // goes back to the main CPU, checked during boot
 ADDRESS_MAP_END
 
 
@@ -295,8 +279,9 @@ static ADDRESS_MAP_START( wintbob_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM
 	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0x300000, 0x300001) AM_READWRITE(snowbros_68000_sound_r,snowbros_68000_sound_w)
-	AM_RANGE(0x400000, 0x400001) AM_WRITE(snowbros_flipscreen_w)
+	AM_RANGE(0x300000, 0x300001) AM_DEVREAD8("soundlatch2", generic_latch_8_device, read, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
+	AM_RANGE(0x400000, 0x400001) AM_WRITE8(bootleg_flipscreen_w, 0xff00)
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
@@ -313,7 +298,7 @@ static ADDRESS_MAP_START( honeydol_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM AM_SHARE("hyperpac_ram")
 	AM_RANGE(0x200000, 0x200001) AM_WRITENOP    /* ? */
-	AM_RANGE(0x300000, 0x300001) AM_WRITE(snowbros_68000_sound_w)   /* ? */
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
 	AM_RANGE(0x400000, 0x400001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x500000, 0x500001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
 	AM_RANGE(0x600000, 0x600001) AM_WRITE(snowbros_irq2_ack_w)  /* IRQ 2 acknowledge */
@@ -334,26 +319,19 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( honeydol_sound_io_map, AS_IO, 8, snowbros_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)                                // not connected?
-	AM_RANGE(0x04, 0x04) AM_DEVREADWRITE("soundlatch", generic_latch_8_device, read, write) /* goes back to the main CPU, checked during boot */
+	AM_RANGE(0x04, 0x04) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
+	AM_RANGE(0x04, 0x04) AM_WRITENOP // still written but never actually read by the main CPU
 ADDRESS_MAP_END
 
 /* Twin Adventure */
-
-WRITE16_MEMBER(snowbros_state::twinadv_68000_sound_w)
-{
-	if (ACCESSING_BITS_0_7)
-	{
-		m_soundlatch->write(space, offset, data & 0xff);
-		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	}
-}
 
 static ADDRESS_MAP_START( twinadv_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM
 	AM_RANGE(0x200000, 0x200001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
-	AM_RANGE(0x300000, 0x300001) AM_READWRITE(snowbros_68000_sound_r,twinadv_68000_sound_w)
-	AM_RANGE(0x400000, 0x400001) AM_WRITE(snowbros_flipscreen_w)
+	AM_RANGE(0x300000, 0x300001) AM_DEVREAD8("soundlatch2", generic_latch_8_device, read, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
+	AM_RANGE(0x400000, 0x400001) AM_WRITE8(bootleg_flipscreen_w, 0xff00)
 
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
@@ -376,7 +354,8 @@ WRITE8_MEMBER(snowbros_state::twinadv_oki_bank_w)
 
 static ADDRESS_MAP_START( twinadv_sound_io_map, AS_IO, 8, snowbros_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x02, 0x02) AM_DEVREADWRITE("soundlatch", generic_latch_8_device, read, write) // back to 68k?
+	AM_RANGE(0x02, 0x02) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
+	AM_RANGE(0x02, 0x02) AM_DEVWRITE("soundlatch2", generic_latch_8_device, write) // back to 68k?
 	AM_RANGE(0x04, 0x04) AM_WRITE(twinadv_oki_bank_w) // oki bank?
 	AM_RANGE(0x06, 0x06) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 ADDRESS_MAP_END
@@ -392,7 +371,7 @@ sound hardware is also different
 static ADDRESS_MAP_START( hyperpac_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM AM_SHARE("hyperpac_ram")
-	AM_RANGE(0x300000, 0x300001) AM_WRITE(semicom_soundcmd_w)
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
 //  AM_RANGE(0x400000, 0x400001) ???
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
@@ -411,10 +390,6 @@ static ADDRESS_MAP_START( hyperpac_sound_map, AS_PROGRAM, 8, snowbros_state )
 	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
 	AM_RANGE(0xf002, 0xf002) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xf008, 0xf008) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( hyperpac_sound_io_map, AS_IO, 8, snowbros_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
 ADDRESS_MAP_END
 
 /* Same volume used for all samples at the Moment, could be right, we have no
@@ -530,7 +505,7 @@ static ADDRESS_MAP_START( snowbros3_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE( 0x200000, 0x200001) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)
 	AM_RANGE( 0x300000, 0x300001) AM_READ(sb3_sound_r) // ?
 	AM_RANGE( 0x300000, 0x300001) AM_WRITE(sb3_sound_w)  // ?
-	AM_RANGE( 0x400000, 0x400001) AM_WRITE(snowbros_flipscreen_w)
+	AM_RANGE( 0x400000, 0x400001) AM_WRITE8(bootleg_flipscreen_w, 0xff00)
 	AM_RANGE( 0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE( 0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE( 0x500004, 0x500005) AM_READ_PORT("SYSTEM")
@@ -546,7 +521,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( finalttr_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM AM_SHARE("hyperpac_ram")
-	AM_RANGE(0x300000, 0x300001) AM_WRITE(semicom_soundcmd_w)
+	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
 //  AM_RANGE(0x400000, 0x400001) ???
 
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
@@ -1796,6 +1771,9 @@ static MACHINE_CONFIG_START( snowbros )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_12MHz/4) /* 3 MHz - confirmed */
 	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
@@ -1830,9 +1808,14 @@ static MACHINE_CONFIG_DERIVED( semicom, snowbros )
 	MCFG_CPU_MODIFY("soundcpu")
 	MCFG_CPU_CLOCK(XTAL_16MHz/4) /* 4MHz - Confirmed */
 	MCFG_CPU_PROGRAM_MAP(hyperpac_sound_map)
-	MCFG_CPU_IO_MAP(hyperpac_sound_io_map)
+	MCFG_DEVICE_REMOVE_ADDRESS_MAP(AS_IO)
 
 	MCFG_GFXDECODE_MODIFY("gfxdecode", hyperpac)
+
+	MCFG_DEVICE_MODIFY("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(NOOP)
+
+	MCFG_DEVICE_REMOVE("soundlatch2")
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ymsnd", YM2151, XTAL_16MHz/4) /* 4MHz - Confirmed */
@@ -1888,6 +1871,7 @@ static MACHINE_CONFIG_START( honeydol )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_12MHz/4) /* 3Mhz */
 	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
@@ -1928,6 +1912,9 @@ static MACHINE_CONFIG_START( twinadv )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+
+	MCFG_GENERIC_LATCH_8_ADD("soundlatch2")
 
 	/* sound hardware */
 	MCFG_OKIM6295_ADD("oki", XTAL_16MHz/16, PIN7_HIGH) /* freq? */
@@ -2320,16 +2307,16 @@ ROM_END
 
 ROM_START( multi96 )
 	ROM_REGION( 0x40000, "maincpu", 0 )
-	ROM_LOAD16_BYTE( "uh12",  0x00001, 0x20000, CRC(e912ea4e) SHA1(cf0b37d6b6fbdd311ef7b404c4ba2c6a7e1f8486) )
-	ROM_LOAD16_BYTE( "ui12",  0x00000, 0x20000, CRC(ac99e837) SHA1(20bc1599f78a4eac65cae54350872fa292daa807) )
+	ROM_LOAD16_BYTE( "uh12",  0x00001, 0x20000, CRC(e912ea4e) SHA1(cf0b37d6b6fbdd311ef7b404c4ba2c6a7e1f8486) ) // sldh
+	ROM_LOAD16_BYTE( "ui12",  0x00000, 0x20000, CRC(ac99e837) SHA1(20bc1599f78a4eac65cae54350872fa292daa807) ) // sldh
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )    /* 64k for z80 sound code */
 	ROM_LOAD( "uh15.bin", 0x0000, 0x8000, CRC(3d5acd08) SHA1(c19f686862dfc12d2fa91c2dd3d3b75d9cb410c3) )
 
 	ROM_REGION( 0x180000, "gfx1", 0 ) /* 4bpp gfx */
-	ROM_LOAD( "ua4", 0x000000, 0x80000, CRC(66cae586) SHA1(22af524b26241a6456b777a847db73ff8d3db11f) )
-	ROM_LOAD( "ua5", 0x080000, 0x80000, CRC(0bd9f6bb) SHA1(400ddff7a76860caacfe8bfd803f9ccd2dba3356) )
-	ROM_LOAD( "ua6", 0x100000, 0x80000, CRC(0e90b26c) SHA1(fd9b40988d03db8ed797abf859a8828bb65db8d5) )
+	ROM_LOAD( "ua4", 0x000000, 0x80000, CRC(66cae586) SHA1(22af524b26241a6456b777a847db73ff8d3db11f) ) // sldh
+	ROM_LOAD( "ua5", 0x080000, 0x80000, CRC(0bd9f6bb) SHA1(400ddff7a76860caacfe8bfd803f9ccd2dba3356) ) // sldh
+	ROM_LOAD( "ua6", 0x100000, 0x80000, CRC(0e90b26c) SHA1(fd9b40988d03db8ed797abf859a8828bb65db8d5) ) // sldh
 
 	ROM_REGION( 0x080000, "oki", 0 ) /* Samples - both banks are almost the same */
 	/* todo, check bank ordering .. */
@@ -2795,7 +2782,7 @@ DRIVER_INIT_MEMBER(snowbros_state,4in1boot)
 		std::vector<uint8_t> buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
-			if (i&1) buffer[i] = BITSWAP8(src[i],6,7,5,4,3,2,1,0);
+			if (i&1) buffer[i] = bitswap<8>(src[i],6,7,5,4,3,2,1,0);
 			else buffer[i] = src[i];
 
 		memcpy(src,&buffer[0],len);
@@ -2825,7 +2812,7 @@ DRIVER_INIT_MEMBER(snowbros_state,snowbro3)
 		std::vector<uint8_t> buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
-			buffer[i] = src[BITSWAP24(i,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,3,4,1,2,0)];
+			buffer[i] = src[bitswap<24>(i,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,3,4,1,2,0)];
 		memcpy(src,&buffer[0],len);
 	}
 
@@ -2869,7 +2856,7 @@ DRIVER_INIT_MEMBER(snowbros_state,toto)
 
 	for (int i = 0; i < len; i++)
 	{
-		src[i] = BITSWAP8(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
+		src[i] = bitswap<8>(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
 	}
 
 	src = memregion("gfx1")->base();
@@ -2877,7 +2864,7 @@ DRIVER_INIT_MEMBER(snowbros_state,toto)
 
 	for (int i = 0; i < len; i++)
 	{
-		src[i] = BITSWAP8(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
+		src[i] = bitswap<8>(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
 	}
 
 	src = memregion("soundcpu")->base();
@@ -2885,7 +2872,7 @@ DRIVER_INIT_MEMBER(snowbros_state,toto)
 
 	for (int i = 0; i < len; i++)
 	{
-		src[i] = BITSWAP8(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
+		src[i] = bitswap<8>(src[i], 7, 6, 5, 3, 4, 2, 1, 0);
 	}
 
 	// protection? (just return 0x07)

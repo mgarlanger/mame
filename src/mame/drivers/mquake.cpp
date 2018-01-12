@@ -79,14 +79,14 @@ READ8_MEMBER( mquake_state::es5503_sample_r )
 	return m_es5503_rom[offset + (m_es5503->get_channel_strobe() * 0x10000)];
 }
 
-static ADDRESS_MAP_START( mquake_es5503_map, AS_0, 8, mquake_state )
+static ADDRESS_MAP_START( mquake_es5503_map, 0, 8, mquake_state )
 	AM_RANGE(0x000000, 0x1ffff) AM_READ(es5503_sample_r)
 ADDRESS_MAP_END
 
 WRITE16_MEMBER( mquake_state::output_w )
 {
 	if (ACCESSING_BITS_0_7)
-		logerror("%06x:output_w(%x) = %02x\n", space.device().safe_pc(), offset, data);
+		logerror("%06x:output_w(%x) = %02x\n", m_maincpu->pc(), offset, data);
 }
 
 
@@ -94,13 +94,13 @@ READ16_MEMBER( mquake_state::coin_chip_r )
 {
 	if (offset == 1)
 		return ioport("COINCHIP")->read();
-	logerror("%06x:coin_chip_r(%02x) & %04x\n", space.device().safe_pc(), offset, mem_mask);
+	logerror("%06x:coin_chip_r(%02x) & %04x\n", m_maincpu->pc(), offset, mem_mask);
 	return 0xffff;
 }
 
 WRITE16_MEMBER( mquake_state::coin_chip_w )
 {
-	logerror("%06x:coin_chip_w(%02x) = %04x & %04x\n", space.device().safe_pc(), offset, data, mem_mask);
+	logerror("%06x:coin_chip_w(%02x) = %04x & %04x\n", m_maincpu->pc(), offset, data, mem_mask);
 }
 
 // inputs at 282000, 282002 (full word)
@@ -311,8 +311,8 @@ static MACHINE_CONFIG_START( mquake )
 	MCFG_DEVICE_ADD("overlay", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(overlay_512kb_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_BIG)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(16)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(22)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(16)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(22)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x200000)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
@@ -338,7 +338,7 @@ static MACHINE_CONFIG_START( mquake )
 
 	MCFG_ES5503_ADD("es5503", amiga_state::CLK_7M_NTSC)       /* ES5503 is likely mono due to channel strobe used as bank select */
 	MCFG_ES5503_OUTPUT_CHANNELS(1)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, mquake_es5503_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, mquake_es5503_map)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.50)
 
@@ -353,6 +353,10 @@ static MACHINE_CONFIG_START( mquake )
 	/* fdc */
 	MCFG_DEVICE_ADD("fdc", AMIGA_FDC, amiga_state::CLK_7M_NTSC)
 	MCFG_AMIGA_FDC_INDEX_CALLBACK(DEVWRITELINE("cia_1", mos8520_device, flag_w))
+	MCFG_AMIGA_FDC_READ_DMA_CALLBACK(READ16(amiga_state, chip_ram_r))
+	MCFG_AMIGA_FDC_WRITE_DMA_CALLBACK(WRITE16(amiga_state, chip_ram_w))
+	MCFG_AMIGA_FDC_DSKBLK_CALLBACK(WRITELINE(amiga_state, fdc_dskblk_w))
+	MCFG_AMIGA_FDC_DSKSYN_CALLBACK(WRITELINE(amiga_state, fdc_dsksyn_w))
 MACHINE_CONFIG_END
 
 

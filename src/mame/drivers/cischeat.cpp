@@ -692,7 +692,7 @@ WRITE16_MEMBER(cischeat_state::captflag_leds_w)
 		output().set_led_value(1, data & 0x2000);    // select
 
 		int power = (data & 0x1000);
-		m_captflag_hopper->write(space, 0, power ? 0x80 : 0x00);    // prize motor
+		m_captflag_hopper->motor_w(power ? 1 : 0);    // prize motor
 		if (!power)
 			m_captflag_hopper->reset();
 	}
@@ -820,12 +820,12 @@ static ADDRESS_MAP_START( captflag_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x100060, 0x10007d) AM_RAM                                                                 // 7-seg? NVRAM?
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( captflag_oki1_map, AS_0, 8, cischeat_state )
+static ADDRESS_MAP_START( captflag_oki1_map, 0, 8, cischeat_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("oki1_bank")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( captflag_oki2_map, AS_0, 8, cischeat_state )
+static ADDRESS_MAP_START( captflag_oki2_map, 0, 8, cischeat_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("oki2_bank")
 ADDRESS_MAP_END
@@ -2214,12 +2214,12 @@ static MACHINE_CONFIG_START( captflag )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_OKIM6295_ADD("oki1", 2112000, PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, captflag_oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, captflag_oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5)
 
 	MCFG_OKIM6295_ADD("oki2", 2112000, PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, captflag_oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, captflag_oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5)
 MACHINE_CONFIG_END
@@ -3602,13 +3602,13 @@ DRIVER_INIT_MEMBER(cischeat_state, captflag)
 
 ***************************************************************************/
 
-GAMEL( 1989, bigrun,   0,        bigrun,   bigrun,   cischeat_state, bigrun,   ROT0,   "Jaleco", "Big Run (11th Rallye version)", MACHINE_IMPERFECT_GRAPHICS, layout_cischeat )    // there's a 13th Rallye version (1991) (only on the SNES? Could just be updated title, 1989 -> 11th Paris-Dakar ...)
-GAMEL( 1990, cischeat, 0,        cischeat, cischeat, cischeat_state, cischeat, ROT0,   "Jaleco", "Cisco Heat",                    MACHINE_IMPERFECT_GRAPHICS, layout_cischeat )
-GAMEL( 1991, f1gpstar, 0,        f1gpstar, f1gpstar, cischeat_state, f1gpstar, ROT0,   "Jaleco", "Grand Prix Star (v3.0)",        MACHINE_IMPERFECT_GRAPHICS, layout_f1gpstar )
-GAMEL( 1991, f1gpstaro,f1gpstar, f1gpstar, f1gpstar, cischeat_state, f1gpstar, ROT0,   "Jaleco", "Grand Prix Star (v2.0)",        MACHINE_IMPERFECT_GRAPHICS, layout_f1gpstar )
+GAMEL( 1989, bigrun,   0,        bigrun,   bigrun,   cischeat_state, bigrun,   ROT0,   "Jaleco", "Big Run (11th Rallye version)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN, layout_cischeat )    // there's a 13th Rallye version (1991) (only on the SNES? Could just be updated title, 1989 -> 11th Paris-Dakar ...)
+GAMEL( 1990, cischeat, 0,        cischeat, cischeat, cischeat_state, cischeat, ROT0,   "Jaleco", "Cisco Heat",                    MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN, layout_cischeat )
+GAMEL( 1991, f1gpstar, 0,        f1gpstar, f1gpstar, cischeat_state, f1gpstar, ROT0,   "Jaleco", "Grand Prix Star (v3.0)",        MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN, layout_f1gpstar )
+GAMEL( 1991, f1gpstaro,f1gpstar, f1gpstar, f1gpstar, cischeat_state, f1gpstar, ROT0,   "Jaleco", "Grand Prix Star (v2.0)",        MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN, layout_f1gpstar )
 GAME ( 1992, armchmp2, 0,        armchmp2, armchmp2, cischeat_state, 0,        ROT270, "Jaleco", "Arm Champs II v2.6",            MACHINE_IMPERFECT_GRAPHICS )
 GAME ( 1992, armchmp2o,armchmp2, armchmp2, armchmp2, cischeat_state, 0,        ROT270, "Jaleco", "Arm Champs II v1.7",            MACHINE_IMPERFECT_GRAPHICS )
 GAME ( 1992, wildplt,  0,        wildplt,  wildplt,  cischeat_state, f1gpstar, ROT0,   "Jaleco", "Wild Pilot",                    MACHINE_IMPERFECT_GRAPHICS | MACHINE_NOT_WORKING ) // busted timings
-GAMEL( 1993, f1gpstr2, 0,        f1gpstr2, f1gpstr2, cischeat_state, f1gpstar, ROT0,   "Jaleco", "F-1 Grand Prix Star II",        MACHINE_IMPERFECT_GRAPHICS, layout_f1gpstar )
+GAMEL( 1993, f1gpstr2, 0,        f1gpstr2, f1gpstr2, cischeat_state, f1gpstar, ROT0,   "Jaleco", "F-1 Grand Prix Star II",        MACHINE_IMPERFECT_GRAPHICS | MACHINE_NODEVICE_LAN, layout_f1gpstar )
 GAME ( 1993, captflag, 0,        captflag, captflag, cischeat_state, captflag, ROT270, "Jaleco", "Captain Flag (Japan)",          MACHINE_IMPERFECT_GRAPHICS )
 GAME ( 1994, scudhamm, 0,        scudhamm, scudhamm, cischeat_state, 0,        ROT270, "Jaleco", "Scud Hammer",                   MACHINE_IMPERFECT_GRAPHICS )

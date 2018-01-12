@@ -53,7 +53,6 @@ Year + Game             Main CPU    Sound CPU    Sound            Video
 #include "cpu/z80/z80.h"
 #include "sound/3526intf.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "sound/ym2151.h"
 #include "speaker.h"
 
@@ -69,7 +68,7 @@ WRITE8_MEMBER(fantland_state::fantland_nmi_enable_w)
 	m_nmi_enable = data;
 
 	if ((m_nmi_enable != 0) && (m_nmi_enable != 8))
-		logerror("CPU #0 PC = %04X: nmi_enable = %02x\n", space.device().safe_pc(), data);
+		logerror("CPU #0 PC = %04X: nmi_enable = %02x\n", m_maincpu->pc(), data);
 }
 
 WRITE16_MEMBER(fantland_state::fantland_nmi_enable_16_w)
@@ -174,7 +173,7 @@ WRITE8_MEMBER(fantland_state::borntofi_nmi_enable_w)
 	// data & 0x31 changes when lightgun fires
 
 	if ((m_nmi_enable != 0) && (m_nmi_enable != 8))
-		logerror("CPU #0 PC = %04X: nmi_enable = %02x\n", space.device().safe_pc(), data);
+		logerror("CPU #0 PC = %04X: nmi_enable = %02x\n", m_maincpu->pc(), data);
 
 //  popmessage("%02X", data);
 }
@@ -348,7 +347,7 @@ WRITE8_MEMBER(fantland_state::borntofi_msm5205_w)
 		{
 			case 0x00:      borntofi_adpcm_stop(msm, voice); break;
 			case 0x03:      borntofi_adpcm_start(msm, voice); break;
-			default:        logerror("CPU #0 PC = %04X: adpcm reg %d <- %02x\n", space.device().safe_pc(), reg, data);
+			default:        logerror("CPU #0 PC = %04X: adpcm reg %d <- %02x\n", m_audiocpu->pc(), reg, data);
 		}
 	}
 	else
@@ -880,8 +879,7 @@ static MACHINE_CONFIG_START( fantland )
 	MCFG_SOUND_ROUTE(1, "speaker", 0.35)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 

@@ -285,11 +285,11 @@ static GFXDECODE_START( segacd )
 GFXDECODE_END
 
 
-static MACHINE_CONFIG_FRAGMENT( segacd_fragment )
+MACHINE_CONFIG_MEMBER( sega_segacd_device::device_add_mconfig )
 
 	MCFG_CPU_ADD("segacd_68k", M68000, SEGACD_CLOCK ) /* 12.5 MHz */
 	MCFG_CPU_PROGRAM_MAP(segacd_map)
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE(DEVICE_SELF, sega_segacd_device,segacd_sub_int_callback)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE(DEVICE_SELF, sega_segacd_device, segacd_sub_int_callback)
 
 	MCFG_DEVICE_ADD("cdc", LC89510, 0) // cd controller
 
@@ -312,13 +312,6 @@ static MACHINE_CONFIG_FRAGMENT( segacd_fragment )
 
 	MCFG_QUANTUM_PERFECT_CPU("segacd_68k") // perfect sync to the fastest cpu
 MACHINE_CONFIG_END
-
-
-
-machine_config_constructor sega_segacd_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( segacd_fragment );
-}
 
 
 sega_segacd_device::sega_segacd_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
@@ -849,13 +842,13 @@ READ16_MEMBER( sega_segacd_device::segacd_main_dataram_part1_r )
 			// used by Heart of the Alien
 
 			if(offset<0x30000/2)        /* 0x20000 - 0x2ffff */ // 512x256 bitmap. tiles
-				offset = BITSWAP24(offset,23,22,21,20,19,18,17,16,15,8,7,6,5,4,3,2,1,14,13,12,11,10,9,0);
+				offset = bitswap<24>(offset,23,22,21,20,19,18,17,16,15,8,7,6,5,4,3,2,1,14,13,12,11,10,9,0);
 			else if(offset<0x38000/2)   /* 0x30000 - 0x37fff */  // 512x128 bitmap. tiles
-				offset = BITSWAP24(offset,23,22,21,20,19,18,17,16,15,14,7,6,5,4,3,2,1,13,12,11,10,9,8,0);
+				offset = bitswap<24>(offset,23,22,21,20,19,18,17,16,15,14,7,6,5,4,3,2,1,13,12,11,10,9,8,0);
 			else if(offset<0x3c000/2)   /* 0x38000 - 0x3bfff */  // 512x64 bitmap. tiles
-				offset = BITSWAP24(offset,23,22,21,20,19,18,17,16,15,14,13,6,5,4,3,2,1,12,11,10,9,8,7,0);
+				offset = bitswap<24>(offset,23,22,21,20,19,18,17,16,15,14,13,6,5,4,3,2,1,12,11,10,9,8,7,0);
 			else  /* 0x3c000 - 0x3dfff and 0x3e000 - 0x3ffff */  // 512x32 bitmap (x2) -> tiles
-				offset = BITSWAP24(offset,23,22,21,20,19,18,17,16,15,14,13,12,5,4,3,2,1,11,10,9,8,7,6,0);
+				offset = bitswap<24>(offset,23,22,21,20,19,18,17,16,15,14,13,12,5,4,3,2,1,11,10,9,8,7,6,0);
 
 			offset &=0xffff;
 			// HOTA cares about this

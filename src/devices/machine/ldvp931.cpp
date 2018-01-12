@@ -61,18 +61,6 @@ static ADDRESS_MAP_START( vp931_portmap, AS_IO, 8, phillips_22vp931_device )
 ADDRESS_MAP_END
 
 
-static MACHINE_CONFIG_FRAGMENT( vp931 )
-	MCFG_CPU_ADD("vp931", I8049, XTAL_11MHz)
-	MCFG_CPU_IO_MAP(vp931_portmap)
-	MCFG_MCS48_PORT_P1_IN_CB(READ8(phillips_22vp931_device, i8049_port1_r))
-	MCFG_MCS48_PORT_P1_OUT_CB(WRITE8(phillips_22vp931_device, i8049_port1_w))
-	MCFG_MCS48_PORT_P2_IN_CB(READ8(phillips_22vp931_device, i8049_port2_r))
-	MCFG_MCS48_PORT_P2_OUT_CB(WRITE8(phillips_22vp931_device, i8049_port2_w))
-	MCFG_MCS48_PORT_T0_IN_CB(READLINE(phillips_22vp931_device, i8049_t0_r))
-	MCFG_MCS48_PORT_T1_IN_CB(READLINE(phillips_22vp931_device, i8049_t1_r))
-MACHINE_CONFIG_END
-
-
 ROM_START( vp931 )
 	ROM_REGION( 0x800, "vp931", 0 )
 	ROM_LOAD( "at-6-1_a.bin", 0x000, 0x800, CRC(e11b3c8d) SHA1(ea2d7f6a044ed085ce5e09d8b1b1a21c37f0e9b8) )
@@ -294,14 +282,19 @@ const tiny_rom_entry *phillips_22vp931_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  device_mconfig_additions - return a pointer to
-//  our machine config fragment
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor phillips_22vp931_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(vp931);
-}
+MACHINE_CONFIG_MEMBER( phillips_22vp931_device::device_add_mconfig )
+	MCFG_CPU_ADD("vp931", I8049, XTAL_11MHz)
+	MCFG_CPU_IO_MAP(vp931_portmap)
+	MCFG_MCS48_PORT_P1_IN_CB(READ8(phillips_22vp931_device, i8049_port1_r))
+	MCFG_MCS48_PORT_P1_OUT_CB(WRITE8(phillips_22vp931_device, i8049_port1_w))
+	MCFG_MCS48_PORT_P2_IN_CB(READ8(phillips_22vp931_device, i8049_port2_r))
+	MCFG_MCS48_PORT_P2_OUT_CB(WRITE8(phillips_22vp931_device, i8049_port2_w))
+	MCFG_MCS48_PORT_T0_IN_CB(READLINE(phillips_22vp931_device, i8049_t0_r))
+	MCFG_MCS48_PORT_T1_IN_CB(READLINE(phillips_22vp931_device, i8049_t1_r))
+MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
@@ -355,16 +348,17 @@ WRITE8_MEMBER( phillips_22vp931_device::i8049_output0_w )
 
 	if (LOG_PORTS && (m_i8049_out0 ^ data) & 0xff)
 	{
-		printf("%03X:out0:", space.device().safe_pc());
-		if ( (data & 0x80)) printf(" ???");
-		if ( (data & 0x40)) printf(" LED1");
-		if ( (data & 0x20)) printf(" LED2");
-		if ( (data & 0x10)) printf(" LED3");
-		if ( (data & 0x08)) printf(" EJECT");
-		if (!(data & 0x04)) printf(" AUDMUTE2");
-		if (!(data & 0x02)) printf(" AUDMUTE1");
-		if (!(data & 0x01)) printf(" VIDMUTE");
-		printf("\n");
+		std::string flags;
+		if ( (data & 0x80)) flags += " ???";
+		if ( (data & 0x40)) flags += " LED1";
+		if ( (data & 0x20)) flags += " LED2";
+		if ( (data & 0x10)) flags += " LED3";
+		if ( (data & 0x08)) flags += " EJECT";
+		if (!(data & 0x04)) flags += " AUDMUTE2";
+		if (!(data & 0x02)) flags += " AUDMUTE1";
+		if (!(data & 0x01)) flags += " VIDMUTE";
+
+		logerror("out0: %s %s\n", flags, machine().describe_context());
 		m_i8049_out0 = data;
 	}
 
@@ -395,9 +389,9 @@ WRITE8_MEMBER( phillips_22vp931_device::i8049_output1_w )
 
 	if (LOG_PORTS && (m_i8049_out1 ^ data) & 0x08)
 	{
-		osd_printf_debug("%03X:out1:", space.device().safe_pc());
-		if (!(data & 0x08)) osd_printf_debug(" SMS");
-		osd_printf_debug("\n");
+		std::string flags;
+		if (!(data & 0x08)) flags += " SMS";
+		logerror("out1: %s %s\n", flags, machine().describe_context());
 		m_i8049_out1 = data;
 	}
 
@@ -543,13 +537,13 @@ WRITE8_MEMBER( phillips_22vp931_device::i8049_port1_w )
 
 	if (LOG_PORTS && (m_i8049_port1 ^ data) & 0x1f)
 	{
-		printf("%03X:port1:", space.device().safe_pc());
-		if (!(data & 0x10)) printf(" SPEED");
-		if (!(data & 0x08)) printf(" TIMENABLE");
-		if (!(data & 0x04)) printf(" REV");
-		if (!(data & 0x02)) printf(" FORW");
-		if (!(data & 0x01)) printf(" OPAMP");
-		printf("\n");
+		std::string flags;
+		if (!(data & 0x10)) flags += " SPEED";
+		if (!(data & 0x08)) flags += " TIMENABLE";
+		if (!(data & 0x04)) flags += " REV";
+		if (!(data & 0x02)) flags += " FORW";
+		if (!(data & 0x01)) flags += " OPAMP";
+		logerror("port1: %s %s\n", flags, machine().describe_context());
 	}
 
 	// if bit 0 is set, we are not tracking

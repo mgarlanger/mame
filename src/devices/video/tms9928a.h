@@ -100,6 +100,11 @@ public:
 	DECLARE_READ8_MEMBER( register_read );
 	DECLARE_WRITE8_MEMBER( register_write );
 
+	u8 vram_read();
+	void vram_write(u8 data);
+	u8 register_read();
+	void register_write(u8 data);
+
 	/* update the screen */
 	uint32_t screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect );
 	bitmap_rgb32 &get_bitmap() { return m_tmpbmp; }
@@ -116,7 +121,7 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_DATA) const override { return (spacenum == AS_DATA) ? &m_space_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	void change_register(uint8_t reg, uint8_t val);

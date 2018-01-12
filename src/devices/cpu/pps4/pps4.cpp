@@ -78,6 +78,7 @@
 
 #include "emu.h"
 #include "pps4.h"
+#include "pps4dasm.h"
 #include "debugger.h"
 
 
@@ -108,6 +109,15 @@ pps4_2_device::pps4_2_device(const machine_config &mconfig, const char *tag, dev
 {
 }
 
+device_memory_interface::space_config_vector pps4_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
+
 /**
  * @brief pps4_device::M Return the memory at address B
  * @return ROM/RAM(B)
@@ -130,10 +140,9 @@ void pps4_device::W(u8 data)
 	m_SAG = 0;
 }
 
-offs_t pps4_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *pps4_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( pps4 );
-	return CPU_DISASSEMBLE_NAME(pps4)(this, stream, pc, oprom, opram, options);
+	return new pps4_disassembler;
 }
 
 /**
@@ -1561,7 +1570,7 @@ void pps4_device::execute_run()
 void pps4_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 	m_data = &space(AS_DATA);
 	m_io = &space(AS_IO);
 

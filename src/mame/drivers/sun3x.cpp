@@ -137,6 +137,7 @@
 #include "formats/pc_dsk.h"
 #include "machine/ncr539x.h"
 #include "machine/timekpr.h"
+#include "machine/timer.h"
 #include "machine/upd765.h"
 #include "machine/z80scc.h"
 
@@ -264,7 +265,7 @@ READ32_MEMBER( sun3x_state::p4id_r )
 
 WRITE32_MEMBER( sun3x_state::fdc_control_w )
 {
-	logerror("FDC write %02x (%08x)\n", data >> 24, space.device().safe_pc());
+	logerror("FDC write %02x (%08x)\n", data >> 24, m_maincpu->pc());
 }
 
 READ32_MEMBER( sun3x_state::fdc_control_r )

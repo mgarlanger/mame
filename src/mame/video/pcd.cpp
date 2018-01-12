@@ -99,7 +99,7 @@ ioport_constructor pcd_video_device::device_input_ports() const
 	return INPUT_PORTS_NAME(pcd_mouse);
 }
 
-static MACHINE_CONFIG_FRAGMENT( pcd_video )
+MACHINE_CONFIG_MEMBER( pcd_video_device::device_add_mconfig )
 	MCFG_CPU_ADD("graphics", I8741, XTAL_16MHz/2)
 	MCFG_MCS48_PORT_P1_IN_CB(READ8(pcd_video_device, p1_r))
 	MCFG_MCS48_PORT_P2_OUT_CB(WRITE8(pcd_video_device, p2_w))
@@ -115,18 +115,13 @@ static MACHINE_CONFIG_FRAGMENT( pcd_video )
 	MCFG_PALETTE_ADD("palette", 3)
 	MCFG_PALETTE_INIT_OWNER(pcdx_video_device, pcdx)
 
-	MCFG_SCN2674_VIDEO_ADD("crtc", 0, NOOP);
+	MCFG_DEVICE_ADD("crtc", SCN2674, 0)
 	MCFG_SCN2674_TEXT_CHARACTER_WIDTH(8)
 	MCFG_SCN2674_GFX_CHARACTER_WIDTH(16)
 	MCFG_SCN2674_DRAW_CHARACTER_CALLBACK_OWNER(pcd_video_device, display_pixels)
 	MCFG_VIDEO_SET_SCREEN("screen")
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("mouse_timer", pcd_video_device, mouse_timer, attotime::from_hz(15000)) // guess
 MACHINE_CONFIG_END
-
-machine_config_constructor pcd_video_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcd_video );
-}
 
 static ADDRESS_MAP_START( pcx_vid_map, AS_PROGRAM, 8, pcx_video_device )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM AM_REGION("graphics", 0)
@@ -141,11 +136,11 @@ static ADDRESS_MAP_START( pcx_vid_io, AS_IO, 8, pcx_video_device )
 	AM_RANGE(MCS51_PORT_P1, MCS51_PORT_P1) AM_WRITE(p1_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( pcx_vram, AS_0, 8, pcx_video_device )
+static ADDRESS_MAP_START( pcx_vram, 0, 8, pcx_video_device )
 	AM_RANGE(0x0000, 0x07ff) AM_READWRITE(vram_r, vram_w)
 ADDRESS_MAP_END
 
-static MACHINE_CONFIG_FRAGMENT( pcx_video )
+MACHINE_CONFIG_MEMBER( pcx_video_device::device_add_mconfig )
 	MCFG_CPU_ADD("graphics", I8031, XTAL_24MHz/2)
 	MCFG_CPU_PROGRAM_MAP(pcx_vid_map)
 	MCFG_CPU_IO_MAP(pcx_vid_io)
@@ -162,18 +157,15 @@ static MACHINE_CONFIG_FRAGMENT( pcx_video )
 
 	MCFG_PALETTE_ADD_MONOCHROME("palette")
 
-	MCFG_SCN2674_VIDEO_ADD("crtc", 0, INPUTLINE("graphics", MCS51_INT0_LINE));
+	MCFG_DEVICE_ADD("crtc", SCN2674, 0)
+	MCFG_SCN2674_INTR_CALLBACK(INPUTLINE("graphics", MCS51_INT0_LINE))
 	MCFG_SCN2674_TEXT_CHARACTER_WIDTH(8)
 	MCFG_SCN2674_GFX_CHARACTER_WIDTH(16)
 	MCFG_SCN2674_DRAW_CHARACTER_CALLBACK_OWNER(pcx_video_device, display_pixels)
 	MCFG_VIDEO_SET_SCREEN("screen")
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, pcx_vram)
+	MCFG_DEVICE_ADDRESS_MAP(0, pcx_vram)
 MACHINE_CONFIG_END
 
-machine_config_constructor pcx_video_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcx_video );
-}
 
 SCN2674_DRAW_CHARACTER_MEMBER(pcd_video_device::display_pixels)
 {
@@ -410,7 +402,7 @@ void pcd_video_device::device_start()
 {
 	m_maincpu->space(AS_IO).install_readwrite_handler(0xfb00, 0xfb01, read8_delegate(FUNC(pcdx_video_device::detect_r), this), write8_delegate(FUNC(pcdx_video_device::detect_w), this), 0xff00);
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xf0000, 0xf7fff, read8_delegate(FUNC(pcd_video_device::vram_r), this), write8_delegate(FUNC(pcd_video_device::vram_w), this), 0xffff);
-	set_gfx(0, std::make_unique<gfx_element>(palette(), pcd_charlayout, &m_charram[0], 0, 1, 0));
+	set_gfx(0, std::make_unique<gfx_element>(&palette(), pcd_charlayout, &m_charram[0], 0, 1, 0));
 }
 
 void pcd_video_device::device_reset()
@@ -476,9 +468,4 @@ void pcx_video_device::rcv_complete()
 	receive_register_extract();
 	m_mcu->set_input_line(MCS51_RX_LINE, ASSERT_LINE);
 	m_mcu->set_input_line(MCS51_RX_LINE, CLEAR_LINE);
-}
-
-void pcx_video_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	device_serial_interface::device_timer(timer, id, param, ptr);
 }

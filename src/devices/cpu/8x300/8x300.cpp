@@ -11,6 +11,7 @@
 
 #include "emu.h"
 #include "8x300.h"
+#include "8x300dasm.h"
 #include "debugger.h"
 
 #define FETCHOP(a)         (m_direct->read_word(a))
@@ -45,6 +46,14 @@ n8x300_cpu_device::n8x300_cpu_device(const machine_config &mconfig, const char *
 	, m_program_config("program", ENDIANNESS_BIG, 16, 14, 0)
 	, m_io_config("io", ENDIANNESS_BIG, 8, 9, 0)
 {
+}
+
+device_memory_interface::space_config_vector n8x300_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
 }
 
 void n8x300_cpu_device::set_reg(uint8_t reg, uint8_t val)
@@ -88,7 +97,7 @@ uint8_t n8x300_cpu_device::get_reg(uint8_t reg)
 void n8x300_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 	m_io = &space(AS_IO);
 
 	save_item(NAME(m_PC));
@@ -582,8 +591,7 @@ void n8x300_cpu_device::execute_run()
 	} while (m_icount > 0);
 }
 
-offs_t n8x300_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *n8x300_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( n8x300 );
-	return CPU_DISASSEMBLE_NAME(n8x300)(this, stream, pc, oprom, opram, options);
+	return new n8x300_disassembler;
 }

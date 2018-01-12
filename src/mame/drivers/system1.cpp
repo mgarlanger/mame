@@ -599,7 +599,7 @@ WRITE8_MEMBER(system1_state::mcu_io_w)
 
 		default:
 			logerror("%03X: MCU movx write mode %02X offset %04X = %02X\n",
-						space.device().safe_pc(), m_mcu_control, offset, data);
+						m_mcu->pc(), m_mcu_control, offset, data);
 			break;
 	}
 }
@@ -620,7 +620,7 @@ READ8_MEMBER(system1_state::mcu_io_r)
 
 		default:
 			logerror("%03X: MCU movx read mode %02X offset %04X\n",
-						space.device().safe_pc(), m_mcu_control, offset);
+						m_mcu->pc(), m_mcu_control, offset);
 			return 0xff;
 	}
 }
@@ -669,7 +669,7 @@ WRITE8_MEMBER(system1_state::nob_mcu_control_p2_w)
 
 	/* bit 2 is toggled once near the end of an IRQ */
 	if (((m_mcu_control ^ data) & 0x04) && !(data & 0x04))
-		space.device().execute().set_input_line(MCS51_INT0_LINE, CLEAR_LINE);
+		m_mcu->set_input_line(MCS51_INT0_LINE, CLEAR_LINE);
 
 	/* bit 3 is toggled once at the start of an IRQ, and again at the end */
 	if (((m_mcu_control ^ data) & 0x08) && !(data & 0x08))
@@ -710,25 +710,25 @@ READ8_MEMBER(system1_state::nob_mcu_status_r)
 
 READ8_MEMBER(system1_state::nobb_inport1c_r)
 {
-//  logerror("IN  $1c : pc = %04x - data = 0x80\n",space.device().safe_pc());
+//  logerror("IN  $1c : pc = %04x - data = 0x80\n",m_maincpu->pc());
 	return(0x80);   // infinite loop (at 0x0fb3) until bit 7 is set
 }
 
 READ8_MEMBER(system1_state::nobb_inport22_r)
 {
-//  logerror("IN  $22 : pc = %04x - data = %02x\n",space.device().safe_pc(),nobb_inport17_step);
+//  logerror("IN  $22 : pc = %04x - data = %02x\n",m_maincpu->pc(),nobb_inport17_step);
 	return(0);//nobb_inport17_step);
 }
 
 READ8_MEMBER(system1_state::nobb_inport23_r)
 {
-//  logerror("IN  $23 : pc = %04x - step = %02x\n",space.device().safe_pc(),m_nobb_inport23_step);
+//  logerror("IN  $23 : pc = %04x - step = %02x\n",m_maincpu->pc(),m_nobb_inport23_step);
 	return(m_nobb_inport23_step);
 }
 
 WRITE8_MEMBER(system1_state::nobb_outport24_w)
 {
-//  logerror("OUT $24 : pc = %04x - data = %02x\n",space.device().safe_pc(),data);
+//  logerror("OUT $24 : pc = %04x - data = %02x\n",m_maincpu->pc(),data);
 	m_nobb_inport23_step = data;
 }
 
@@ -754,7 +754,7 @@ static ADDRESS_MAP_START( system1_map, AS_PROGRAM, 8, system1_state )
 	AM_RANGE(0xfc00, 0xffff) AM_WRITE(system1_sprite_collision_reset_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, system1_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, system1_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_SHARE("decrypted_opcodes")
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xc000, 0xcfff) AM_RAM AM_SHARE("ram")
@@ -762,7 +762,7 @@ static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, system
 	AM_RANGE(0xd800, 0xdfff) AM_RAM_WRITE(system1_paletteram_w) AM_SHARE("palette")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( banked_decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, system1_state )
+static ADDRESS_MAP_START( banked_decrypted_opcodes_map, AS_OPCODES, 8, system1_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROMBANK("bank0d")
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1d")
 	AM_RANGE(0xc000, 0xcfff) AM_RAM AM_SHARE("ram")
@@ -2245,6 +2245,12 @@ static MACHINE_CONFIG_DERIVED( sys1ppix_315_5178, sys1ppi )
 	MCFG_SEGAZ80_SET_DECRYPTED_TAG(":decrypted_opcodes")
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( sys1ppix_315_5179, sys1ppi )
+	MCFG_CPU_REPLACE("maincpu", SEGA_315_5179, MASTER_CLOCK)
+	ENCRYPTED_SYS1PPI_MAPS
+	MCFG_SEGAZ80_SET_DECRYPTED_TAG(":decrypted_opcodes")
+MACHINE_CONFIG_END
+
 static MACHINE_CONFIG_DERIVED( sys1ppix_315_5051, sys1ppi )
 	MCFG_CPU_REPLACE("maincpu", SEGA_315_5051, MASTER_CLOCK)
 	ENCRYPTED_SYS1PPI_MAPS
@@ -2395,7 +2401,7 @@ MACHINE_CONFIG_END
 
 
 /* this describes the additional 8751 MCU when present */
-static MACHINE_CONFIG_FRAGMENT( mcu )
+static MACHINE_CONFIG_START( mcu )
 
 	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
@@ -4281,6 +4287,37 @@ ROM_START( wboy5 )
 	ROM_LOAD( "pr-5317.76",0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
+ROM_START( wboy6 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "epr-7731.129",   0x0000, 0x2000, CRC(9776ceb6) SHA1(14a09cb397e99f2a503242c1feb7e13bd4394536) ) /* encrypted */
+	ROM_LOAD( "epr-7732.130",   0x2000, 0x2000, CRC(74ff0918) SHA1(1a4124173f39bfbb471d5e33c8572c09a278965d) ) /* encrypted */
+	ROM_LOAD( "epr-7733.131",   0x4000, 0x2000, CRC(07c8b494) SHA1(14b9bf9d97eb633378cee8964608f56ab63eb6d3) ) /* encrypted */
+	ROM_LOAD( "epr-7734.132",   0x6000, 0x2000, CRC(8ebd648c) SHA1(03e5b19dc59a8118641a16b8a8fd583d51fcad28) ) /* encrypted */
+	ROM_LOAD( "epr-7735.133",   0x8000, 0x2000, CRC(8379aa23) SHA1(da47e0150b724a00878ef5f953fa6ac80bb27d8d) )
+	ROM_LOAD( "epr-7736.134",   0xa000, 0x2000, CRC(c767a5d7) SHA1(a4e8d6a8278ac2227bde8c24d45aa7ab2a273579) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )
+	ROM_LOAD( "epr-7498.120",   0x0000, 0x2000, CRC(78ae1e7b) SHA1(86032f443359b0bb2766e33024ed2e320aa9bc84) ) /* epr-7498.3 */
+
+	ROM_REGION( 0xc000, "tiles", 0 )
+	ROM_LOAD( "epr-7497.62",    0x0000, 0x2000, CRC(08d609ca) SHA1(11799e9ef7e6942b304f132b404bff3ed44d524b) ) /* epr-7497.82 */
+	ROM_LOAD( "epr-7496.61",    0x2000, 0x2000, CRC(6f61fdf1) SHA1(21826aebf5835b9f3d9c467c8647809c1bc0d01f) ) /* epr-7496.65 */
+	ROM_LOAD( "epr-7495.64",    0x4000, 0x2000, CRC(6a0d2c2d) SHA1(8c21d7f0768e8dda2b7185f3c510cae4229a4a2e) ) /* epr-7495.81 */
+	ROM_LOAD( "epr-7494.63",    0x6000, 0x2000, CRC(a8e281c7) SHA1(a88b80a7b94ab1401bbf28d7707fdf28a5505127) ) /* epr-7494.64 */
+	ROM_LOAD( "epr-7493.66",    0x8000, 0x2000, CRC(89305df4) SHA1(7a5098624769a31e7512f56831e818bce6a18871) ) /* epr-7493.80 */
+	ROM_LOAD( "epr-7492.65",    0xa000, 0x2000, CRC(60f806b1) SHA1(f91e5868a455dff2bce3c2891a7cfd648957cd73) ) /* epr-7492.63 */
+
+	ROM_REGION( 0x10000, "sprites", 0 )
+	ROM_LOAD( "epr-7485.117",   0x0000, 0x4000, CRC(c2891722) SHA1(e4e11c0e9bd0dc121c25349493f2b13d2ff8c807) ) /* epr-7485.3 */
+	ROM_LOAD( "epr-7487.04",    0x4000, 0x4000, CRC(2d3a421b) SHA1(d70440a8703ccface3212cd9544c950b36263e8c) ) /* epr-7487.1 */
+	ROM_LOAD( "epr-7486.110",   0x8000, 0x4000, CRC(8d622c50) SHA1(9a76a50204c618347d3e8eee6cda841becd906eb) ) /* epr-7486.4 */
+	ROM_LOAD( "epr-7488.05",    0xc000, 0x4000, CRC(007c2f1b) SHA1(c2f1376144a49d20cb35384648e06d06978474c1) ) /* epr-7488.2 */
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "pr-5317.76",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
+																/* pr-5317.106 */
+ROM_END
+
 ROM_START( wboyu )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "ic116_89.bin",   0x0000, 0x4000, CRC(73d8cef0) SHA1(a6f1f8de44a88f995836ce03b5a073306c56aaeb) )
@@ -5285,7 +5322,7 @@ DRIVER_INIT_MEMBER(system1_state,dakkochn)
 READ8_MEMBER(system1_state::nob_start_r)
 {
 	/* in reality, it's likely some M1-dependent behavior */
-	return (space.device().safe_pc() <= 0x0003) ? 0x80 : m_maincpu_region->base()[1];
+	return (m_maincpu->pc() <= 0x0003) ? 0x80 : m_maincpu_region->base()[1];
 }
 
 DRIVER_INIT_MEMBER(system1_state,nob)
@@ -5407,6 +5444,7 @@ GAME( 1985, nprinces,   seganinj, sys1ppix_315_5051, seganinj,  system1_state, b
 GAME( 1985, nprincesu,  seganinj, sys1ppi,           seganinj,  system1_state, bank00,       ROT0,   "Sega", "Ninja Princess (64k Ver. not encrypted)", MACHINE_SUPPORTS_SAVE )
 GAME( 1986, wboy2,      wboy,     sys1ppix_315_5178, wboy,      system1_state, bank00,       ROT0,   "Escape (Sega license)", "Wonder Boy (set 2, 315-5178)", MACHINE_SUPPORTS_SAVE )
 GAME( 1986, wboy2u,     wboy,     sys1ppi,           wboy,      system1_state, bank00,       ROT0,   "Escape (Sega license)", "Wonder Boy (set 2, not encrypted)", MACHINE_SUPPORTS_SAVE )
+GAME( 1986, wboy6,      wboy,     sys1ppix_315_5179, wboy,      system1_state, bank00,       ROT0,   "Escape (Sega license)", "Wonder Boy (set 6, 315-5179)", MACHINE_SUPPORTS_SAVE )
 GAME( 1986, wbdeluxe,   wboy,     sys1ppi,           wbdeluxe,  system1_state, bank00,       ROT0,   "Escape (Sega license)", "Wonder Boy Deluxe", MACHINE_SUPPORTS_SAVE )
 GAME( 1986, nob,        0,        nobm,              nob,       system1_state, nob,          ROT270, "Coreland / Data East Corporation", "Noboranka (Japan)", MACHINE_SUPPORTS_SAVE )
 GAME( 1986, nobb,       nob,      nob,               nob,       system1_state, nobb,         ROT270, "bootleg (Game Electronics)", "Noboranka (Japan, bootleg)", MACHINE_SUPPORTS_SAVE )
@@ -5424,7 +5462,7 @@ GAME( 1985, pitfall2a,  pitfall2, sys1piox_315_5093, pitfall2,  system1_state, b
 GAME( 1985, pitfall2u,  pitfall2, sys1pio,           pitfall2u, system1_state, bank00,       ROT0,   "Sega", "Pitfall II (not encrypted)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, seganinj,   0,        sys1piox_315_5102, seganinj,  system1_state, bank00,       ROT0,   "Sega", "Sega Ninja (315-5102)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, seganinju,  seganinj, sys1pio,           seganinj,  system1_state, bank00,       ROT0,   "Sega", "Sega Ninja (not encrypted)", MACHINE_SUPPORTS_SAVE )
-GAME( 1985, seganinja,  seganinj, sys1piox_315_5133, seganinj,  system1_state, bank00,       ROT0,   "Sega", "Sega Ninja (315-5113)", MACHINE_SUPPORTS_SAVE | MACHINE_NOT_WORKING ) // needs decrypting
+GAME( 1985, seganinja,  seganinj, sys1piox_315_5133, seganinj,  system1_state, bank00,       ROT0,   "Sega", "Sega Ninja (315-5113)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, ninja,      seganinj, sys1piox_315_5102, seganinj,  system1_state, bank00,       ROT0,   "Sega", "Ninja (315-5102)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, nprinceso,  seganinj, sys1piox_315_5098, seganinj,  system1_state, bank00,       ROT0,   "Sega", "Ninja Princess (315-5098, 128k Ver.)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, nprincesb,  seganinj, sys1piox_315_5051, seganinj,  system1_state, bank00,       ROT0,   "bootleg?", "Ninja Princess (315-5051?, 128k Ver. bootleg?)", MACHINE_SUPPORTS_SAVE )

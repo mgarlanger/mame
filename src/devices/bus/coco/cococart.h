@@ -38,7 +38,7 @@ typedef delegate<void (uint8_t *)> cococart_base_update_delegate;
 // ======================> cococart_slot_device
 class device_cococart_interface;
 
-class cococart_slot_device : public device_t,
+class cococart_slot_device final : public device_t,
 								public device_slot_interface,
 								public device_image_interface
 {
@@ -88,31 +88,26 @@ public:
 	// slot interface overrides
 	virtual std::string get_default_card_software(get_default_card_software_hook &hook) const override;
 
-	// reading and writing to $FF40-$FF7F
-	DECLARE_READ8_MEMBER(read);
-	DECLARE_WRITE8_MEMBER(write);
+	// reading and writing to $FF40-$FF5F
+	DECLARE_READ8_MEMBER(scs_read);
+	DECLARE_WRITE8_MEMBER(scs_write);
 
 	// manipulation of cartridge lines
 	void set_line_value(line line, line_value value);
+	void set_line_delay(line line, int cycles);
 	line_value get_line_value(line line) const;
 
 	// hack to support twiddling the Q line
 	void twiddle_q_lines();
 
 	// cart base
-	uint8_t* get_cart_base();
+	uint8_t *get_cart_base();
+	uint32_t get_cart_size();
 	void set_cart_base_update(cococart_base_update_delegate update);
 
 private:
 	// TIMER_POOL: Must be power of two
 	static constexpr int TIMER_POOL = 2;
-
-	enum
-	{
-		TIMER_CART,
-		TIMER_NMI,
-		TIMER_HALT
-	};
 
 	struct coco_cartridge_line
 	{
@@ -148,6 +143,17 @@ private:
 extern const device_type COCOCART_SLOT;
 DECLARE_DEVICE_TYPE(COCOCART_SLOT, cococart_slot_device)
 
+
+// ======================> device_cococart_host_interface
+
+// this is implemented by the CoCo root device itself and the Multi-Pak interface
+class device_cococart_host_interface
+{
+public:
+	virtual address_space &cartridge_space() = 0;
+};
+
+
 // ======================> device_cococart_interface
 
 class device_cococart_interface : public device_slot_card_interface
@@ -156,21 +162,47 @@ public:
 	// construction/destruction
 	virtual ~device_cococart_interface();
 
-	virtual DECLARE_READ8_MEMBER(read);
-	virtual DECLARE_WRITE8_MEMBER(write);
+	virtual DECLARE_READ8_MEMBER(scs_read);
+	virtual DECLARE_WRITE8_MEMBER(scs_write);
 	virtual void set_sound_enable(bool sound_enable);
 
 	virtual uint8_t* get_cart_base();
+	virtual uint32_t get_cart_size();
 	void set_cart_base_update(cococart_base_update_delegate update);
+
+	virtual void interface_config_complete() override;
+	virtual void interface_pre_start() override;
 
 protected:
 	device_cococart_interface(const machine_config &mconfig, device_t &device);
 
 	void cart_base_changed(void);
 
+	// accessors for containers
+	cococart_slot_device &owning_slot()     { assert(m_owning_slot); return *m_owning_slot; }
+	device_cococart_host_interface &host()  { assert(m_host); return *m_host; }
+
+	// CoCo cartridges can read directly from the address bus.  This is used by a number of
+	// cartridges (e.g. - Orch-90, Multi-Pak interface) for their control registers, independently
+	// of the SCS or CTS lines
+	address_space &cartridge_space();
+	void install_read_handler(uint16_t addrstart, uint16_t addrend, read8_delegate rhandler);
+	void install_write_handler(uint16_t addrstart, uint16_t addrend, write8_delegate whandler);
+	void install_readwrite_handler(uint16_t addrstart, uint16_t addrend, read8_delegate rhandler, write8_delegate whandler);
+
+	// setting line values
+	void set_line_value(cococart_slot_device::line line, cococart_slot_device::line_value value);
+	void set_line_value(cococart_slot_device::line line, bool value) { set_line_value(line, value ? cococart_slot_device::line_value::ASSERT : cococart_slot_device::line_value::CLEAR); }
+
+	typedef cococart_slot_device::line line;
+	typedef cococart_slot_device::line_value line_value;
+
 private:
-	cococart_base_update_delegate m_update;
+	cococart_base_update_delegate    m_update;
+	cococart_slot_device *           m_owning_slot;
+	device_cococart_host_interface * m_host;
 };
+
 
 /***************************************************************************
     DEVICE CONFIGURATION MACROS

@@ -51,7 +51,6 @@ This info came from http://www.ne.jp/asahi/cc-sakura/akkun/old/fryski.html
 #include "cpu/z80/z80.h"
 #include "machine/watchdog.h"
 #include "sound/ay8910.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -87,7 +86,7 @@ READ8_MEMBER(seicross_state::portB_r)
 
 WRITE8_MEMBER(seicross_state::portB_w)
 {
-	//logerror("PC %04x: 8910 port B = %02x\n", space.device().safe_pc(), data);
+	//logerror("PC %04x: 8910 port B = %02x\n", m_maincpu->pc(), data);
 	/* bit 0 is IRQ enable */
 	m_irq_mask = data & 1;
 
@@ -149,7 +148,7 @@ static ADDRESS_MAP_START( mcu_no_nvram_map, AS_PROGRAM, 8, seicross_state )
 	AM_RANGE(0xf800, 0xffff) AM_RAM AM_SHARE("share1")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, seicross_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, seicross_state )
 	AM_RANGE(0x8000, 0xf7ff) AM_ROM AM_SHARE("decrypted_opcodes")
 	AM_RANGE(0xf800, 0xffff) AM_RAM AM_SHARE("share1")
 ADDRESS_MAP_END
@@ -428,8 +427,7 @@ static MACHINE_CONFIG_START( no_nvram )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
 
 	MCFG_SOUND_ADD("dac", DAC_4BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.12) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -628,7 +626,7 @@ DRIVER_INIT_MEMBER(seicross_state,friskytb)
 	// this code is in ROM 6.3h, maps to MCU at dxxx
 	for (int i = 0; i < 0x7800; i++)
 	{
-		m_decrypted_opcodes[i] = BITSWAP8(ROM[i], 6, 7, 5, 4, 3, 2, 0, 1);
+		m_decrypted_opcodes[i] = bitswap<8>(ROM[i], 6, 7, 5, 4, 3, 2, 0, 1);
 	}
 }
 

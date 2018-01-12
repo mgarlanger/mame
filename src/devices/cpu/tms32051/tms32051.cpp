@@ -8,6 +8,7 @@
 
 #include "emu.h"
 #include "tms32051.h"
+#include "dis32051.h"
 #include "debugger.h"
 
 enum
@@ -82,6 +83,15 @@ tms32051_device::tms32051_device(const machine_config &mconfig, const char *tag,
 {
 }
 
+device_memory_interface::space_config_vector tms32051_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
+
 
 /**************************************************************************
  * TMS32053 Internal memory map
@@ -108,16 +118,15 @@ tms32053_device::tms32053_device(const machine_config &mconfig, const char *tag,
 }
 
 
-offs_t tms32051_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *tms32051_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( tms32051 );
-	return CPU_DISASSEMBLE_NAME(tms32051)(this, stream, pc, oprom, opram, options);
+	return new tms32051_disassembler;
 }
 
 
 #define CYCLES(x)       (m_icount -= x)
 
-#define ROPCODE()       m_direct->read_word((m_pc++) << 1)
+#define ROPCODE()       m_direct->read_word(m_pc++)
 
 void tms32051_device::CHANGE_PC(uint16_t new_pc)
 {
@@ -126,22 +135,22 @@ void tms32051_device::CHANGE_PC(uint16_t new_pc)
 
 uint16_t tms32051_device::PM_READ16(uint16_t address)
 {
-	return m_program->read_word(address << 1);
+	return m_program->read_word(address);
 }
 
 void tms32051_device::PM_WRITE16(uint16_t address, uint16_t data)
 {
-	m_program->write_word(address << 1, data);
+	m_program->write_word(address, data);
 }
 
 uint16_t tms32051_device::DM_READ16(uint16_t address)
 {
-	return m_data->read_word(address << 1);
+	return m_data->read_word(address);
 }
 
 void tms32051_device::DM_WRITE16(uint16_t address, uint16_t data)
 {
-	m_data->write_word(address << 1, data);
+	m_data->write_word(address, data);
 }
 
 #include "32051ops.hxx"
@@ -174,7 +183,7 @@ void tms32051_device::delay_slot(uint16_t startpc)
 void tms32051_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<-1>();
 	m_data = &space(AS_DATA);
 	m_io = &space(AS_IO);
 
@@ -506,7 +515,7 @@ READ16_MEMBER( tms32051_device::cpuregs_r )
 		case 0x5d:
 		case 0x5e:
 		case 0x5f:
-			return m_io->read_word(offset << 1);
+			return m_io->read_word(offset);
 
 		default:
 			if (!machine().side_effect_disabled())
@@ -617,7 +626,7 @@ WRITE16_MEMBER( tms32051_device::cpuregs_w )
 		case 0x5d:
 		case 0x5e:
 		case 0x5f:
-			m_io->write_word(offset << 1, data);
+			m_io->write_word(offset, data);
 			break;
 
 		default:

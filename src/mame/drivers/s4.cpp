@@ -36,8 +36,8 @@ ToDo:
 
 #include "cpu/m6800/m6800.h"
 #include "machine/6821pia.h"
+#include "machine/timer.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 #include "s4.lh"
@@ -477,8 +477,7 @@ static MACHINE_CONFIG_DERIVED( s4a, s4 )
 
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", MC1408, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_DEVICE_ADD("pias", PIA6821, 0)
 	MCFG_PIA_READPB_HANDLER(READ8(s4_state, sound_r))
@@ -547,6 +546,16 @@ ROM_END
 /*--------------------------------
 / Time Warp - Sys.4 (Game #489)
 /-------------------------------*/
+ROM_START(tmwrp_l3)
+	ROM_REGION(0x2000, "roms", 0)
+	ROM_LOAD("twarp_l3.716",  0x0000, 0x0800, CRC(1234710a) SHA1(a33e9edb79b6ea4c5982d28a55289897f82b7b3c))
+	ROM_LOAD("green1.716",   0x1000, 0x0800, CRC(2145f8ab) SHA1(ddf63208559a3a08d4e88327c55426b0eed27654))
+	ROM_LOAD("green2.716",   0x1800, 0x0800, CRC(1c978a4a) SHA1(1959184764643d58f1740c54bb74c2aad7d667d2))
+
+	ROM_REGION(0x0800, "audioroms", 0)
+	ROM_LOAD("sound1.716",   0x0000, 0x0800, CRC(f4190ca3) SHA1(ee234fb5c894fca5876ee6dc7ea8e89e7e0aec9c))
+ROM_END
+
 ROM_START(tmwrp_l2)
 	ROM_REGION(0x2000, "roms", 0)
 	ROM_LOAD("gamerom.716",  0x0000, 0x0800, CRC(b168df09) SHA1(d4c97714636ce51be2e5f8cc5af89e10a2f82ac7))
@@ -688,8 +697,9 @@ GAME( 1979, flash_l1, flash_l2, s4a, s4, s4_state, 0, ROT0, "Williams", "Flash (
 GAME( 1979, flash_t1, flash_l2, s4a, s4, s4_state, 0, ROT0, "Williams", "Flash (T-1) Ted Estes",         MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
 GAME( 1978, trizn_l1, 0,        s4a, s4, s4_state, 0, ROT0, "Williams", "Tri Zone (L-1)",                MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
 GAME( 1978, trizn_t1, trizn_l1, s4a, s4, s4_state, 0, ROT0, "Williams", "Tri Zone (T-1)",                MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
-GAME( 1979, tmwrp_l2, 0,        s4a, s4, s4_state, 0, ROT0, "Williams", "Time Warp (L-2)",               MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
-GAME( 1979, tmwrp_t2, tmwrp_l2, s4a, s4, s4_state, 0, ROT0, "Williams", "Time Warp (T-2)",               MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
+GAME( 1979, tmwrp_l3, 0,        s4a, s4, s4_state, 0, ROT0, "Williams", "Time Warp (L-3)",               MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
+GAME( 1979, tmwrp_l2, tmwrp_l3, s4a, s4, s4_state, 0, ROT0, "Williams", "Time Warp (L-2)",               MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
+GAME( 1979, tmwrp_t2, tmwrp_l3, s4a, s4, s4_state, 0, ROT0, "Williams", "Time Warp (T-2)",               MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
 GAME( 1979, stlwr_l2, 0,        s4a, s4, s4_state, 0, ROT0, "Williams", "Stellar Wars (L-2)",            MACHINE_MECHANICAL | MACHINE_NOT_WORKING )
 
 GAME( 1978, pomp_l1,  0,        s4a, s4, s4_state, 0, ROT0, "Williams", "Pompeii (Shuffle) (L-1)",       MACHINE_MECHANICAL | MACHINE_NOT_WORKING)

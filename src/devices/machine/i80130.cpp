@@ -95,11 +95,12 @@ const tiny_rom_entry *i80130_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG_FRAGMENT( i80130 )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( i80130 )
-	MCFG_PIC8259_ADD("pic", DEVWRITELINE(DEVICE_SELF, i80130_device, irq_w), VCC, NOOP)
+MACHINE_CONFIG_MEMBER( i80130_device::device_add_mconfig )
+	MCFG_DEVICE_ADD("pic", PIC8259, 0)
+	MCFG_PIC8259_OUT_INT_CB(WRITELINE(i80130_device, irq_w))
 
 	MCFG_DEVICE_ADD("pit", PIT8254, 0)
 	MCFG_PIT8253_CLK0(0)
@@ -109,17 +110,6 @@ static MACHINE_CONFIG_FRAGMENT( i80130 )
 	MCFG_PIT8253_CLK2(0)
 	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(i80130_device, baud_w))
 MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor i80130_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( i80130 );
-}
 
 
 

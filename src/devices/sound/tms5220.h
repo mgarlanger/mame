@@ -84,12 +84,13 @@ public:
 	DECLARE_WRITE8_MEMBER( data_w );
 	DECLARE_READ8_MEMBER( status_r );
 
+	void data_w(uint8_t data);
+	uint8_t status_r();
+
 	READ_LINE_MEMBER( readyq_r );
 	READ_LINE_MEMBER( intq_r );
 
-	double time_to_ready();
-
-	void set_frequency(int frequency);
+	attotime time_to_ready();
 
 protected:
 	tms5220_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, int variant);
@@ -97,6 +98,7 @@ protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_clock_changed() override;
 
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
@@ -248,7 +250,6 @@ private:
 	uint8_t m_write_latch;
 
 	sound_stream *m_stream;
-	int m_clock;
 	emu_timer *m_timer_io_ready;
 
 	/* callbacks */

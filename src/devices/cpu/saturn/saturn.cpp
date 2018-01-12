@@ -57,11 +57,23 @@ saturn_device::saturn_device(const machine_config &mconfig, const char *tag, dev
 {
 }
 
-
-offs_t saturn_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+device_memory_interface::space_config_vector saturn_device::memory_space_config() const
 {
-	extern CPU_DISASSEMBLE( saturn );
-	return CPU_DISASSEMBLE_NAME(saturn)(this, stream, pc, oprom, opram, options);
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
+
+bool saturn_device::get_nonstandard_mnemonics_mode() const
+{
+	// Needs to become configurable live
+	return false;
+}
+
+
+util::disasm_interface *saturn_device::create_disassembler()
+{
+	return new saturn_disassembler(this);
 }
 
 
@@ -81,7 +93,7 @@ offs_t saturn_device::disasm_disassemble(std::ostream &stream, offs_t pc, const 
 void saturn_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	m_out_func.resolve_safe();
 	m_in_func.resolve_safe(0);

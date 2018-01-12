@@ -112,6 +112,7 @@
 
 #include "emu.h"
 #include "h6280.h"
+#include "6280dasm.h"
 #include "debugger.h"
 
 /* 6280 flags */
@@ -169,6 +170,13 @@ h6280_device::h6280_device(const machine_config &mconfig, const char *tag, devic
 		m_opcode[op] = s_opcodetable[op];
 }
 
+device_memory_interface::space_config_vector h6280_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
 
 const h6280_device::ophandler h6280_device::s_opcodetable[256] =
 {
@@ -293,7 +301,7 @@ void h6280_device::device_reset()
 	m_io_buffer = 0;
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 	m_io = &space(AS_IO);
 
 	/* set I and B flags */
@@ -941,7 +949,7 @@ inline void h6280_device::bpl()
  ***************************************************************/
 inline void h6280_device::brk()
 {
-	logerror("BRK %04xn",PCW);
+	logerror("BRK %04x\n",PCW);
 	clear_t();
 	PCW++;
 	push(PCH);
@@ -2213,36 +2221,13 @@ void h6280_device::state_string_export(const device_state_entry &entry, std::str
 
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t h6280_device::disasm_min_opcode_bytes() const
-{
-	return 1;
-}
-
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t h6280_device::disasm_max_opcode_bytes() const
-{
-	return 7;
-}
-
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t h6280_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *h6280_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( h6280 );
-	return CPU_DISASSEMBLE_NAME(h6280)(this, stream, pc, oprom, opram, options);
+	return new h6280_disassembler;
 }
 
 
@@ -2564,7 +2549,7 @@ WRITE8_MEMBER( h6280_device::timer_w )
 	}
 }
 
-bool h6280_device::memory_translate(address_spacenum spacenum, int intention, offs_t &address)
+bool h6280_device::memory_translate(int spacenum, int intention, offs_t &address)
 {
 	if (spacenum == AS_PROGRAM)
 		address = translated(address);

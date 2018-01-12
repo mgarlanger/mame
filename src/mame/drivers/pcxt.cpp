@@ -236,7 +236,7 @@ const tiny_rom_entry *isa8_cga_tetriskr_device::device_rom_region() const
 
 READ8_MEMBER(pcxt_state::disk_iobank_r)
 {
-	//printf("Read Prototyping card [%02x] @ PC=%05x\n",offset,space.device().safe_pc());
+	//printf("Read Prototyping card [%02x] @ PC=%05x\n",offset,m_maincpu->pc());
 	//if(offset == 0) return ioport("DSW")->read();
 	if(offset == 1) return ioport("IN1")->read();
 
@@ -388,7 +388,7 @@ static ADDRESS_MAP_START( tetriskr_io, AS_IO, 8, pcxt_state )
 //  AM_RANGE(0x03ce, 0x03ce) AM_READ_PORT("IN1") //read then discarded?
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( bank_map, AS_0, 8, pcxt_state )
+static ADDRESS_MAP_START( bank_map, 0, 8, pcxt_state )
 	AM_RANGE(0x00000, 0x3ffff) AM_ROM AM_REGION("game_prg", 0)
 ADDRESS_MAP_END
 
@@ -496,8 +496,8 @@ static MACHINE_CONFIG_START( filetto )
 	MCFG_DEVICE_ADD("bank", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(bank_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(18)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
 MACHINE_CONFIG_END
 

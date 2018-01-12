@@ -38,7 +38,6 @@ TODO:
 #include "sound/3812intf.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "rendlay.h"
 #include "screen.h"
 #include "speaker.h"
@@ -59,7 +58,7 @@ DRIVER_INIT_MEMBER(nbmj8688_state,mjcamera)
 	   the checksum. */
 	for (i = 0;i < 0x10000;i++)
 	{
-		rom[i] = BITSWAP8(prot[i],1,6,0,4,2,3,5,7);
+		rom[i] = bitswap<8>(prot[i],1,6,0,4,2,3,5,7);
 	}
 }
 
@@ -99,7 +98,7 @@ DRIVER_INIT_MEMBER(nbmj8688_state,idhimitu)
 	   the checksum. */
 	for (i = 0;i < 0x10000;i++)
 	{
-		rom[i] = BITSWAP8(prot[i + 0x10000],4,6,2,1,7,0,3,5);
+		rom[i] = bitswap<8>(prot[i + 0x10000],4,6,2,1,7,0,3,5);
 	}
 }
 
@@ -116,7 +115,7 @@ DRIVER_INIT_MEMBER(nbmj8688_state,kaguya2)
 	   the checksum. */
 	for (i = 0;i < 0x10000;i++)
 	{
-		rom[i] = BITSWAP8(prot[i],1,6,0,4,2,3,5,7);
+		rom[i] = bitswap<8>(prot[i],1,6,0,4,2,3,5,7);
 	}
 }
 
@@ -2474,8 +2473,7 @@ static MACHINE_CONFIG_START( NBMJDRV_4096 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.35)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( NBMJDRV_256, NBMJDRV_4096 )
@@ -2582,7 +2580,6 @@ static MACHINE_CONFIG_DERIVED( barline, mbmj_h12bit )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.35)
 
 	MCFG_DEVICE_REMOVE("dac")
-	MCFG_DEVICE_REMOVE("vref")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbmj_p16bit, NBMJDRV_65536 )
@@ -2655,8 +2652,7 @@ static MACHINE_CONFIG_START( mbmj_p16bit_LCD )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.35)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( bijokkoy, mbmj_p16bit_LCD )

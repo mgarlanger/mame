@@ -327,6 +327,7 @@
 #include "sound/samples.h"
 #include "machine/mc146818.h" // DALLAS1287 is functionally compatible.
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -1746,7 +1747,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(aristmk4_state::aristmk4_pf)
 
 static MACHINE_CONFIG_START( aristmk4 )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, MAIN_CLOCK/8) // 1.5mhz
+	MCFG_CPU_ADD("maincpu", MC6809E, MAIN_CLOCK/8) // M68B09E @ 1.5 MHz
 	MCFG_CPU_PROGRAM_MAP(aristmk4_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", aristmk4_state,  irq0_line_hold)
 
@@ -1771,7 +1772,7 @@ static MACHINE_CONFIG_START( aristmk4 )
 	MCFG_I8255_IN_PORTB_CB(READ8(aristmk4_state, pb1_r))
 	MCFG_I8255_IN_PORTC_CB(READ8(aristmk4_state, pc1_r))
 
-	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0) /* 1 MHz.(only 1 or 2 MHz.are valid) */
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, MAIN_CLOCK/8) // R65C22P2
 	MCFG_VIA6522_READPA_HANDLER(READ8(aristmk4_state, via_a_r))
 	MCFG_VIA6522_READPB_HANDLER(READ8(aristmk4_state, via_b_r))
 	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(aristmk4_state, via_a_w))
@@ -2305,8 +2306,8 @@ ROM_START( cgold2 )
 	ROM_LOAD("3vlsh076_a.u46", 0x08000, 0x2000, CRC(9580c2c2) SHA1(8a010fb9e349c066e1af53ed9aa659dbf7dbf17e))
 	ROM_LOAD("3vlsh076.u47",   0x0a000, 0x2000, CRC(f3cb845a) SHA1(288f7fe991bb60194a9ef9e8c9b2b18ebbd3b49c)) // matches cgold
 
-        // Note: cgold tiles are not a perfect match, cgold2 needs dollar and cent signs in tiles 0x64 and 0x65 respectively, which cgold does not have. This causes a garbled graphics in the denomination.
-        // Tiles 0x27F and 0x280 are cent and dollar signs, but these are unused by the game.
+		// Note: cgold tiles are not a perfect match, cgold2 needs dollar and cent signs in tiles 0x64 and 0x65 respectively, which cgold does not have. This causes a garbled graphics in the denomination.
+		// Tiles 0x27F and 0x280 are cent and dollar signs, but these are unused by the game.
 
 		/* COLOR PROM */
 	ROM_REGION(0x200, "proms", 0 )

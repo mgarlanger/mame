@@ -13,7 +13,6 @@ Nicola Salmoria. Thanks to Richard Bush and the Raine team, whose open
 source was very helpful in many areas particularly the sprites.)
 
 
-
 The Taito Z system has a number of similarities with the Taito F2 system,
 and uses some of the same custom Taito components.
 
@@ -83,7 +82,7 @@ Taito Sound PCB J1100137A K1100314A:
 Notes: B33-30 is a OKI M27512-15
 
 
-Taito Video Baord PCB J1100139A K1100316A:
+Taito Video Board PCB J1100139A K1100316A:
 
  B33-03     TC0050VDZ     TC0050VDZ                       TC0050VDZ
  B33-04
@@ -858,7 +857,7 @@ Strange page in test mode which lets you alter all sorts of settings,
 may relate to sit-in cockpit version. Can't find a dip that disables
 this. <- Test Mode 1? That's used for lamps and motor testing... -AS
 
-Motors (located at the 0xe000**) are mirrored, they uses both bytes of a
+Motors (located at the 0xe000**) are mirrored, they use both bytes of a
 word, the high one is used during gameplay and the other one is used on service
 mode. The gameplay port is xor'ed (!).
 It works like this:
@@ -881,6 +880,9 @@ in the upright version), they lights when the player gets hit and/or if he's dyi
 
 Aqua Jack
 ---------
+
+Some wrong colors. Hovercraft body should be red. 1st level sky/water
+should be blue.
 
 Sprites left on screen under hiscore table. Deliberate? Or is there
 a sprite disable bit somewhere.
@@ -991,7 +993,7 @@ void taitoz_state::parse_cpu_control(  )
 
 WRITE16_MEMBER(taitoz_state::cpua_ctrl_w)
 {
-	//logerror("CPU #0 PC %06x: write %04x to cpu control\n", space.device().safe_pc(), data);
+	//logerror("CPU #0 PC %06x: write %04x to cpu control\n", m_maincpu->pc(), data);
 
 	if (mem_mask == 0xff00) data >>= 8;
 	data &= 0xff;
@@ -1079,25 +1081,16 @@ READ16_MEMBER(taitoz_state::eep_latch_r)
 }
 #endif
 
-WRITE16_MEMBER(taitoz_state::spacegun_output_bypass_w)
+WRITE8_MEMBER(taitoz_state::spacegun_eeprom_w)
 {
-	switch (offset)
-	{
-		case 0x03:
-
 /*          0000xxxx    (unused)
             000x0000    eeprom reset (active low)
             00x00000    eeprom clock
             0x000000    eeprom data
             x0000000    (unused)                  */
 
-			COMBINE_DATA(&m_eep_latch);
-			ioport("EEPROMOUT")->write(data, 0xff);
-			break;
-
-		default:
-			m_tc0220ioc->write(space, offset, data);  /* might be a 510NIO ! */
-	}
+	COMBINE_DATA(&m_eep_latch);
+	ioport("EEPROMOUT")->write(data, 0xff);
 }
 
 
@@ -1115,9 +1108,9 @@ CUSTOM_INPUT_MEMBER(taitoz_state::taitoz_pedal_r)
 
 READ8_MEMBER(taitoz_state::contcirc_input_bypass_r)
 {
-	/* Bypass TC0220IOC controller for analog input */
+	/* Bypass TC0040IOC controller for analog input */
 
-	uint8_t port = m_tc0220ioc->port_r(space, 0);   /* read port number */
+	uint8_t port = m_tc0040ioc->port_r(space, 0);   /* read port number */
 	uint16_t steer = 0xff80 + m_steer.read_safe(0x80);
 
 	switch (port)
@@ -1129,16 +1122,16 @@ READ8_MEMBER(taitoz_state::contcirc_input_bypass_r)
 			return steer >> 8;
 
 		default:
-			return m_tc0220ioc->portreg_r(space, offset);
+			return m_tc0040ioc->portreg_r(space, offset);
 	}
 }
 
 
 READ8_MEMBER(taitoz_state::chasehq_input_bypass_r)
 {
-	/* Bypass TC0220IOC controller for extra inputs */
+	/* Bypass TC0040IOC controller for extra inputs */
 
-	uint8_t port = m_tc0220ioc->port_r(space, 0);   /* read port number */
+	uint8_t port = m_tc0040ioc->port_r(space, 0);   /* read port number */
 	uint16_t steer = 0xff80 + m_steer.read_safe(0x80);
 
 	switch (port)
@@ -1162,7 +1155,7 @@ READ8_MEMBER(taitoz_state::chasehq_input_bypass_r)
 			return steer >> 8;
 
 		default:
-			return m_tc0220ioc->portreg_r(space, offset);
+			return m_tc0040ioc->portreg_r(space, offset);
 	}
 }
 
@@ -1184,7 +1177,7 @@ READ16_MEMBER(taitoz_state::bshark_stick_r)
 			return ioport("Y_ADJUST")->read();
 	}
 
-	logerror("CPU #0 PC %06x: warning - read unmapped stick offset %06x\n", space.device().safe_pc(), offset);
+	logerror("CPU #0 PC %06x: warning - read unmapped stick offset %06x\n", m_maincpu->pc(), offset);
 
 	return 0xff;
 }
@@ -1207,7 +1200,7 @@ READ16_MEMBER(taitoz_state::nightstr_stick_r)
 			return ioport("Y_ADJUST")->read();
 	}
 
-	logerror("CPU #0 PC %06x: warning - read unmapped stick offset %06x\n", space.device().safe_pc(), offset);
+	logerror("CPU #0 PC %06x: warning - read unmapped stick offset %06x\n", m_maincpu->pc(), offset);
 
 	return 0xff;
 }
@@ -1220,7 +1213,7 @@ WRITE16_MEMBER(taitoz_state::bshark_stick_w)
 	   but we don't want CPUA to have an int6 before int4 is over (?)
 	*/
 
-	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), TIMER_TAITOZ_INTERRUPT6);
+	timer_set(m_maincpu->cycles_to_attotime(10000), TIMER_TAITOZ_INTERRUPT6);
 }
 
 
@@ -1237,23 +1230,11 @@ READ16_MEMBER(taitoz_state::sci_steer_input_r)
 			return (steer & 0xff00) >> 8;
 	}
 
-	logerror("CPU #0 PC %06x: warning - read unmapped steer input offset %06x\n", space.device().safe_pc(), offset);
+	logerror("CPU #0 PC %06x: warning - read unmapped steer input offset %06x\n", m_maincpu->pc(), offset);
 
 	return 0xff;
 }
 
-
-READ16_MEMBER(taitoz_state::spacegun_input_bypass_r)
-{
-	switch (offset)
-	{
-		case 0x03:
-			return m_eeprom->do_read() << 7;
-
-		default:
-			return m_tc0220ioc->read(space, offset); /* might be a 510NIO ! */
-	}
-}
 
 READ16_MEMBER(taitoz_state::spacegun_lightgun_r)
 {
@@ -1285,7 +1266,7 @@ WRITE16_MEMBER(taitoz_state::spacegun_lightgun_w)
 	   Four lightgun interrupts happen before the collected coords
 	   are moved to shared ram where CPUA can use them. */
 
-	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), TIMER_TAITOZ_CPUB_INTERRUPT5);
+	timer_set(m_subcpu->cycles_to_attotime(10000), TIMER_TAITOZ_CPUB_INTERRUPT5);
 }
 
 WRITE16_MEMBER(taitoz_state::spacegun_gun_output_w)
@@ -1308,7 +1289,7 @@ READ16_MEMBER(taitoz_state::dblaxle_steer_input_r)
 			return steer & 0xff;
 	}
 
-	logerror("CPU #0 PC %06x: warning - read unmapped steer input offset %02x\n", space.device().safe_pc(), offset);
+	logerror("CPU #0 PC %06x: warning - read unmapped steer input offset %02x\n", m_maincpu->pc(), offset);
 
 	return 0x00;
 }
@@ -1325,7 +1306,7 @@ READ16_MEMBER(taitoz_state::chasehq_motor_r)
 			return 0x55;    /* motor cpu status ? */
 
 		default:
-			logerror("CPU #0 PC %06x: warning - read motor cpu %03x\n",space.device().safe_pc(),offset);
+			logerror("CPU #0 PC %06x: warning - read motor cpu %03x\n",m_maincpu->pc(),offset);
 			return 0;
 	}
 }
@@ -1343,7 +1324,7 @@ WRITE16_MEMBER(taitoz_state::chasehq_motor_w)
 			break;
 	}
 
-	logerror("CPU #0 PC %06x: warning - write %04x to motor cpu %03x\n",space.device().safe_pc(),data,offset);
+	logerror("CPU #0 PC %06x: warning - write %04x to motor cpu %03x\n",m_maincpu->pc(),data,offset);
 }
 
 
@@ -1385,6 +1366,13 @@ WRITE16_MEMBER(taitoz_state::nightstr_motor_w)
 }
 
 
+WRITE8_MEMBER(taitoz_state::coin_control_w)
+{
+	machine().bookkeeping().coin_lockout_w(0, ~data & 0x01);
+	machine().bookkeeping().coin_lockout_w(1, ~data & 0x02);
+	machine().bookkeeping().coin_counter_w(0, data & 0x04);
+	machine().bookkeeping().coin_counter_w(1, data & 0x08);
+}
 
 
 READ16_MEMBER(taitoz_state::aquajack_unknown_r)
@@ -1486,8 +1474,8 @@ static ADDRESS_MAP_START( contcirc_cpub_map, AS_PROGRAM, 16, taitoz_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x083fff) AM_RAM
 	AM_RANGE(0x084000, 0x087fff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x100000, 0x100001) AM_READ8(contcirc_input_bypass_r, 0x00ff) AM_DEVWRITE8("tc0220ioc", tc0220ioc_device, portreg_w, 0x00ff)
-	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff) /* (actually game uses TC040IOC) */
+	AM_RANGE(0x100000, 0x100001) AM_READ8(contcirc_input_bypass_r, 0x00ff) AM_DEVWRITE8("tc0040ioc", tc0040ioc_device, portreg_w, 0x00ff)
+	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8("tc0040ioc", tc0040ioc_device, watchdog_r, port_w, 0x00ff)
 	AM_RANGE(0x200000, 0x200003) AM_READWRITE(taitoz_sound_r, taitoz_sound_w)
 ADDRESS_MAP_END
 
@@ -1497,8 +1485,8 @@ static ADDRESS_MAP_START( chasehq_map, AS_PROGRAM, 16, taitoz_state )
 	AM_RANGE(0x100000, 0x107fff) AM_RAM
 	AM_RANGE(0x108000, 0x10bfff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x10c000, 0x10ffff) AM_RAM
-	AM_RANGE(0x400000, 0x400001) AM_READ8(chasehq_input_bypass_r, 0x00ff) AM_DEVWRITE8("tc0220ioc", tc0220ioc_device, portreg_w, 0x00ff)
-	AM_RANGE(0x400002, 0x400003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff)
+	AM_RANGE(0x400000, 0x400001) AM_READ8(chasehq_input_bypass_r, 0x00ff) AM_DEVWRITE8("tc0040ioc", tc0040ioc_device, portreg_w, 0x00ff)
+	AM_RANGE(0x400002, 0x400003) AM_DEVREADWRITE8("tc0040ioc", tc0040ioc_device, watchdog_r, port_w, 0x00ff)
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(chasehq_cpua_ctrl_w)
 	AM_RANGE(0x820000, 0x820003) AM_READWRITE(taitoz_sound_r, taitoz_sound_w)
 	AM_RANGE(0xa00000, 0xa00007) AM_DEVREADWRITE("tc0110pcr", tc0110pcr_device, word_r, step1_word_w)  /* palette */
@@ -1533,8 +1521,7 @@ static ADDRESS_MAP_START( enforce_cpub_map, AS_PROGRAM, 16, taitoz_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM
 	AM_RANGE(0x104000, 0x107fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x200000, 0x200003) AM_READWRITE(taitoz_sound_r, taitoz_sound_w)
-	AM_RANGE(0x300000, 0x300001) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, portreg_r, portreg_w, 0x00ff)
-	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff)
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("tc0040ioc", tc0040ioc_device, read, write, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -1662,7 +1649,7 @@ static ADDRESS_MAP_START( spacegun_cpub_map, AS_PROGRAM, 16, taitoz_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x20c000, 0x20ffff) AM_RAM
 	AM_RANGE(0x210000, 0x21ffff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x800000, 0x80000f) AM_READWRITE(spacegun_input_bypass_r, spacegun_output_bypass_w)
+	AM_RANGE(0x800000, 0x80000f) AM_DEVREADWRITE("tc0510nio", tc0510nio_device, halfword_r, halfword_w)
 	AM_RANGE(0xc00000, 0xc00007) AM_DEVREADWRITE8("ymsnd", ym2610_device, read, write, 0x00ff)
 	AM_RANGE(0xc0000c, 0xc0000d) AM_NOP // interrupt controller?
 	AM_RANGE(0xc0000e, 0xc0000f) AM_NOP
@@ -2976,12 +2963,13 @@ static MACHINE_CONFIG_START( contcirc )
 	MCFG_MACHINE_START_OVERRIDE(taitoz_state,taitoz)
 	MCFG_MACHINE_RESET_OVERRIDE(taitoz_state,taitoz)
 
-	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
-	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
-	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
-	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
-	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
-	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
+	MCFG_DEVICE_ADD("tc0040ioc", TC0040IOC, 0)
+	MCFG_TC0040IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0040IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0040IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0040IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0040IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
+	MCFG_TC0040IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3054,12 +3042,13 @@ static MACHINE_CONFIG_START( chasehq )
 	MCFG_MACHINE_START_OVERRIDE(taitoz_state,taitoz)
 	MCFG_MACHINE_RESET_OVERRIDE(taitoz_state,taitoz)
 
-	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
-	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
-	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
-	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
-	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
-	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
+	MCFG_DEVICE_ADD("tc0040ioc", TC0040IOC, 0)
+	MCFG_TC0040IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0040IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0040IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0040IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0040IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
+	MCFG_TC0040IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3134,12 +3123,13 @@ static MACHINE_CONFIG_START( enforce )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
-	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
-	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
-	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
-	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
-	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
+	MCFG_DEVICE_ADD("tc0040ioc", TC0040IOC, 0)
+	MCFG_TC0040IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0040IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0040IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0040IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0040IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
+	MCFG_TC0040IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3215,6 +3205,7 @@ static MACHINE_CONFIG_START( bshark )
 	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
@@ -3296,6 +3287,7 @@ static MACHINE_CONFIG_START( sci )
 	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
@@ -3372,6 +3364,7 @@ static MACHINE_CONFIG_START( nightstr )
 	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
@@ -3452,6 +3445,7 @@ static MACHINE_CONFIG_START( aquajack )
 	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
@@ -3524,12 +3518,14 @@ static MACHINE_CONFIG_START( spacegun )
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 	MCFG_EEPROM_SERIAL_DATA(spacegun_default_eeprom, 128)
 
-	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
-	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
-	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
-	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
-	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
-	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
+	MCFG_DEVICE_ADD("tc0510nio", TC0510NIO, 0)
+	MCFG_TC0510NIO_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0510NIO_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0510NIO_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0510NIO_READ_3_CB(DEVREADLINE("eeprom", eeprom_serial_93cxx_device, do_read)) MCFG_DEVCB_BIT(7)
+	MCFG_TC0510NIO_WRITE_3_CB(WRITE8(taitoz_state, spacegun_eeprom_w))
+	MCFG_TC0510NIO_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
+	MCFG_TC0510NIO_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3594,13 +3590,15 @@ static MACHINE_CONFIG_START( dblaxle )
 	MCFG_MACHINE_START_OVERRIDE(taitoz_state,taitoz)
 	MCFG_MACHINE_RESET_OVERRIDE(taitoz_state,taitoz)
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(600))
+	// make quantum time to be a multiple of the xtal (fixes road layer stuck on continue)
+	MCFG_QUANTUM_TIME(attotime::from_hz(XTAL_32MHz/1024))
 
 	MCFG_DEVICE_ADD("tc0510nio", TC0510NIO, 0)
 	MCFG_TC0510NIO_READ_0_CB(IOPORT("DSWA"))
 	MCFG_TC0510NIO_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0510NIO_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0510NIO_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0510NIO_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0510NIO_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
@@ -3677,6 +3675,7 @@ static MACHINE_CONFIG_START( racingb )
 	MCFG_TC0510NIO_READ_1_CB(IOPORT("DSWB"))
 	MCFG_TC0510NIO_READ_2_CB(IOPORT("IN0"))
 	MCFG_TC0510NIO_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0510NIO_WRITE_4_CB(WRITE8(taitoz_state, coin_control_w))
 	MCFG_TC0510NIO_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */

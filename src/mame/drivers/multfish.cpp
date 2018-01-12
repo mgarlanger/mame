@@ -275,12 +275,12 @@ WRITE8_MEMBER(igrosoft_gamble_state::igrosoft_gamble_vid_w)
 			case 1:
 				coldat ^= m_xor_palette;
 				coldat ^= ((coldat&0x2) >>1) | ((coldat&0x80) >>3) ;
-				coldat = BITSWAP16(coldat,10,15,5,13,8,12,11,2,0,4,7,14,9,3,1,6);
+				coldat = bitswap<16>(coldat,10,15,5,13,8,12,11,2,0,4,7,14,9,3,1,6);
 				break;
 			case 2:
 				coldat ^= m_xor_palette;
 				coldat ^= ((coldat&0x0001) <<1) ^ ((coldat&0x0010) <<1) ^ ((coldat&0x0010) <<2) ^ ((coldat&0x0020) <<1) ^ ((coldat&0x0080) >>1);
-				coldat = BITSWAP16(coldat,4,10,13,14,8,11,15,12,2,6,5,0,7,3,1,9);
+				coldat = bitswap<16>(coldat,4,10,13,14,8,11,15,12,2,6,5,0,7,3,1,9);
 				break;
 			case 3:
 				// WRONG
@@ -355,19 +355,6 @@ READ8_MEMBER(igrosoft_gamble_state::ray_r)
 	return m_screen->vpos();
 }
 
-CUSTOM_INPUT_MEMBER(igrosoft_gamble_state::igrosoft_gamble_hopper_r)
-{
-	if ( m_hopper_motor != 0 )
-	{
-		m_hopper++;
-		return m_hopper>>4;
-	}
-	else
-	{
-		return 0;
-	}
-}
-
 WRITE8_MEMBER(igrosoft_gamble_state::igrosoft_gamble_hopper_w)
 {
 /*  Port 0x33
@@ -379,7 +366,7 @@ WRITE8_MEMBER(igrosoft_gamble_state::igrosoft_gamble_hopper_w)
 */
 
 
-	m_hopper_motor = data & 0x10;
+	m_hopper->motor_w(data & 0x10);
 	machine().bookkeeping().coin_lockout_w(0, data & 0x01);
 	machine().bookkeeping().coin_lockout_w(1, data & 0x01);
 	machine().bookkeeping().coin_lockout_w(2, data & 0x01);
@@ -397,7 +384,7 @@ WRITE8_MEMBER(igrosoft_gamble_state::rollfr_hopper_w)
 */
 
 
-	m_hopper_motor = data & 0x10;
+	m_hopper->motor_w(data & 0x10);
 	machine().bookkeeping().coin_lockout_w(0,~data & 0x01);
 	machine().bookkeeping().coin_lockout_w(1,~data & 0x01);
 	machine().bookkeeping().coin_lockout_w(2,~data & 0x01);
@@ -476,7 +463,7 @@ A12 <-> A13
 
 		for (j = 0; j < (igrosoft_gamble_ROM_SIZE/0x40); j++)
 		{
-			jscr =  BITSWAP16(j,15,14,13,4,3,2,0,1,6,7,5,12,11,10,8,9);
+			jscr =  bitswap<16>(j,15,14,13,4,3,2,0,1,6,7,5,12,11,10,8,9);
 			memcpy(&temprom[j*0x40],&igrosoft_gamble_gfx[romoffset+(jscr*0x40)],0x40);
 
 		}
@@ -490,7 +477,7 @@ static inline void rom_decodel(uint8_t *romptr, uint8_t *tmprom, uint8_t xor_dat
 
 	for (i = 0; i < igrosoft_gamble_ROM_SIZE; i++)
 	{
-		jscr =  BITSWAP24(i,23,22,21,20,19,17,14,18,16,15,12,13,11,9,6,10,8,7,4,5,3,2,1,0) ^ xor_add ^ 8;
+		jscr =  bitswap<24>(i,23,22,21,20,19,17,14,18,16,15,12,13,11,9,6,10,8,7,4,5,3,2,1,0) ^ xor_add ^ 8;
 		tmprom[i] = romptr[jscr] ^ xor_data;
 	}
 	memcpy(romptr,tmprom,igrosoft_gamble_ROM_SIZE);
@@ -501,7 +488,7 @@ static inline void rom_decodeh(uint8_t *romptr, uint8_t *tmprom, uint8_t xor_dat
 
 	for (i = 0; i < igrosoft_gamble_ROM_SIZE; i++)
 	{
-		jscr =  BITSWAP24(i,23,22,21,20,19,17,14,18,16,15,12,13,11,9,6,10,8,7,4,5,2,3,1,0) ^ xor_add;
+		jscr =  bitswap<24>(i,23,22,21,20,19,17,14,18,16,15,12,13,11,9,6,10,8,7,4,5,2,3,1,0) ^ xor_add;
 		tmprom[i] = romptr[jscr] ^ xor_data;
 	}
 	memcpy(romptr,tmprom,igrosoft_gamble_ROM_SIZE);
@@ -529,7 +516,7 @@ static inline void roment_decodel(uint8_t *romptr, uint8_t *tmprom, uint8_t xor_
 
 	for (i = 0; i < igrosoft_gamble_ROM_SIZE; i++)
 	{
-		jscr =  BITSWAP24(i,23,22,21,20,19,16,18,17,14,15,12,13,11,8,10,9,6,7,4,5,3,2,1,0) ^ xor_add ^ 8;
+		jscr =  bitswap<24>(i,23,22,21,20,19,16,18,17,14,15,12,13,11,8,10,9,6,7,4,5,3,2,1,0) ^ xor_add ^ 8;
 		tmprom[i] = romptr[jscr] ^ xor_data;
 	}
 	memcpy(romptr,tmprom,igrosoft_gamble_ROM_SIZE);
@@ -540,7 +527,7 @@ static inline void roment_decodeh(uint8_t *romptr, uint8_t *tmprom, uint8_t xor_
 
 	for (i = 0; i < igrosoft_gamble_ROM_SIZE; i++)
 	{
-		jscr =  BITSWAP24(i,23,22,21,20,19,16,18,17,14,15,12,13,11,8,10,9,6,7,4,5,2,3,1,0) ^ xor_add;
+		jscr =  bitswap<24>(i,23,22,21,20,19,16,18,17,14,15,12,13,11,8,10,9,6,7,4,5,2,3,1,0) ^ xor_add;
 		tmprom[i] = romptr[jscr] ^ xor_data;
 	}
 	memcpy(romptr,tmprom,igrosoft_gamble_ROM_SIZE);
@@ -718,7 +705,7 @@ INPUT_PORTS_START( igrosoft_gamble )
 	PORT_BIT( 0xe0, IP_ACTIVE_LOW, IPT_UNUSED ) // unused?
 
 	PORT_START("IN1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, igrosoft_gamble_state,igrosoft_gamble_hopper_r, nullptr )// Hopper SW (22 B)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("hopper", ticket_dispenser_device, line_r)
 	PORT_DIPNAME(     0x02, 0x02, "BK Door (17 A)"  )
 	PORT_DIPSETTING(  0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(  0x00, DEF_STR( On ) )
@@ -811,7 +798,7 @@ static INPUT_PORTS_START( rollfr )
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, igrosoft_gamble_state,igrosoft_gamble_hopper_r, nullptr )// Hopper SW (22 B)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("hopper", ticket_dispenser_device, line_r)
 	PORT_DIPNAME(     0x02, 0x02, "BK Door (17 A)"  )
 	PORT_DIPSETTING(  0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(  0x00, DEF_STR( On ) )
@@ -1022,8 +1009,6 @@ void igrosoft_gamble_state::machine_start()
 {
 	save_item(NAME(m_disp_enable));
 	save_item(NAME(m_rambk));
-	save_item(NAME(m_hopper_motor));
-	save_item(NAME(m_hopper));
 }
 
 void igrosoft_gamble_state::machine_reset()
@@ -1033,8 +1018,6 @@ void igrosoft_gamble_state::machine_reset()
 
 	m_disp_enable = 0;
 	m_rambk = 0;
-	m_hopper_motor = 0;
-	m_hopper = 0;
 }
 
 MACHINE_CONFIG_START( igrosoft_gamble )
@@ -1064,6 +1047,7 @@ MACHINE_CONFIG_START( igrosoft_gamble )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_M48T35_ADD( "m48t35" )
+	MCFG_HOPPER_ADD("hopper", attotime::from_msec(100), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_HIGH)
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_DERIVED( rollfr, igrosoft_gamble )

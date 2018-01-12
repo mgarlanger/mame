@@ -31,7 +31,6 @@ TODO:
 #include "cpu/z80/z80.h"
 #include "sound/3812intf.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -49,7 +48,7 @@ DRIVER_INIT_MEMBER(nbmj8900_state,ohpaipee)
 
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
+		prot[i] = bitswap<8>(prot[i],2,7,3,5,0,6,4,1);
 	}
 #else
 	unsigned char *ROM = memregion("maincpu")->base();
@@ -77,7 +76,7 @@ DRIVER_INIT_MEMBER(nbmj8900_state,togenkyo)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
+		prot[i] = bitswap<8>(prot[i],2,7,3,5,0,6,4,1);
 	}
 #else
 	unsigned char *ROM = memregion("maincpu")->base();
@@ -331,8 +330,7 @@ static MACHINE_CONFIG_START( ohpaipee )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.7)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.42) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( togenkyo, ohpaipee )

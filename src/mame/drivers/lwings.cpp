@@ -113,7 +113,7 @@ INTERRUPT_GEN_MEMBER(lwings_state::avengers_interrupt)
 
 WRITE8_MEMBER(lwings_state::avengers_protection_w)
 {
-	int pc = space.device().safe_pc();
+	int pc = m_maincpu->pc();
 
 	if (pc == 0x2eeb)
 	{
@@ -243,7 +243,7 @@ READ8_MEMBER(lwings_state::avengers_protection_r)
 	int x, y;
 	int dx, dy, dist, dir;
 
-	if (space.device().safe_pc() == 0x7c7)
+	if (m_maincpu->pc() == 0x7c7)
 	{
 		/* palette data */
 		return avengers_fetch_paldata();
@@ -398,7 +398,7 @@ WRITE8_MEMBER(lwings_state::fball_oki_bank_w)
 	membank("samplebank")->set_entry((data >> 1) & 0x7);
 }
 
-static ADDRESS_MAP_START( fball_oki_map, AS_0, 8, lwings_state )
+static ADDRESS_MAP_START( fball_oki_map, 0, 8, lwings_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("samplebank")
 ADDRESS_MAP_END
@@ -1009,7 +1009,7 @@ static MACHINE_CONFIG_START( fball )
 
 	MCFG_OKIM6295_ADD("oki", XTAL_12MHz/12, PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, fball_oki_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, fball_oki_map)
 
 MACHINE_CONFIG_END
 

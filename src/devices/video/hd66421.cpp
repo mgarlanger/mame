@@ -72,7 +72,7 @@ DEFINE_DEVICE_TYPE(HD66421, hd66421_device, "hd66421", "Hitachi HD66421 LCD Cont
 
 
 // default address map
-static ADDRESS_MAP_START( hd66421, AS_0, 8, hd66421_device )
+static ADDRESS_MAP_START( hd66421, 0, 8, hd66421_device )
 	AM_RANGE(0x0000, HD66421_RAM_SIZE) AM_RAM
 ADDRESS_MAP_END
 
@@ -81,9 +81,11 @@ ADDRESS_MAP_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *hd66421_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector hd66421_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -274,17 +276,11 @@ PALETTE_INIT_MEMBER(hd66421_device, hd66421)
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( hd66421 )
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+MACHINE_CONFIG_MEMBER( hd66421_device::device_add_mconfig )
 	MCFG_PALETTE_ADD("palette", 4)
 	MCFG_PALETTE_INIT_OWNER(hd66421_device, hd66421)
 MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
-//-------------------------------------------------
-
-machine_config_constructor hd66421_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( hd66421 );
-}

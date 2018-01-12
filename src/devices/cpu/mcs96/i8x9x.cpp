@@ -10,6 +10,7 @@
 
 #include "emu.h"
 #include "i8x9x.h"
+#include "i8x9xd.h"
 
 i8x9x_device::i8x9x_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock) :
 	mcs96_device(mconfig, type, tag, owner, clock, 8),
@@ -18,14 +19,17 @@ i8x9x_device::i8x9x_device(const machine_config &mconfig, device_type type, cons
 {
 }
 
-offs_t i8x9x_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *i8x9x_device::create_disassembler()
 {
-	return disasm_generic(stream, pc, oprom, opram, options, disasm_entries);
+	return new i8x9x_disassembler;
 }
 
-const address_space_config *i8x9x_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector i8x9x_device::memory_space_config() const
 {
-	return spacenum == AS_PROGRAM ? &program_config : spacenum == AS_IO ? &io_config : nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &program_config),
+		std::make_pair(AS_IO,      &io_config)
+	};
 }
 
 void i8x9x_device::device_start()
@@ -69,7 +73,7 @@ void i8x9x_device::commit_hso_cam()
 
 void i8x9x_device::ad_start(uint64_t current_time)
 {
-	ad_result = (io->read_word(2*((ad_command & 7) + A0)) << 6) | 8 | (ad_command & 7);
+	ad_result = (io->read_word((ad_command & 7) + A0) << 6) | 8 | (ad_command & 7);
 	ad_done = current_time + 88;
 	internal_update(current_time);
 }
@@ -83,7 +87,7 @@ void i8x9x_device::serial_send(uint8_t data)
 void i8x9x_device::serial_send_done()
 {
 	serial_send_timer = 0;
-	io->write_word(SERIAL*2, serial_send_buf);
+	io->write_word(SERIAL, serial_send_buf);
 	pending_irq |= IRQ_SERIAL;
 	sp_stat |= 0x20;
 	check_irq();
@@ -130,11 +134,11 @@ void i8x9x_device::io_w8(uint8_t adr, uint8_t data)
 		break;
 	case 0x0f:
 		logerror("%s: io port 1 %02x (%04x)\n", tag(), data, PPC);
-		io->write_word(P1*2, data);
+		io->write_word(P1, data);
 		break;
 	case 0x10:
 		logerror("%s: io port 2 %02x (%04x)\n", tag(), data, PPC);
-		io->write_word(P2*2, data);
+		io->write_word(P2, data);
 		break;
 	case 0x11:
 		logerror("%s: sp con %02x (%04x)\n", tag(), data, PPC);
@@ -213,16 +217,16 @@ uint8_t i8x9x_device::io_r8(uint8_t adr)
 		return timer_value(2, total_cycles()) >> 8;
 	case 0x0e: {
 		static int last = -1;
-		if(io->read_word(P0*2) != last) {
-			last = io->read_word(P0*2);
+		if(io->read_word(P0) != last) {
+			last = io->read_word(P0);
 			logerror("%s: read p0 %02x\n", tag(), io->read_word(P0*2));
 		}
-		return io->read_word(P0*2);
+		return io->read_word(P0);
 	}
 	case 0x0f:
-		return io->read_word(P1*2);
+		return io->read_word(P1);
 	case 0x10:
-		return io->read_word(P2*2);
+		return io->read_word(P2);
 	case 0x11: {
 		uint8_t res = sp_stat;
 		sp_stat &= 0x80;

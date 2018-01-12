@@ -1389,17 +1389,6 @@ if (SOUNDS["PCD3311"]~=null) then
 end
 
 ---------------------------------------------------
--- Voltage Regulator
---@src/devices/sound/volt_reg.h,SOUNDS["VOLT_REG"] = true
----------------------------------------------------
-if (SOUNDS["VOLT_REG"]~=null) then
-	files {
-		MAME_DIR .. "src/devices/sound/volt_reg.cpp",
-		MAME_DIR .. "src/devices/sound/volt_reg.h",
-	}
-end
-
----------------------------------------------------
 -- DAC-76 COMDAC
 --@src/devices/sound/dac76.h,SOUNDS["DAC76"] = true
 ---------------------------------------------------
@@ -1431,5 +1420,29 @@ if (SOUNDS["DAVE"]~=null) then
 	files {
 		MAME_DIR .. "src/devices/sound/dave.cpp",
 		MAME_DIR .. "src/devices/sound/dave.h",
+	}
+end
+
+---------------------------------------------------
+-- Toshiba TA7630
+--@src/devices/sound/ta7630.h,SOUNDS["TA7630"] = true
+---------------------------------------------------
+
+if (SOUNDS["TA7630"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/ta7630.cpp",
+		MAME_DIR .. "src/devices/sound/ta7630.h",
+	}
+end
+
+---------------------------------------------------
+-- Sanyo LC7535
+--@src/devices/sound/lc7535.h,SOUNDS["LC7535"] = true
+---------------------------------------------------
+
+if (SOUNDS["LC7535"]~=null) then
+	files {
+		MAME_DIR .. "src/devices/sound/lc7535.cpp",
+		MAME_DIR .. "src/devices/sound/lc7535.h",
 	}
 end

@@ -529,7 +529,7 @@ void apple2_state::apple2_video_start(const uint8_t *vram, const uint8_t *aux_vr
 		int len = memregion("gfx1")->bytes();
 		for (i = 0; i < len; i++)
 		{
-			apple2_font[i] = BITSWAP8(apple2_font[i],  7, 7, 6, 5, 4, 3, 2, 1);
+			apple2_font[i] = bitswap<8>(apple2_font[i],  7, 7, 6, 5, 4, 3, 2, 1);
 		}
 	}
 
@@ -544,7 +544,7 @@ void apple2_state::apple2_video_start(const uint8_t *vram, const uint8_t *aux_vr
 		int len = memregion("gfx1")->bytes();
 		for (i = 0; i < len; i++)
 		{
-			apple2_font[i] = BITSWAP8(apple2_font[i], 7, 0, 1, 2, 3, 4, 5, 6);
+			apple2_font[i] = bitswap<8>(apple2_font[i], 7, 0, 1, 2, 3, 4, 5, 6);
 		}
 	}
 
@@ -1366,6 +1366,12 @@ void a2_video_device::hgr_update(screen_device &screen, bitmap_ind16 &bitmap, co
 			else
 			{
 				artifact_map_ptr = &m_hires_artifact_map[((vram_row[col + 1] & 0x80) >> 7) * 16];
+			}
+
+			// CEC mono HGR mode
+			if ((m_monohgr) && (mon_type == 0))
+			{
+				mon_type = 1;
 			}
 
 			switch (mon_type)

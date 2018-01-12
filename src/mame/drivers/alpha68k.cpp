@@ -194,7 +194,6 @@ DIP locations verified from manuals for:
 #include "sound/3812intf.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "sound/ym2413.h"
 #include "screen.h"
 #include "speaker.h"
@@ -210,14 +209,14 @@ WRITE16_MEMBER(alpha68k_state::tnextspc_coin_counters_w)
 
 WRITE16_MEMBER(alpha68k_state::tnextspc_unknown_w)
 {
-	logerror("tnextspc_unknown_w : PC = %04x - offset = %04x - data = %04x\n", space.device().safe_pc(), offset, data);
+	logerror("tnextspc_unknown_w : PC = %04x - offset = %04x - data = %04x\n", m_maincpu->pc(), offset, data);
 	if (offset == 0)
 		alpha68k_flipscreen_w(data & 0x100);
 }
 
 WRITE16_MEMBER(alpha68k_state::alpha_microcontroller_w)
 {
-	logerror("%04x:  Alpha write trigger at %04x (%04x)\n", space.device().safe_pc(), offset, data);
+	logerror("%04x:  Alpha write trigger at %04x (%04x)\n", m_maincpu->pc(), offset, data);
 	/* 0x44 = coin clear signal to microcontroller? */
 	if (offset == 0x2d && ACCESSING_BITS_0_7)
 		alpha68k_flipscreen_w(data & 1);
@@ -398,7 +397,7 @@ READ16_MEMBER(alpha68k_state::kyros_alpha_trigger_r)
 		break;
 	}
 
-	logerror("%04x:  Alpha read trigger at %04x\n", space.device().safe_pc(), offset);
+	logerror("%04x:  Alpha read trigger at %04x\n", m_maincpu->pc(), offset);
 
 	return 0; /* Values returned don't matter */
 }
@@ -492,7 +491,7 @@ READ16_MEMBER(alpha68k_state::alpha_II_trigger_r)
 			break;
 	}
 
-	logerror("%04x:  Alpha read trigger at %04x\n", space.device().safe_pc(), offset);
+	logerror("%04x:  Alpha read trigger at %04x\n", m_maincpu->pc(), offset);
 
 	return 0; /* Values returned don't matter */
 }
@@ -637,7 +636,7 @@ READ16_MEMBER(alpha68k_state::alpha_V_trigger_r)
 			break;
 	}
 
-	logerror("%04x:  Alpha read trigger at %04x\n", space.device().safe_pc(), offset);
+	logerror("%04x:  Alpha read trigger at %04x\n", m_maincpu->pc(), offset);
 
 	return 0; /* Values returned don't matter */
 }
@@ -1968,8 +1967,7 @@ static MACHINE_CONFIG_START( sstingry )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( kyros )
@@ -2020,8 +2018,7 @@ static MACHINE_CONFIG_START( kyros )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.9)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( jongbou )
@@ -2156,8 +2153,7 @@ static MACHINE_CONFIG_START( alpha68k_II )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( btlfieldb, alpha68k_II )
@@ -2212,8 +2208,7 @@ static MACHINE_CONFIG_START( alpha68k_II_gm )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( alpha68k_V )
@@ -2261,8 +2256,7 @@ static MACHINE_CONFIG_START( alpha68k_V )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( alpha68k_V_sb )
@@ -2310,8 +2304,7 @@ static MACHINE_CONFIG_START( alpha68k_V_sb )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.75) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( tnextspc )

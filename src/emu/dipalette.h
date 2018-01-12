@@ -30,8 +30,6 @@ constexpr float PALETTE_DEFAULT_HIGHLIGHT_FACTOR = 1.0f/PALETTE_DEFAULT_SHADOW_F
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class gfx_element;
-
 typedef u16 indirect_pen_t;
 
 
@@ -39,6 +37,8 @@ typedef u16 indirect_pen_t;
 
 class device_palette_interface : public device_interface
 {
+	friend class screen_device;
+
 	static constexpr int MAX_SHADOW_PRESETS = 4;
 
 public:

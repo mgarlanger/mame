@@ -47,12 +47,8 @@ Notes:
 WRITE8_MEMBER(thedeep_state::nmi_w)
 {
 	m_nmi_enable = data;
-}
-
-WRITE8_MEMBER(thedeep_state::sound_w)
-{
-	m_soundlatch->write(space, 0, data);
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (!m_nmi_enable)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 void thedeep_state::machine_start()
@@ -129,7 +125,7 @@ WRITE8_MEMBER(thedeep_state::protection_w)
 		break;
 
 		default:
-			logerror( "pc %04x: protection_command %02x\n", space.device().safe_pc(),m_protection_command);
+			logerror( "pc %04x: protection_command %02x\n", m_maincpu->pc(),m_protection_command);
 	}
 }
 
@@ -147,7 +143,7 @@ READ8_MEMBER(thedeep_state::protection_r)
 WRITE8_MEMBER(thedeep_state::e100_w)
 {
 	if (data != 1)
-		logerror("pc %04x: e100 = %02x\n", space.device().safe_pc(),data);
+		logerror("pc %04x: e100 = %02x\n", m_maincpu->pc(),data);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, thedeep_state )
@@ -161,7 +157,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, thedeep_state )
 	AM_RANGE(0xe009, 0xe009) AM_READ_PORT("e009")           // P2
 	AM_RANGE(0xe00a, 0xe00a) AM_READ_PORT("e00a")           // DSW1
 	AM_RANGE(0xe00b, 0xe00b) AM_READ_PORT("e00b")           // DSW2
-	AM_RANGE(0xe00c, 0xe00c) AM_WRITE(sound_w)  // To Sound CPU
+	AM_RANGE(0xe00c, 0xe00c) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)  // To Sound CPU
 	AM_RANGE(0xe100, 0xe100) AM_WRITE(e100_w)   // ?
 	AM_RANGE(0xe210, 0xe213) AM_WRITEONLY AM_SHARE("scroll")    // Scroll
 	AM_RANGE(0xe400, 0xe7ff) AM_RAM AM_SHARE("spriteram")   // Sprites
@@ -399,10 +395,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(thedeep_state::interrupt)
 	else if(scanline == 0)
 	{
 		if (m_nmi_enable)
-		{
 			m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
-			m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-		}
 	}
 }
 
@@ -451,6 +444,7 @@ static MACHINE_CONFIG_START( thedeep )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("audiocpu", INPUT_LINE_NMI))
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)  /* verified on pcb */
 	MCFG_YM2203_IRQ_HANDLER(INPUTLINE("audiocpu", 0))

@@ -120,8 +120,8 @@ static inline void ATTR_PRINTF(3,4) verboselog( device_t& device, int n_level, c
 
 void psxgpu_device::DebugMeshInit()
 {
-	int width = m_screen->width();
-	int height = m_screen->height();
+	int width = screen().width();
+	int height = screen().height();
 
 	m_debug.b_mesh = 0;
 	m_debug.b_texture = 0;
@@ -136,8 +136,8 @@ void psxgpu_device::DebugMesh( int n_coordx, int n_coordy )
 {
 	int n_coord;
 	int n_colour;
-	int width = m_screen->width();
-	int height = m_screen->height();
+	int width = screen().width();
+	int height = screen().height();
 
 	n_coordx += m_n_displaystartx;
 	n_coordy += n_displaystarty;
@@ -334,8 +334,8 @@ int psxgpu_device::DebugTextureDisplay( bitmap_ind16 &bitmap )
 
 	if( m_debug.b_texture )
 	{
-		int width = m_screen->width();
-		int height = m_screen->height();
+		int width = screen().width();
+		int height = screen().height();
 
 		for( n_y = 0; n_y < height; n_y++ )
 		{
@@ -363,7 +363,7 @@ int psxgpu_device::DebugTextureDisplay( bitmap_ind16 &bitmap )
 				}
 				p_n_interleave[ n_x ] = p_p_vram[ n_yi ][ n_xi ];
 			}
-			draw_scanline16( bitmap, 0, n_y, width, p_n_interleave, m_screen->palette().pens() );
+			draw_scanline16( bitmap, 0, n_y, width, p_n_interleave, screen().palette().pens() );
 		}
 	}
 	return m_debug.b_texture;
@@ -3799,7 +3799,12 @@ PALETTE_INIT_MEMBER( psxgpu_device, psx )
 	}
 }
 
-MACHINE_CONFIG_FRAGMENT( psxgpu )
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+MACHINE_CONFIG_MEMBER( psxgpu_device::device_add_mconfig )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( 60 )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
@@ -3812,13 +3817,3 @@ MACHINE_CONFIG_FRAGMENT( psxgpu )
 	MCFG_PALETTE_ADD( "palette", 65536 )
 	MCFG_PALETTE_INIT_OWNER(psxgpu_device, psx)
 MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor psxgpu_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( psxgpu );
-}

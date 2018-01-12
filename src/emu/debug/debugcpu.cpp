@@ -2,7 +2,7 @@
 // copyright-holders:Aaron Giles
 /*********************************************************************
 
-    debugcpu.c
+    debugcpu.cpp
 
     Debugger CPU/memory interface engine.
 
@@ -10,6 +10,7 @@
 
 #include "emu.h"
 #include "debugcpu.h"
+#include "debugbuf.h"
 
 #include "express.h"
 #include "debugcon.h"
@@ -25,6 +26,7 @@
 #include "xmlfile.h"
 
 #include <ctype.h>
+#include <fstream>
 
 
 enum
@@ -45,9 +47,10 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	, m_livecpu(nullptr)
 	, m_visiblecpu(nullptr)
 	, m_breakcpu(nullptr)
-	, m_source_file(nullptr)
 	, m_symtable(nullptr)
+	, m_vblank_occurred(false)
 	, m_execution_state(EXECUTION_STATE_STOPPED)
+	, m_stop_when_not_device(nullptr)
 	, m_bpindex(1)
 	, m_wpindex(1)
 	, m_rpindex(1)
@@ -71,10 +74,10 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	m_symtable->add("wpdata", symbol_table::READ_ONLY, &m_wpdata);
 
 	using namespace std::placeholders;
-	m_symtable->add("cpunum", nullptr, std::bind(&debugger_cpu::get_cpunum, this, _1, _2));
-	m_symtable->add("beamx", (void *)first_screen, std::bind(&debugger_cpu::get_beamx, this, _1, _2));
-	m_symtable->add("beamy", (void *)first_screen, std::bind(&debugger_cpu::get_beamy, this, _1, _2));
-	m_symtable->add("frame", (void *)first_screen, std::bind(&debugger_cpu::get_frame, this, _1, _2));
+	m_symtable->add("cpunum", std::bind(&debugger_cpu::get_cpunum, this, _1));
+	m_symtable->add("beamx", std::bind(&debugger_cpu::get_beamx, this, _1, first_screen));
+	m_symtable->add("beamy", std::bind(&debugger_cpu::get_beamy, this, _1, first_screen));
+	m_symtable->add("frame", std::bind(&debugger_cpu::get_frame, this, _1, first_screen));
 
 	/* add the temporary variables to the global symbol table */
 	for (int regnum = 0; regnum < NUM_TEMP_VARIABLES; regnum++)
@@ -85,7 +88,15 @@ debugger_cpu::debugger_cpu(running_machine &machine)
 	}
 
 	/* first CPU is visible by default */
-	m_visiblecpu = m_machine.firstcpu;
+	for (device_t &device : device_iterator(m_machine.root_device()))
+	{
+		auto *cpu = dynamic_cast<cpu_device *>(&device);
+		if (cpu != nullptr)
+		{
+			m_visiblecpu = cpu;
+			break;
+		}
+	}
 
 	/* add callback for breaking on VBLANK */
 	if (m_machine.first_screen() != nullptr)
@@ -189,23 +200,23 @@ symbol_table* debugger_cpu::get_visible_symtable()
 
 void debugger_cpu::source_script(const char *file)
 {
-	/* close any existing source file */
-	if (m_source_file != nullptr)
-	{
-		fclose(m_source_file);
-		m_source_file = nullptr;
-	}
+	// close any existing source file
+	m_source_file.reset();
 
-	/* open a new one if requested */
+	// open a new one if requested
 	if (file != nullptr)
 	{
-		m_source_file = fopen(file, "r");
-		if (!m_source_file)
+		auto source_file = std::make_unique<std::ifstream>(file, std::ifstream::in);
+		if (source_file->fail())
 		{
-			if (m_machine.phase() == MACHINE_PHASE_RUNNING)
+			if (m_machine.phase() == machine_phase::RUNNING)
 				m_machine.debugger().console().printf("Cannot open command file '%s'\n", file);
 			else
 				fatalerror("Cannot open command file '%s'\n", file);
+		}
+		else
+		{
+			m_source_file = std::move(source_file);
 		}
 	}
 }
@@ -226,8 +237,8 @@ bool debugger_cpu::comment_save()
 	bool comments_saved = false;
 
 	// if we don't have a root, bail
-	util::xml::data_node *const root = util::xml::data_node::file_create();
-	if (root == nullptr)
+	util::xml::file::ptr const root = util::xml::file::create();
+	if (!root)
 		return false;
 
 	// wrap in a try/catch to handle errors
@@ -269,19 +280,17 @@ bool debugger_cpu::comment_save()
 			osd_file::error filerr = file.open(m_machine.basename(), ".cmt");
 			if (filerr == osd_file::error::NONE)
 			{
-				root->file_write(file);
+				root->write(file);
 				comments_saved = true;
 			}
 		}
 	}
 	catch (emu_exception &)
 	{
-		root->file_free();
 		return false;
 	}
 
 	// free and get out of here
-	root->file_free();
 	return comments_saved;
 }
 
@@ -301,11 +310,11 @@ bool debugger_cpu::comment_load(bool is_inline)
 		return false;
 
 	// wrap in a try/catch to handle errors
-	util::xml::data_node *const root = util::xml::data_node::file_read(file, nullptr);
+	util::xml::file::ptr const root = util::xml::file::read(file, nullptr);
 	try
 	{
 		// read the file
-		if (root == nullptr)
+		if (!root)
 			throw emu_exception();
 
 		// find the config node
@@ -342,13 +351,10 @@ bool debugger_cpu::comment_load(bool is_inline)
 	catch (emu_exception &)
 	{
 		// clean up in case of error
-		if (root != nullptr)
-			root->file_free();
 		return false;
 	}
 
-	// free the parser
-	root->file_free();
+	// success!
 	return true;
 }
 
@@ -368,7 +374,7 @@ u8 debugger_cpu::read_byte(address_space &space, offs_t address, bool apply_tran
 	device_memory_interface &memory = space.device().memory();
 
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* translate if necessary; if not mapped, return 0xff */
 	u8 result;
@@ -392,34 +398,20 @@ u8 debugger_cpu::read_byte(address_space &space, offs_t address, bool apply_tran
 
 u16 debugger_cpu::read_word(address_space &space, offs_t address, bool apply_translation)
 {
+	device_memory_interface &memory = space.device().memory();
+
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	u16 result;
-	if (!WORD_ALIGNED(address))
-	{   /* if this is misaligned read, or if there are no word readers, just read two bytes */
-		u8 byte0 = read_byte(space, address + 0, apply_translation);
-		u8 byte1 = read_byte(space, address + 1, apply_translation);
-
-		/* based on the endianness, the result is assembled differently */
-		if (space.endianness() == ENDIANNESS_LITTLE)
-			result = byte0 | (byte1 << 8);
-		else
-			result = byte1 | (byte0 << 8);
+	/* translate if necessary; if not mapped, return 0xffff */
+	if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
+	{
+		result = 0xffff;
 	}
 	else
-	{   /* otherwise, this proceeds like the byte case */
-		device_memory_interface &memory = space.device().memory();
-
-		/* translate if necessary; if not mapped, return 0xffff */
-		if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
-		{
-			result = 0xffff;
-		}
-		else
-		{   /* otherwise, call the byte reading function for the translated address */
-			result = space.read_word(address);
-		}
+	{   /* otherwise, call the byte reading function for the translated address */
+		result = space.read_word_unaligned(address);
 	}
 
 	return result;
@@ -433,33 +425,20 @@ u16 debugger_cpu::read_word(address_space &space, offs_t address, bool apply_tra
 
 u32 debugger_cpu::read_dword(address_space &space, offs_t address, bool apply_translation)
 {
+	device_memory_interface &memory = space.device().memory();
+
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	u32 result;
-	if (!DWORD_ALIGNED(address))
-	{   /* if this is a misaligned read, or if there are no dword readers, just read two words */
-		u16 word0 = read_word(space, address + 0, apply_translation);
-		u16 word1 = read_word(space, address + 2, apply_translation);
 
-		/* based on the endianness, the result is assembled differently */
-		if (space.endianness() == ENDIANNESS_LITTLE)
-			result = word0 | (word1 << 16);
-		else
-			result = word1 | (word0 << 16);
+	if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
+	{   /* translate if necessary; if not mapped, return 0xffffffff */
+		result = 0xffffffff;
 	}
 	else
-	{   /* otherwise, this proceeds like the byte case */
-		device_memory_interface &memory = space.device().memory();
-
-		if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
-		{   /* translate if necessary; if not mapped, return 0xffffffff */
-			result = 0xffffffff;
-		}
-		else
-		{   /* otherwise, call the byte reading function for the translated address */
-			result = space.read_dword(address);
-		}
+	{   /* otherwise, call the byte reading function for the translated address */
+		result = space.read_dword_unaligned(address);
 	}
 
 	return result;
@@ -473,34 +452,21 @@ u32 debugger_cpu::read_dword(address_space &space, offs_t address, bool apply_tr
 
 u64 debugger_cpu::read_qword(address_space &space, offs_t address, bool apply_translation)
 {
+	device_memory_interface &memory = space.device().memory();
+
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	u64 result;
-	if (!QWORD_ALIGNED(address))
-	{   /* if this is a misaligned read, or if there are no qword readers, just read two dwords */
-		u32 dword0 = read_dword(space, address + 0, apply_translation);
-		u32 dword1 = read_dword(space, address + 4, apply_translation);
 
-		/* based on the endianness, the result is assembled differently */
-		if (space.endianness() == ENDIANNESS_LITTLE)
-			result = dword0 | (u64(dword1) << 32);
-		else
-			result = dword1 | (u64(dword0) << 32);
+	/* translate if necessary; if not mapped, return 0xffffffffffffffff */
+	if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
+	{
+		result = ~u64(0);
 	}
 	else
-	{   /* otherwise, this proceeds like the byte case */
-		device_memory_interface &memory = space.device().memory();
-
-		/* translate if necessary; if not mapped, return 0xffffffffffffffff */
-		if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_READ_DEBUG, address))
-		{
-			result = ~u64(0);
-		}
-		else
-		{   /* otherwise, call the byte reading function for the translated address */
-			result = space.read_qword(address);
-		}
+	{   /* otherwise, call the byte reading function for the translated address */
+		result = space.read_qword_unaligned(address);
 	}
 
 	return result;
@@ -536,7 +502,7 @@ void debugger_cpu::write_byte(address_space &space, offs_t address, u8 data, boo
 	device_memory_interface &memory = space.device().memory();
 
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* translate if necessary; if not mapped, we're done */
 	if (apply_translation && !memory.translate(space.spacenum(), TRANSLATE_WRITE_DEBUG, address))
@@ -558,7 +524,7 @@ void debugger_cpu::write_byte(address_space &space, offs_t address, u8 data, boo
 void debugger_cpu::write_word(address_space &space, offs_t address, u16 data, bool apply_translation)
 {
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* if this is a misaligned write, or if there are no word writers, just read two bytes */
 	if (!WORD_ALIGNED(address))
@@ -601,7 +567,7 @@ void debugger_cpu::write_word(address_space &space, offs_t address, u16 data, bo
 void debugger_cpu::write_dword(address_space &space, offs_t address, u32 data, bool apply_translation)
 {
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* if this is a misaligned write, or if there are no dword writers, just read two words */
 	if (!DWORD_ALIGNED(address))
@@ -644,7 +610,7 @@ void debugger_cpu::write_dword(address_space &space, offs_t address, u32 data, b
 void debugger_cpu::write_qword(address_space &space, offs_t address, u64 data, bool apply_translation)
 {
 	/* mask against the logical byte mask */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* if this is a misaligned write, or if there are no qword writers, just read two dwords */
 	if (!QWORD_ALIGNED(address))
@@ -705,10 +671,10 @@ u64 debugger_cpu::read_opcode(address_space &space, offs_t address, int size)
 {
 	device_memory_interface &memory = space.device().memory();
 
-	u64 result = ~u64(0) & (~u64(0) >> (64 - 8*size)), result2;
+	u64 result = ~u64(0) & (~u64(0) >> (64 - 8*size));
 
 	/* keep in logical range */
-	address &= space.logbytemask();
+	address &= space.logaddrmask();
 
 	/* if we're bigger than the address bus, break into smaller pieces */
 	if (size > space.data_width() / 8)
@@ -728,105 +694,26 @@ u64 debugger_cpu::read_opcode(address_space &space, offs_t address, int size)
 		return result;
 
 	/* keep in physical range */
-	address &= space.bytemask();
-	offs_t addrxor = 0;
-	switch (space.data_width() / 8 * 10 + size)
-	{
-		/* dump opcodes in bytes from a byte-sized bus */
-		case 11:
-			break;
-
-		/* dump opcodes in bytes from a word-sized bus */
-		case 21:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? BYTE_XOR_LE(0) : BYTE_XOR_BE(0);
-			break;
-
-		/* dump opcodes in words from a word-sized bus */
-		case 22:
-			break;
-
-		/* dump opcodes in bytes from a dword-sized bus */
-		case 41:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? BYTE4_XOR_LE(0) : BYTE4_XOR_BE(0);
-			break;
-
-		/* dump opcodes in words from a dword-sized bus */
-		case 42:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? WORD_XOR_LE(0) : WORD_XOR_BE(0);
-			break;
-
-		/* dump opcodes in dwords from a dword-sized bus */
-		case 44:
-			break;
-
-		/* dump opcodes in bytes from a qword-sized bus */
-		case 81:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? BYTE8_XOR_LE(0) : BYTE8_XOR_BE(0);
-			break;
-
-		/* dump opcodes in words from a qword-sized bus */
-		case 82:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? WORD2_XOR_LE(0) : WORD2_XOR_BE(0);
-			break;
-
-		/* dump opcodes in dwords from a qword-sized bus */
-		case 84:
-			addrxor = (space.endianness() == ENDIANNESS_LITTLE) ? DWORD_XOR_LE(0) : DWORD_XOR_BE(0);
-			break;
-
-		/* dump opcodes in qwords from a qword-sized bus */
-		case 88:
-		case 86: // sharc case, 48-bits opcodes
-			break;
-
-		default:
-			fatalerror("read_opcode: unknown type = %d\n", space.data_width() / 8 * 10 + size);
-	}
+	address &= space.addrmask();
 
 	/* switch off the size and handle unaligned accesses */
 	switch (size)
 	{
 		case 1:
-			result = space.direct().read_byte(address, addrxor);
+			result = space.read_byte(address);
 			break;
 
 		case 2:
-			result = space.direct().read_word(address & ~1, addrxor);
-			if (!WORD_ALIGNED(address))
-			{
-				result2 = space.direct().read_word((address & ~1) + 2, addrxor);
-				if (space.endianness() == ENDIANNESS_LITTLE)
-					result = (result >> (8 * (address & 1))) | (result2 << (16 - 8 * (address & 1)));
-				else
-					result = (result << (8 * (address & 1))) | (result2 >> (16 - 8 * (address & 1)));
-				result &= 0xffff;
-			}
+			result = space.read_word_unaligned(address);
 			break;
 
 		case 4:
-			result = space.direct().read_dword(address & ~3, addrxor);
-			if (!DWORD_ALIGNED(address))
-			{
-				result2 = space.direct().read_dword((address & ~3) + 4, addrxor);
-				if (space.endianness() == ENDIANNESS_LITTLE)
-					result = (result >> (8 * (address & 3))) | (result2 << (32 - 8 * (address & 3)));
-				else
-					result = (result << (8 * (address & 3))) | (result2 >> (32 - 8 * (address & 3)));
-				result &= 0xffffffff;
-			}
+			result = space.read_dword_unaligned(address);
 			break;
 
-		case 8:
 		case 6:
-			result = space.direct().read_qword(address & ~7, addrxor);
-			if (!QWORD_ALIGNED(address))
-			{
-				result2 = space.direct().read_qword((address & ~7) + 8, addrxor);
-				if (space.endianness() == ENDIANNESS_LITTLE)
-					result = (result >> (8 * (address & 7))) | (result2 << (64 - 8 * (address & 7)));
-				else
-					result = (result << (8 * (address & 7))) | (result2 >> (64 - 8 * (address & 7)));
-			}
+		case 8:
+			result = space.read_qword_unaligned(address);
 			break;
 	}
 
@@ -846,7 +733,8 @@ u64 debugger_cpu::read_opcode(address_space &space, offs_t address, int size)
 void debugger_cpu::on_vblank(screen_device &device, bool vblank_state)
 {
 	/* just set a global flag to be consumed later */
-	m_vblank_occurred = true;
+	if (vblank_state)
+		m_vblank_occurred = true;
 }
 
 
@@ -871,35 +759,31 @@ void debugger_cpu::reset_transient_flags()
 
 void debugger_cpu::process_source_file()
 {
-	/* loop until the file is exhausted or until we are executing again */
-	while (m_source_file != nullptr && m_execution_state == EXECUTION_STATE_STOPPED)
+	std::string buf;
+
+	// loop until the file is exhausted or until we are executing again
+	while (m_execution_state == EXECUTION_STATE_STOPPED
+			&& m_source_file
+			&& std::getline(*m_source_file, buf))
 	{
-		/* stop at the end of file */
-		if (feof(m_source_file))
-		{
-			fclose(m_source_file);
-			m_source_file = nullptr;
-			return;
-		}
+		// strip out comments (text after '//')
+		size_t pos = buf.find("//");
+		if (pos != std::string::npos)
+			buf.resize(pos);
 
-		/* fetch the next line */
-		char buf[512];
-		memset(buf, 0, sizeof(buf));
-		fgets(buf, sizeof(buf), m_source_file);
+		// strip whitespace
+		strtrimrightspace(buf);
 
-		/* strip out comments (text after '//') */
-		char *s = strstr(buf, "//");
-		if (s)
-			*s = '\0';
-
-		/* strip whitespace */
-		int i = (int)strlen(buf);
-		while((i > 0) && (isspace(u8(buf[i-1]))))
-			buf[--i] = '\0';
-
-		/* execute the command */
-		if (buf[0])
+		// execute the command
+		if (!buf.empty())
 			m_machine.debugger().console().execute_command(buf, true);
+	}
+
+	if (m_source_file && !m_source_file->good())
+	{
+		if (!m_source_file->eof())
+			m_machine.debugger().console().printf("I/O error, script processing terminated\n");
+		m_source_file.reset();
 	}
 }
 
@@ -1011,7 +895,7 @@ u64 debugger_cpu::expression_read_memory(void *param, const char *name, expressi
 				memory = &device->memory();
 			}
 			auto dis = m_machine.disable_side_effect(disable_se);
-			return expression_read_program_direct(memory->space(AS_DECRYPTED_OPCODES), (spacenum == EXPSPACE_OPCODE), address, size);
+			return expression_read_program_direct(memory->space(AS_OPCODES), (spacenum == EXPSPACE_OPCODE), address, size);
 			break;
 		}
 
@@ -1202,7 +1086,7 @@ void debugger_cpu::expression_write_memory(void *param, const char *name, expres
 				memory = &device->memory();
 			}
 			auto dis = m_machine.disable_side_effect(disable_se);
-			expression_write_program_direct(memory->space(AS_DECRYPTED_OPCODES), (spacenum == EXPSPACE_OPCODE), address, size, data);
+			expression_write_program_direct(memory->space(AS_OPCODES), (spacenum == EXPSPACE_OPCODE), address, size, data);
 			break;
 		}
 
@@ -1400,7 +1284,7 @@ expression_error::error_code debugger_cpu::expression_validate(void *param, cons
 		}
 		if (!device)
 			device = get_visible_cpu();
-		if (!device->interface(memory) || !memory->has_space(AS_DECRYPTED_OPCODES))
+		if (!device->interface(memory) || !memory->has_space(AS_OPCODES))
 			return expression_error::NO_SUCH_MEMORY_SPACE;
 		break;
 
@@ -1427,9 +1311,8 @@ expression_error::error_code debugger_cpu::expression_validate(void *param, cons
     get_beamx - get beam horizontal position
 -------------------------------------------------*/
 
-u64 debugger_cpu::get_beamx(symbol_table &table, void *ref)
+u64 debugger_cpu::get_beamx(symbol_table &table, screen_device *screen)
 {
-	screen_device *screen = reinterpret_cast<screen_device *>(ref);
 	return (screen != nullptr) ? screen->hpos() : 0;
 }
 
@@ -1438,9 +1321,8 @@ u64 debugger_cpu::get_beamx(symbol_table &table, void *ref)
     get_beamy - get beam vertical position
 -------------------------------------------------*/
 
-u64 debugger_cpu::get_beamy(symbol_table &table, void *ref)
+u64 debugger_cpu::get_beamy(symbol_table &table, screen_device *screen)
 {
-	screen_device *screen = reinterpret_cast<screen_device *>(ref);
 	return (screen != nullptr) ? screen->vpos() : 0;
 }
 
@@ -1449,9 +1331,8 @@ u64 debugger_cpu::get_beamy(symbol_table &table, void *ref)
     get_frame - get current frame number
 -------------------------------------------------*/
 
-u64 debugger_cpu::get_frame(symbol_table &table, void *ref)
+u64 debugger_cpu::get_frame(symbol_table &table, screen_device *screen)
 {
-	screen_device *screen = reinterpret_cast<screen_device *>(ref);
 	return (screen != nullptr) ? screen->frame_number() : 0;
 }
 
@@ -1461,7 +1342,7 @@ u64 debugger_cpu::get_frame(symbol_table &table, void *ref)
     'cpunum' symbol
 -------------------------------------------------*/
 
-u64 debugger_cpu::get_cpunum(symbol_table &table, void *ref)
+u64 debugger_cpu::get_cpunum(symbol_table &table)
 {
 	execute_interface_iterator iter(m_machine.root_device());
 	return iter.indexof(m_visiblecpu->execute());
@@ -1611,7 +1492,6 @@ device_debug::device_debug(device_t &device)
 	, m_track_mem(false)
 {
 	memset(m_pc_history, 0, sizeof(m_pc_history));
-	memset(m_wplist, 0, sizeof(m_wplist));
 
 	// find out which interfaces we have to work with
 	device.interface(m_exec);
@@ -1625,30 +1505,51 @@ device_debug::device_debug(device_t &device)
 		// add global symbol for cycles and totalcycles
 		if (m_exec != nullptr)
 		{
-			m_symtable.add("cycles", nullptr, get_cycles);
-			m_symtable.add("totalcycles", nullptr, get_totalcycles);
-			m_symtable.add("lastinstructioncycles", nullptr, get_lastinstructioncycles);
+			m_symtable.add("cycles", get_cycles);
+			m_symtable.add("totalcycles", get_totalcycles);
+			m_symtable.add("lastinstructioncycles", get_lastinstructioncycles);
 		}
 
 		// add entries to enable/disable unmap reporting for each space
 		if (m_memory != nullptr)
 		{
 			if (m_memory->has_space(AS_PROGRAM))
-				m_symtable.add("logunmap", (void *)&m_memory->space(AS_PROGRAM), get_logunmap, set_logunmap);
+				m_symtable.add(
+						"logunmap",
+						[&space = m_memory->space(AS_PROGRAM)] (symbol_table &table) { return space.log_unmap(); },
+						[&space = m_memory->space(AS_PROGRAM)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
 			if (m_memory->has_space(AS_DATA))
-				m_symtable.add("logunmapd", (void *)&m_memory->space(AS_DATA), get_logunmap, set_logunmap);
+				m_symtable.add(
+						"logunmap",
+						[&space = m_memory->space(AS_DATA)] (symbol_table &table) { return space.log_unmap(); },
+						[&space = m_memory->space(AS_DATA)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
 			if (m_memory->has_space(AS_IO))
-				m_symtable.add("logunmapi", (void *)&m_memory->space(AS_IO), get_logunmap, set_logunmap);
-			if (m_memory->has_space(AS_DECRYPTED_OPCODES))
-				m_symtable.add("logunmapo", (void *)&m_memory->space(AS_DECRYPTED_OPCODES), get_logunmap, set_logunmap);
+				m_symtable.add(
+						"logunmap",
+						[&space = m_memory->space(AS_IO)] (symbol_table &table) { return space.log_unmap(); },
+						[&space = m_memory->space(AS_IO)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
+			if (m_memory->has_space(AS_OPCODES))
+				m_symtable.add(
+						"logunmap",
+						[&space = m_memory->space(AS_OPCODES)] (symbol_table &table) { return space.log_unmap(); },
+						[&space = m_memory->space(AS_OPCODES)] (symbol_table &table, u64 value) { return space.set_log_unmap(bool(value)); });
 		}
 
 		// add all registers into it
 		std::string tempstr;
 		for (const auto &entry : m_state->state_entries())
 		{
-			strmakelower(tempstr.assign(entry->symbol()));
-			m_symtable.add(tempstr.c_str(), (void *)(uintptr_t)entry->index(), get_state, set_state, entry->format_string());
+			// TODO: floating point registers
+			if (!entry->is_float())
+			{
+				using namespace std::placeholders;
+				strmakelower(tempstr.assign(entry->symbol()));
+				m_symtable.add(
+						tempstr.c_str(),
+						std::bind(&device_debug::get_state, _1, entry->index()),
+						entry->writeable() ? std::bind(&device_debug::set_state, _1, entry->index(), _2) : symbol_table::setter_func(nullptr),
+						entry->format_string());
+			}
 		}
 	}
 
@@ -1658,8 +1559,8 @@ device_debug::device_debug(device_t &device)
 		m_flags = DEBUG_FLAG_OBSERVING | DEBUG_FLAG_HISTORY;
 
 		// if no curpc, add one
-		if (m_state != nullptr && m_symtable.find("curpc") == nullptr)
-			m_symtable.add("curpc", nullptr, get_current_pc);
+		if (m_state && !m_symtable.find("curpc"))
+			m_symtable.add("curpc", get_current_pc);
 	}
 
 	// set up trace
@@ -1970,6 +1871,7 @@ void device_debug::single_step(int numsteps)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_capture();
 	m_stepsleft = numsteps;
 	m_stepaddr = ~0;
 	m_flags |= DEBUG_FLAG_STEPPING;
@@ -1986,6 +1888,7 @@ void device_debug::single_step_over(int numsteps)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_capture();
 	m_stepsleft = numsteps;
 	m_stepaddr = ~0;
 	m_flags |= DEBUG_FLAG_STEPPING_OVER;
@@ -2002,6 +1905,7 @@ void device_debug::single_step_out()
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_capture();
 	m_stepsleft = 100;
 	m_stepaddr = ~0;
 	m_flags |= DEBUG_FLAG_STEPPING_OUT;
@@ -2018,6 +1922,7 @@ void device_debug::go(offs_t targetpc)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_invalidate();
 	m_stopaddr = targetpc;
 	m_flags |= DEBUG_FLAG_STOP_PC;
 	m_device.machine().debugger().cpu().set_execution_state(EXECUTION_STATE_RUNNING);
@@ -2032,6 +1937,7 @@ void device_debug::go_vblank()
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_invalidate();
 	m_flags |= DEBUG_FLAG_STOP_VBLANK;
 	m_device.machine().debugger().cpu().go_vblank();
 }
@@ -2046,6 +1952,7 @@ void device_debug::go_interrupt(int irqline)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_invalidate();
 	m_stopirq = irqline;
 	m_flags |= DEBUG_FLAG_STOP_INTERRUPT;
 	m_device.machine().debugger().cpu().set_execution_state(EXECUTION_STATE_RUNNING);
@@ -2065,6 +1972,7 @@ void device_debug::go_exception(int exception)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_invalidate();
 	m_stopexception = exception;
 	m_flags |= DEBUG_FLAG_STOP_EXCEPTION;
 	m_device.machine().debugger().cpu().set_execution_state(EXECUTION_STATE_RUNNING);
@@ -2080,6 +1988,7 @@ void device_debug::go_milliseconds(u64 milliseconds)
 {
 	assert(m_exec != nullptr);
 
+	m_device.machine().rewind_invalidate();
 	m_stoptime = m_device.machine().time() + attotime::from_msec(milliseconds);
 	m_flags |= DEBUG_FLAG_STOP_TIME;
 	m_device.machine().debugger().cpu().set_execution_state(EXECUTION_STATE_RUNNING);
@@ -2196,7 +2105,8 @@ void device_debug::breakpoint_enable_all(bool enable)
 
 int device_debug::watchpoint_set(address_space &space, int type, offs_t address, offs_t length, const char *condition, const char *action)
 {
-	assert(space.spacenum() < ARRAY_LENGTH(m_wplist));
+	if (space.spacenum() >= int(m_wplist.size()))
+		m_wplist.resize(space.spacenum()+1, nullptr);
 
 	// allocate a new one
 	u32 id = m_device.machine().debugger().cpu().get_watchpoint_index();
@@ -2220,7 +2130,7 @@ int device_debug::watchpoint_set(address_space &space, int type, offs_t address,
 bool device_debug::watchpoint_clear(int index)
 {
 	// scan the list to see if we own this breakpoint
-	for (address_spacenum spacenum = AS_0; spacenum < ARRAY_LENGTH(m_wplist); ++spacenum)
+	for (int spacenum = 0; spacenum < int(m_wplist.size()); ++spacenum)
 		for (watchpoint **wp = &m_wplist[spacenum]; *wp != nullptr; wp = &(*wp)->m_next)
 			if ((*wp)->m_index == index)
 			{
@@ -2244,7 +2154,7 @@ bool device_debug::watchpoint_clear(int index)
 void device_debug::watchpoint_clear_all()
 {
 	// clear the head until we run out
-	for (address_spacenum spacenum = AS_0; spacenum < ARRAY_LENGTH(m_wplist); ++spacenum)
+	for (int spacenum = 0; spacenum < int(m_wplist.size()); ++spacenum)
 		while (m_wplist[spacenum] != nullptr)
 			watchpoint_clear(m_wplist[spacenum]->index());
 }
@@ -2258,7 +2168,7 @@ void device_debug::watchpoint_clear_all()
 bool device_debug::watchpoint_enable(int index, bool enable)
 {
 	// scan the list to see if we own this watchpoint
-	for (address_spacenum spacenum = AS_0; spacenum < ARRAY_LENGTH(m_wplist); ++spacenum)
+	for (int spacenum = 0; spacenum < int(m_wplist.size()); ++spacenum)
 		for (watchpoint *wp = m_wplist[spacenum]; wp != nullptr; wp = wp->next())
 			if (wp->m_index == index)
 			{
@@ -2280,7 +2190,7 @@ bool device_debug::watchpoint_enable(int index, bool enable)
 void device_debug::watchpoint_enable_all(bool enable)
 {
 	// apply the enable to all watchpoints we own
-	for (address_spacenum spacenum = AS_0; spacenum < ARRAY_LENGTH(m_wplist); ++spacenum)
+	for (int spacenum = 0; spacenum < int(m_wplist.size()); ++spacenum)
 		for (watchpoint *wp = m_wplist[spacenum]; wp != nullptr; wp = wp->next())
 			watchpoint_enable(wp->index(), enable);
 }
@@ -2452,7 +2362,7 @@ void device_debug::set_track_pc_visited(const offs_t& pc)
 //  'not available'.
 //-------------------------------------------------
 
-offs_t device_debug::track_mem_pc_from_space_address_data(const address_spacenum& space,
+offs_t device_debug::track_mem_pc_from_space_address_data(const int& space,
 															const offs_t& address,
 															const u64& data) const
 {
@@ -2570,33 +2480,15 @@ bool device_debug::comment_import(util::xml::data_node const &cpunode, bool is_i
 
 u32 device_debug::compute_opcode_crc32(offs_t pc) const
 {
-	// Basically the same thing as dasm_wrapped, but with some tiny savings
-	assert(m_memory != nullptr);
+	std::vector<u8> opbuf;
+	debug_disasm_buffer buffer(device());
 
-	// determine the adjusted PC
-	address_space &decrypted_space = m_memory->has_space(AS_DECRYPTED_OPCODES) ? m_memory->space(AS_DECRYPTED_OPCODES) : m_memory->space(AS_PROGRAM);
-	address_space &space = m_memory->space(AS_PROGRAM);
-	offs_t pcbyte = space.address_to_byte(pc) & space.bytemask();
-
-	// fetch the bytes up to the maximum
-	u8 opbuf[64], argbuf[64];
-	int maxbytes = (m_disasm != nullptr) ? m_disasm->max_opcode_bytes() : 1;
-	for (int numbytes = 0; numbytes < maxbytes; numbytes++)
-	{
-		opbuf[numbytes] = m_device.machine().debugger().cpu().read_opcode(decrypted_space, pcbyte + numbytes, 1);
-		argbuf[numbytes] = m_device.machine().debugger().cpu().read_opcode(space, pcbyte + numbytes, 1);
-	}
-
-	u32 numbytes = maxbytes;
-	if (m_disasm != nullptr)
-	{
-		// disassemble to our buffer
-		std::ostringstream diasmbuf;
-		numbytes = m_disasm->disassemble(diasmbuf, pc, opbuf, argbuf) & DASMFLAG_LENGTHMASK;
-	}
+	// disassemble the current instruction and get the flags
+	u32 dasmresult = buffer.disassemble_info(pc);
+	buffer.data_get(pc, dasmresult & util::disasm_interface::LENGTHMASK, true, opbuf);
 
 	// return a CRC of the exact count of opcode bytes
-	return core_crc32(0, opbuf, numbytes);
+	return core_crc32(0, &opbuf[0], opbuf.size());
 }
 
 
@@ -2676,26 +2568,29 @@ void device_debug::compute_debug_flags()
 
 void device_debug::prepare_for_step_overout(offs_t pc)
 {
+	debug_disasm_buffer buffer(device());
+
 	// disassemble the current instruction and get the flags
-	std::string dasmbuffer;
-	offs_t dasmresult = dasm_wrapped(dasmbuffer, pc);
+	u32 dasmresult = buffer.disassemble_info(pc);
 
 	// if flags are supported and it's a call-style opcode, set a temp breakpoint after that instruction
-	if ((dasmresult & DASMFLAG_SUPPORTED) != 0 && (dasmresult & DASMFLAG_STEP_OVER) != 0)
+	if ((dasmresult & util::disasm_interface::SUPPORTED) != 0 && (dasmresult & util::disasm_interface::STEP_OVER) != 0)
 	{
-		int extraskip = (dasmresult & DASMFLAG_OVERINSTMASK) >> DASMFLAG_OVERINSTSHIFT;
-		pc += dasmresult & DASMFLAG_LENGTHMASK;
+		int extraskip = (dasmresult & util::disasm_interface::OVERINSTMASK) >> util::disasm_interface::OVERINSTSHIFT;
+		pc = buffer.next_pc_wrap(pc, dasmresult & util::disasm_interface::LENGTHMASK);
 
 		// if we need to skip additional instructions, advance as requested
-		while (extraskip-- > 0)
-			pc += dasm_wrapped(dasmbuffer, pc) & DASMFLAG_LENGTHMASK;
+		while (extraskip-- > 0) {
+			u32 result = buffer.disassemble_info(pc);
+			pc += buffer.next_pc_wrap(pc, result & util::disasm_interface::LENGTHMASK);
+		}
 		m_stepaddr = pc;
 	}
 
 	// if we're stepping out and this isn't a step out instruction, reset the steps until stop to a high number
 	if ((m_flags & DEBUG_FLAG_STEPPING_OUT) != 0)
 	{
-		if ((dasmresult & DASMFLAG_SUPPORTED) != 0 && (dasmresult & DASMFLAG_STEP_OUT) == 0)
+		if ((dasmresult & util::disasm_interface::SUPPORTED) != 0 && (dasmresult & util::disasm_interface::STEP_OUT) == 0)
 			m_stepsleft = 100;
 		else
 			m_stepsleft = 1;
@@ -2755,7 +2650,7 @@ void device_debug::breakpoint_check(offs_t pc)
 
 			// if we hit, evaluate the action
 			if (!bp->m_action.empty())
-				m_device.machine().debugger().console().execute_command(bp->m_action.c_str(), false);
+				m_device.machine().debugger().console().execute_command(bp->m_action, false);
 
 			// print a notification, unless the action made us go again
 			if (debugcpu.execution_state() == EXECUTION_STATE_STOPPED)
@@ -2774,7 +2669,7 @@ void device_debug::breakpoint_check(offs_t pc)
 			// if we hit, evaluate the action
 			if (!rp->m_action.empty())
 			{
-				m_device.machine().debugger().console().execute_command(rp->m_action.c_str(), false);
+				m_device.machine().debugger().console().execute_command(rp->m_action, false);
 			}
 
 			// print a notification, unless the action made us go again
@@ -2802,14 +2697,15 @@ void device_debug::watchpoint_update_flags(address_space &space)
 
 	// see if there are any enabled breakpoints
 	bool enablewrite = false;
-	for (watchpoint *wp = m_wplist[space.spacenum()]; wp != nullptr; wp = wp->m_next)
-		if (wp->m_enabled)
-		{
-			if (wp->m_type & WATCHPOINT_READ)
-				enableread = true;
-			if (wp->m_type & WATCHPOINT_WRITE)
-				enablewrite = true;
-		}
+	if (space.spacenum() < int(m_wplist.size()))
+		for (watchpoint *wp = m_wplist[space.spacenum()]; wp != nullptr; wp = wp->m_next)
+			if (wp->m_enabled)
+			{
+				if (wp->m_type & WATCHPOINT_READ)
+					enableread = true;
+				if (wp->m_type & WATCHPOINT_WRITE)
+					enablewrite = true;
+			}
 
 	// push the flags out globally
 	space.enable_read_watchpoints(enableread);
@@ -2824,10 +2720,10 @@ void device_debug::watchpoint_update_flags(address_space &space)
 
 void device_debug::watchpoint_check(address_space& space, int type, offs_t address, u64 value_to_write, u64 mem_mask)
 {
-	space.machine().debugger().cpu().watchpoint_check(space, type, address, value_to_write, mem_mask, m_wplist);
+	m_device.machine().debugger().cpu().watchpoint_check(space, type, address, value_to_write, mem_mask, m_wplist);
 }
 
-void debugger_cpu::watchpoint_check(address_space& space, int type, offs_t address, u64 value_to_write, u64 mem_mask, device_debug::watchpoint** wplist)
+void debugger_cpu::watchpoint_check(address_space& space, int type, offs_t address, u64 value_to_write, u64 mem_mask, std::vector<device_debug::watchpoint *> &wplist)
 {
 	// if we're within debugger code, don't stop
 	if (m_within_instruction_hook || m_machine.side_effect_disabled())
@@ -2880,41 +2776,42 @@ void debugger_cpu::watchpoint_check(address_space& space, int type, offs_t addre
 		m_wpdata = value_to_write;
 
 	// see if we match
-	for (device_debug::watchpoint *wp = wplist[space.spacenum()]; wp != nullptr; wp = wp->next())
-		if (wp->hit(type, address, size))
-		{
-			// halt in the debugger by default
-			m_execution_state = EXECUTION_STATE_STOPPED;
-
-			// if we hit, evaluate the action
-			if (strlen(wp->action()) > 0)
-				m_machine.debugger().console().execute_command(wp->action(), false);
-
-			// print a notification, unless the action made us go again
-			if (m_execution_state == EXECUTION_STATE_STOPPED)
+	if (space.spacenum() < int(wplist.size()))
+		for (device_debug::watchpoint *wp = wplist[space.spacenum()]; wp != nullptr; wp = wp->next())
+			if (wp->hit(type, address, size))
 			{
-				static const char *const sizes[] =
-				{
-					"0bytes", "byte", "word", "3bytes", "dword", "5bytes", "6bytes", "7bytes", "qword"
-				};
-				offs_t pc = space.device().safe_pcbase();
-				std::string buffer;
+				// halt in the debugger by default
+				m_execution_state = EXECUTION_STATE_STOPPED;
 
-				if (type & WATCHPOINT_WRITE)
+				// if we hit, evaluate the action
+				if (!wp->action().empty())
+					m_machine.debugger().console().execute_command(wp->action(), false);
+
+				// print a notification, unless the action made us go again
+				if (m_execution_state == EXECUTION_STATE_STOPPED)
 				{
-					buffer = string_format("Stopped at watchpoint %X writing %s to %08X (PC=%X)", wp->index(), sizes[size], space.byte_to_address(address), pc);
-					if (value_to_write >> 32)
-						buffer.append(string_format(" (data=%X%08X)", u32(value_to_write >> 32), u32(value_to_write)));
+					static const char *const sizes[] =
+					{
+						"0bytes", "byte", "word", "3bytes", "dword", "5bytes", "6bytes", "7bytes", "qword"
+					};
+					offs_t pc = space.device().safe_pcbase();
+					std::string buffer;
+
+					if (type & WATCHPOINT_WRITE)
+					{
+						buffer = string_format("Stopped at watchpoint %X writing %s to %08X (PC=%X)", wp->index(), sizes[size], address, pc);
+						if (value_to_write >> 32)
+							buffer.append(string_format(" (data=%X%08X)", u32(value_to_write >> 32), u32(value_to_write)));
+						else
+							buffer.append(string_format(" (data=%X)", u32(value_to_write)));
+					}
 					else
-						buffer.append(string_format(" (data=%X)", u32(value_to_write)));
+						buffer = string_format("Stopped at watchpoint %X reading %s from %08X (PC=%X)", wp->index(), sizes[size], address, pc);
+					m_machine.debugger().console().printf("%s\n", buffer.c_str());
+					space.device().debug()->compute_debug_flags();
 				}
-				else
-					buffer = string_format("Stopped at watchpoint %X reading %s from %08X (PC=%X)", wp->index(), sizes[size], space.byte_to_address(address), pc);
-				m_machine.debugger().console().printf("%s\n", buffer.c_str());
-				space.device().debug()->compute_debug_flags();
+				break;
 			}
-			break;
-		}
 
 	m_within_instruction_hook = false;
 }
@@ -2941,7 +2838,7 @@ void device_debug::hotspot_check(address_space &space, offs_t address)
 		// if the bottom of the list is over the threshold, print it
 		hotspot_entry &spot = m_hotspots[m_hotspots.size() - 1];
 		if (spot.m_count > m_hotspot_threshhold)
-			space.machine().debugger().console().printf("Hotspot @ %s %08X (PC=%08X) hit %d times (fell off bottom)\n", space.name(), spot.m_access, spot.m_pc, spot.m_count);
+			m_device.machine().debugger().console().printf("Hotspot @ %s %08X (PC=%08X) hit %d times (fell off bottom)\n", space.name(), spot.m_access, spot.m_pc, spot.m_count);
 
 		// move everything else down and insert this one at the top
 		memmove(&m_hotspots[1], &m_hotspots[0], sizeof(m_hotspots[0]) * (m_hotspots.size() - 1));
@@ -2966,43 +2863,11 @@ void device_debug::hotspot_check(address_space &space, offs_t address)
 
 
 //-------------------------------------------------
-//  dasm_wrapped - wraps calls to the disassembler
-//  by fetching the opcode bytes to a temporary
-//  buffer and then disassembling them
-//-------------------------------------------------
-
-u32 device_debug::dasm_wrapped(std::string &buffer, offs_t pc)
-{
-	assert(m_memory != nullptr && m_disasm != nullptr);
-
-	// determine the adjusted PC
-	address_space &decrypted_space = m_memory->has_space(AS_DECRYPTED_OPCODES) ? m_memory->space(AS_DECRYPTED_OPCODES) : m_memory->space(AS_PROGRAM);
-	address_space &space = m_memory->space(AS_PROGRAM);
-	offs_t pcbyte = space.address_to_byte(pc) & space.bytemask();
-
-	// fetch the bytes up to the maximum
-	u8 opbuf[64], argbuf[64];
-	int maxbytes = m_disasm->max_opcode_bytes();
-	for (int numbytes = 0; numbytes < maxbytes; numbytes++)
-	{
-		opbuf[numbytes] = m_device.machine().debugger().cpu().read_opcode(decrypted_space, pcbyte + numbytes, 1);
-		argbuf[numbytes] = m_device.machine().debugger().cpu().read_opcode(space, pcbyte + numbytes, 1);
-	}
-
-	// disassemble to our buffer
-	std::ostringstream stream;
-	uint32_t result = m_disasm->disassemble(stream, pc, opbuf, argbuf);
-	buffer = stream.str();
-	return result;
-}
-
-
-//-------------------------------------------------
 //  get_current_pc - getter callback for a device's
 //  current instruction pointer
 //-------------------------------------------------
 
-u64 device_debug::get_current_pc(symbol_table &table, void *ref)
+u64 device_debug::get_current_pc(symbol_table &table)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
 	return device->safe_pcbase();
@@ -3014,7 +2879,7 @@ u64 device_debug::get_current_pc(symbol_table &table, void *ref)
 //  'cycles' symbol
 //-------------------------------------------------
 
-u64 device_debug::get_cycles(symbol_table &table, void *ref)
+u64 device_debug::get_cycles(symbol_table &table)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
 	return device->debug()->m_exec->cycles_remaining();
@@ -3026,7 +2891,7 @@ u64 device_debug::get_cycles(symbol_table &table, void *ref)
 //  'totalcycles' symbol
 //-------------------------------------------------
 
-u64 device_debug::get_totalcycles(symbol_table &table, void *ref)
+u64 device_debug::get_totalcycles(symbol_table &table)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
 	return device->debug()->m_total_cycles;
@@ -3038,7 +2903,7 @@ u64 device_debug::get_totalcycles(symbol_table &table, void *ref)
 //  'lastinstructioncycles' symbol
 //-------------------------------------------------
 
-u64 device_debug::get_lastinstructioncycles(symbol_table &table, void *ref)
+u64 device_debug::get_lastinstructioncycles(symbol_table &table)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
 	device_debug *debug = device->debug();
@@ -3047,38 +2912,14 @@ u64 device_debug::get_lastinstructioncycles(symbol_table &table, void *ref)
 
 
 //-------------------------------------------------
-//  get_logunmap - getter callback for the logumap
-//  symbols
-//-------------------------------------------------
-
-u64 device_debug::get_logunmap(symbol_table &table, void *ref)
-{
-	address_space &space = *reinterpret_cast<address_space *>(table.globalref());
-	return space.log_unmap();
-}
-
-
-//-------------------------------------------------
-//  set_logunmap - setter callback for the logumap
-//  symbols
-//-------------------------------------------------
-
-void device_debug::set_logunmap(symbol_table &table, void *ref, u64 value)
-{
-	address_space &space = *reinterpret_cast<address_space *>(table.globalref());
-	space.set_log_unmap(value ? true : false);
-}
-
-
-//-------------------------------------------------
 //  get_state - getter callback for a device's
 //  state symbols
 //-------------------------------------------------
 
-u64 device_debug::get_state(symbol_table &table, void *ref)
+u64 device_debug::get_state(symbol_table &table, int index)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->debug()->m_state->state_int(reinterpret_cast<uintptr_t>(ref));
+	return device->debug()->m_state->state_int(index);
 }
 
 
@@ -3087,10 +2928,10 @@ u64 device_debug::get_state(symbol_table &table, void *ref)
 //  state symbols
 //-------------------------------------------------
 
-void device_debug::set_state(symbol_table &table, void *ref, u64 value)
+void device_debug::set_state(symbol_table &table, int index, u64 value)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	device->debug()->m_state->set_state_int(reinterpret_cast<uintptr_t>(ref), value);
+	device->debug()->m_state->set_state_int(index, value);
 }
 
 
@@ -3175,8 +3016,8 @@ device_debug::watchpoint::watchpoint(device_debug* debugInterface,
 		m_index(index),
 		m_enabled(true),
 		m_type(type),
-		m_address(space.address_to_byte(address) & space.bytemask()),
-		m_length(space.address_to_byte(length)),
+		m_address(address & space.addrmask()),
+		m_length(length),
 		m_condition(&symbols, (condition != nullptr) ? condition : "1"),
 		m_action((action != nullptr) ? action : "")
 {
@@ -3336,37 +3177,26 @@ void device_debug::tracer::update(offs_t pc)
 
 	// execute any trace actions first
 	if (!m_action.empty())
-		m_debug.m_device.machine().debugger().console().execute_command(m_action.c_str(), false);
+		m_debug.m_device.machine().debugger().console().execute_command(m_action, false);
 
-	// print the address
-	std::string buffer;
-	int logaddrchars = m_debug.logaddrchars();
-	if (m_debug.is_octal())
-	{
-		buffer = string_format("%0*o: ", logaddrchars*3/2, pc);
-	}
-	else
-	{
-		buffer = string_format("%0*X: ", logaddrchars, pc);
-	}
-
-	// print the disassembly
-	std::string dasm;
-	offs_t dasmresult = m_debug.dasm_wrapped(dasm, pc);
-	buffer.append(dasm);
+	debug_disasm_buffer buffer(m_debug.device());
+	std::string instruction;
+	offs_t next_pc, size;
+	u32 dasmresult;
+	buffer.disassemble(pc, instruction, next_pc, size, dasmresult);
 
 	// output the result
-	fprintf(&m_file, "%s\n", buffer.c_str());
+	fprintf(&m_file, "%s: %s\n", buffer.pc_to_string(pc).c_str(), instruction.c_str());
 
 	// do we need to step the trace over this instruction?
-	if (m_trace_over && (dasmresult & DASMFLAG_SUPPORTED) != 0 && (dasmresult & DASMFLAG_STEP_OVER) != 0)
+	if (m_trace_over && (dasmresult & util::disasm_interface::SUPPORTED) != 0 && (dasmresult & util::disasm_interface::STEP_OVER) != 0)
 	{
-		int extraskip = (dasmresult & DASMFLAG_OVERINSTMASK) >> DASMFLAG_OVERINSTSHIFT;
-		offs_t trace_over_target = pc + (dasmresult & DASMFLAG_LENGTHMASK);
+		int extraskip = (dasmresult & util::disasm_interface::OVERINSTMASK) >> util::disasm_interface::OVERINSTSHIFT;
+		offs_t trace_over_target = buffer.next_pc_wrap(pc, dasmresult & util::disasm_interface::LENGTHMASK);
 
 		// if we need to skip additional instructions, advance as requested
 		while (extraskip-- > 0)
-			trace_over_target += m_debug.dasm_wrapped(dasm, trace_over_target) & DASMFLAG_LENGTHMASK;
+			trace_over_target = buffer.next_pc_wrap(trace_over_target, buffer.disassemble_info(trace_over_target) & util::disasm_interface::LENGTHMASK);
 
 		m_trace_over_target = trace_over_target;
 	}
@@ -3415,7 +3245,7 @@ device_debug::dasm_pc_tag::dasm_pc_tag(const offs_t& address, const u32& crc)
 //  dasm_memory_access - constructor
 //-------------------------------------------------
 
-device_debug::dasm_memory_access::dasm_memory_access(const address_spacenum& address_space,
+device_debug::dasm_memory_access::dasm_memory_access(const int& address_space,
 														const offs_t& address,
 														const u64& data,
 														const offs_t& pc)

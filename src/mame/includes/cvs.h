@@ -33,6 +33,7 @@ public:
 			m_dac3_state(*this, "dac3_state"),
 			m_maincpu(*this, "maincpu"),
 			m_audiocpu(*this, "audiocpu"),
+			m_speechcpu(*this, "speechcpu"),
 			m_dac2(*this, "dac2"),
 			m_dac3(*this, "dac3"),
 			m_tms5110(*this, "tms"),
@@ -76,6 +77,7 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_speechcpu;
 	optional_device<dac_byte_interface> m_dac2;
 	optional_device<dac_bit_interface> m_dac3;
 	optional_device<tms5110_device> m_tms5110;
@@ -115,7 +117,7 @@ public:
 	DECLARE_READ8_MEMBER(cvs_collision_r);
 	DECLARE_READ8_MEMBER(cvs_collision_clear);
 	DECLARE_WRITE8_MEMBER(cvs_scroll_w);
-	DECLARE_READ8_MEMBER(tms_clock_r);
+	DECLARE_READ_LINE_MEMBER(tms_clock_r);
 	DECLARE_WRITE8_MEMBER(cvs_4_bit_dac_data_w);
 	DECLARE_WRITE8_MEMBER(cvs_unknown_w);
 	DECLARE_WRITE8_MEMBER(cvs_tms5110_ctl_w);

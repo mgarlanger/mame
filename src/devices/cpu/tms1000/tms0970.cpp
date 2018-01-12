@@ -8,7 +8,6 @@
 
 #include "emu.h"
 #include "tms0970.h"
-#include "debugger.h"
 
 // TMS0950 is a TMS1000 with a TMS0980 style opla, it was quickly succeeded by the TMS0970
 // - RAM, ROM, microinstructions is the same as TMS1000
@@ -59,7 +58,7 @@ tms1990_cpu_device::tms1990_cpu_device(const machine_config &mconfig, const char
 
 
 // machine configs
-static MACHINE_CONFIG_FRAGMENT(tms0950)
+MACHINE_CONFIG_MEMBER(tms0950_cpu_device::device_add_mconfig)
 
 	// microinstructions PLA, output PLA, segment PLA
 	MCFG_PLA_ADD("mpla", 8, 16, 30)
@@ -70,12 +69,7 @@ static MACHINE_CONFIG_FRAGMENT(tms0950)
 	MCFG_PLA_FILEFORMAT(BERKELEY)
 MACHINE_CONFIG_END
 
-machine_config_constructor tms0950_cpu_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(tms0950);
-}
-
-static MACHINE_CONFIG_FRAGMENT(tms0970)
+MACHINE_CONFIG_MEMBER(tms0970_cpu_device::device_add_mconfig)
 
 	// main opcodes PLA, microinstructions PLA, output PLA, segment PLA
 	MCFG_PLA_ADD("ipla", 8, 15, 18)
@@ -87,11 +81,6 @@ static MACHINE_CONFIG_FRAGMENT(tms0970)
 	MCFG_PLA_ADD("spla", 3, 8, 8)
 	MCFG_PLA_FILEFORMAT(BERKELEY)
 MACHINE_CONFIG_END
-
-machine_config_constructor tms0970_cpu_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(tms0970);
-}
 
 
 // device_reset
@@ -120,7 +109,7 @@ void tms0970_cpu_device::device_reset()
 		if (imask & 0x40 && (imask & 0x20) == 0)
 			msel = (op & 0xf) | (op >> 1 & 0x10);
 
-		msel = BITSWAP8(msel,7,6,5,0,1,2,3,4); // lines are reversed
+		msel = bitswap<8>(msel,7,6,5,0,1,2,3,4); // lines are reversed
 		u32 mmask = m_mpla->read(msel);
 		mmask ^= 0x09fe; // invert active-negative
 

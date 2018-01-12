@@ -237,7 +237,7 @@ void taitopjc_state::video_start()
 	m_tilemap[0]->set_transparent_pen(0);
 	m_tilemap[1]->set_transparent_pen(1);
 
-	m_gfxdecode->set_gfx(0, std::make_unique<gfx_element>(*m_palette, char_layout, (uint8_t*)m_screen_ram.get(), 0, m_palette->entries() / 256, 0));
+	m_gfxdecode->set_gfx(0, std::make_unique<gfx_element>(m_palette, char_layout, (uint8_t*)m_screen_ram.get(), 0, m_palette->entries() / 256, 0));
 
 	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(&taitopjc_state::video_exit, this));
 }
@@ -357,7 +357,7 @@ WRITE64_MEMBER(taitopjc_state::ppc_common_w)
 {
 	uint32_t address = offset * 2;
 
-//  logerror("ppc_common_w: %08X, %I64X, %I64X\n", offset, data, mem_mask);
+//  logerror("ppc_common_w: %08X, %X, %X\n", offset, data, mem_mask);
 
 	if (ACCESSING_BITS_48_63)
 	{
@@ -475,7 +475,7 @@ void taitopjc_state::print_display_list()
 
 WRITE64_MEMBER(taitopjc_state::dsp_w)
 {
-	//logerror("dsp_w: %08X, %08X%08X, %08X%08X at %08X\n", offset, (uint32_t)(data >> 32), (uint32_t)(data), (uint32_t)(mem_mask >> 32), (uint32_t)(mem_mask), space.device().safe_pc());
+	//logerror("dsp_w: %08X, %08X%08X, %08X%08X at %08X\n", offset, (uint32_t)(data >> 32), (uint32_t)(data), (uint32_t)(mem_mask >> 32), (uint32_t)(mem_mask), m_maincpu->pc());
 
 	if (offset == 0x7fe)
 	{

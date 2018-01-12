@@ -45,25 +45,20 @@ ROM_START( mp1805 )
 	ROM_LOAD( "mp1805.rom", 0xf800, 0x0800, BAD_DUMP CRC(b532d8d9) SHA1(6f1160356d5bf64b5926b1fdb60db414edf65f22))
 ROM_END
 
-MACHINE_CONFIG_FRAGMENT( mp1805 )
-	MCFG_DEVICE_ADD( "mc6843", MC6843, 0 )
-	MCFG_MC6843_IRQ_CALLBACK(WRITELINE(bml3bus_mp1805_device, bml3_mc6843_intrq_w))
-	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(bml3_mp1805_floppy_interface)
-MACHINE_CONFIG_END
 
 /***************************************************************************
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor bml3bus_mp1805_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( mp1805 );
-}
+MACHINE_CONFIG_MEMBER( bml3bus_mp1805_device::device_add_mconfig )
+	MCFG_DEVICE_ADD( "mc6843", MC6843, 0 )
+	MCFG_MC6843_IRQ_CALLBACK(WRITELINE(bml3bus_mp1805_device, bml3_mc6843_intrq_w))
+	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(bml3_mp1805_floppy_interface)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -157,7 +152,7 @@ void bml3bus_mp1805_device::device_start()
 	m_rom = memregion(MP1805_ROM_REGION)->base();
 
 	// install into memory
-	address_space &space_prg = machine().firstcpu->space(AS_PROGRAM);
+	address_space &space_prg = m_bml3bus->space();
 	space_prg.install_readwrite_handler(0xff18, 0xff1f, read8_delegate( FUNC(mc6843_device::read), (mc6843_device*)m_mc6843), write8_delegate(FUNC(mc6843_device::write), (mc6843_device*)m_mc6843) );
 	space_prg.install_readwrite_handler(0xff20, 0xff20, read8_delegate( FUNC(bml3bus_mp1805_device::bml3_mp1805_r), this), write8_delegate(FUNC(bml3bus_mp1805_device::bml3_mp1805_w), this) );
 	// overwriting the main ROM (rather than using e.g. install_rom) should mean that bank switches for RAM expansion still work...

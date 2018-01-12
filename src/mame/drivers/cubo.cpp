@@ -402,10 +402,10 @@ WRITE_LINE_MEMBER( cubo_state::akiko_int_w )
 
 WRITE8_MEMBER( cubo_state::akiko_cia_0_port_a_write )
 {
-	/* bit 1 = cd audio mute */
+	/* bit 0 = cd audio mute */
 	m_cdda->set_output_gain( 0, ( data & 1 ) ? 0.0 : 1.0 );
 
-	/* bit 2 = Power Led on Amiga */
+	/* bit 1 = Power Led on Amiga */
 	output().set_led_value(0, (data & 2) ? 0 : 1);
 
 	handle_joystick_cia(data, m_cia_0->read(space, 2));
@@ -1033,8 +1033,8 @@ static MACHINE_CONFIG_START( cubo )
 	MCFG_DEVICE_ADD("overlay", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(overlay_2mb_map32)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_BIG)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(32)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(22)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(32)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(22)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x200000)
 
 	MCFG_I2CMEM_ADD("i2cmem")
@@ -1089,6 +1089,10 @@ static MACHINE_CONFIG_START( cubo )
 	/* fdc */
 	MCFG_DEVICE_ADD("fdc", AMIGA_FDC, amiga_state::CLK_7M_PAL)
 	MCFG_AMIGA_FDC_INDEX_CALLBACK(DEVWRITELINE("cia_1", mos8520_device, flag_w))
+	MCFG_AMIGA_FDC_READ_DMA_CALLBACK(READ16(amiga_state, chip_ram_r))
+	MCFG_AMIGA_FDC_WRITE_DMA_CALLBACK(WRITE16(amiga_state, chip_ram_w))
+	MCFG_AMIGA_FDC_DSKBLK_CALLBACK(WRITELINE(amiga_state, fdc_dskblk_w))
+	MCFG_AMIGA_FDC_DSKSYN_CALLBACK(WRITELINE(amiga_state, fdc_dsksyn_w))
 MACHINE_CONFIG_END
 
 
@@ -1193,7 +1197,7 @@ void cubo_state::chip_ram_w8_hack(offs_t byteoffs, uint8_t data)
 
 void cubo_state::cndypuzl_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		chip_ram_w(r_A5 - 0x7ebe, 0x0000);
@@ -1208,7 +1212,7 @@ DRIVER_INIT_MEMBER( cubo_state, cndypuzl )
 
 void cubo_state::haremchl_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		uint32_t r_A2 = (chip_ram_r(r_A5 - 0x7f00 + 0) << 16) | (chip_ram_r(r_A5 - 0x7f00 + 2));
@@ -1224,7 +1228,7 @@ DRIVER_INIT_MEMBER( cubo_state, haremchl )
 
 void cubo_state::lsrquiz_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		uint32_t r_A2 = (chip_ram_r(r_A5 - 0x7fe0 + 0) << 16) | (chip_ram_r(r_A5 - 0x7fe0 + 2));
@@ -1241,7 +1245,7 @@ DRIVER_INIT_MEMBER( cubo_state, lsrquiz )
 /* The hack isn't working if you exit the test mode with P1 button 2 ! */
 void cubo_state::lsrquiz2_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		uint32_t r_A2 = (chip_ram_r(r_A5 - 0x7fdc + 0) << 16) | (chip_ram_r(r_A5 - 0x7fdc + 2));
@@ -1257,7 +1261,7 @@ DRIVER_INIT_MEMBER( cubo_state, lsrquiz2 )
 
 void cubo_state::lasstixx_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		uint32_t r_A2 = (chip_ram_r(r_A5 - 0x7fa2 + 0) << 16) | (chip_ram_r(r_A5 - 0x7fa2 + 2));
@@ -1273,7 +1277,7 @@ DRIVER_INIT_MEMBER(cubo_state, lasstixx)
 
 void cubo_state::mgnumber_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		chip_ram_w(r_A5 - 0x7ed8, 0x0000);
@@ -1288,7 +1292,7 @@ DRIVER_INIT_MEMBER( cubo_state, mgnumber )
 
 void cubo_state::mgprem11_input_hack()
 {
-	if (m_maincpu->pc < m_chip_ram.bytes())
+	if (m_maincpu->pc() < m_chip_ram.bytes())
 	{
 		uint32_t r_A5 = m_maincpu->state_int(M68K_A5);
 		chip_ram_w8_hack(r_A5 - 0x7eca, 0x00);
@@ -1369,8 +1373,8 @@ INPUT_PORTS_END
 GAME( 1993, cubo,     0,    cubo, cubo,     cubo_state, cubo,     ROT0, "Commodore",  "Cubo BIOS",                 MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_IS_BIOS_ROOT )
 GAME( 1995, cndypuzl, cubo, cubo, cndypuzl, cubo_state, cndypuzl, ROT0, "CD Express", "Candy Puzzle (v1.0)",       MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )
 GAME( 1995, haremchl, cubo, cubo, haremchl, cubo_state, haremchl, ROT0, "CD Express", "Harem Challenge",           MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )
-GAME( 1995, lsrquiz,  cubo, cubo, lsrquiz,  cubo_state, lsrquiz,  ROT0, "CD Express", "Laser Quiz Italy",          MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )  /* no player 2 inputs (ingame) */
-GAME( 1995, lsrquiz2, cubo, cubo, lsrquiz2, cubo_state, lsrquiz2, ROT0, "CD Express", "Laser Quiz 2 Italy (v1.0)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )
+GAME( 1995, lsrquiz,  cubo, cubo, lsrquiz,  cubo_state, lsrquiz,  ROT0, "CD Express", "Laser Quiz Italy",          MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NOT_WORKING )  /* no player 2 inputs (ingame), wrong pitch for most gfxs */
+GAME( 1995, lsrquiz2, cubo, cubo, lsrquiz2, cubo_state, lsrquiz2, ROT0, "CD Express", "Laser Quiz 2 Italy (v1.0)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_NOT_WORKING ) /* wrong pitch for some gfxs, crashes during gameplay */
 GAME( 1995, lasstixx, cubo, cubo, lasstixx, cubo_state, lasstixx, ROT0, "CD Express", "Laser Strixx 2",            MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )
 GAME( 1995, mgnumber, cubo, cubo, mgnumber, cubo_state, mgnumber, ROT0, "CD Express", "Magic Number",              MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )
 GAME( 1996, mgprem11, cubo, cubo, mgprem11, cubo_state, mgprem11, ROT0, "CD Express", "Magic Premium (v1.1)",      MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND )

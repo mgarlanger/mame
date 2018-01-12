@@ -52,6 +52,7 @@
 #include "eacc.lh"
 #include "machine/6821pia.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 
 
 class eacc_state : public driver_device
@@ -217,7 +218,7 @@ WRITE8_MEMBER( eacc_state::eacc_segment_w )
 		{
 			for (i = 3; i < 7; i++)
 				if (BIT(m_digit, i))
-					output().set_digit_value(i, BITSWAP8(data, 7, 0, 1, 4, 5, 6, 2, 3));
+					output().set_digit_value(i, bitswap<8>(data, 7, 0, 1, 4, 5, 6, 2, 3));
 		}
 	}
 }

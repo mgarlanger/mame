@@ -39,7 +39,7 @@ public:
 	DECLARE_WRITE8_MEMBER(write);
 
 	DECLARE_READ8_MEMBER( K_r );
-	DECLARE_READ8_MEMBER( SI_r );
+	DECLARE_READ_LINE_MEMBER( SI_r );
 	DECLARE_READ8_MEMBER( R0_r );
 	DECLARE_READ8_MEMBER( R1_r );
 	DECLARE_WRITE8_MEMBER( P_w );
@@ -51,7 +51,7 @@ protected:
 	// device-level overrides
 	virtual void device_start() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	TIMER_CALLBACK_MEMBER( latch_callback );
 	TIMER_CALLBACK_MEMBER( irq_clear );

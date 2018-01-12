@@ -23,14 +23,12 @@ DEFINE_DEVICE_TYPE(ISA8_VGA, isa8_vga_device, "ibm_vga", "IBM VGA Graphics Card"
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor isa8_vga_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcvideo_vga );
-}
+MACHINE_CONFIG_MEMBER( isa8_vga_device::device_add_mconfig)
+	MCFG_FRAGMENT_ADD( pcvideo_vga );
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -58,7 +56,7 @@ isa8_vga_device::isa8_vga_device(const machine_config &mconfig, const char *tag,
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
-READ8_MEMBER( isa8_vga_device::input_port_0_r ) { return 0xff; } //return space.machine().root_device().ioport("IN0")->read(); }
+READ8_MEMBER( isa8_vga_device::input_port_0_r ) { return 0xff; } //return machine().root_device().ioport("IN0")->read(); }
 
 void isa8_vga_device::device_start()
 {

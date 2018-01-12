@@ -118,7 +118,7 @@ public:
 	};
 
 	// inline configuration helpers
-	static void static_set_game(device_t &device, const game_driver &game);
+	void set_game_driver(const game_driver &game);
 	static void static_set_callback(device_t &device, callback_type type, driver_callback_delegate callback);
 
 	// dummy driver_init callbacks
@@ -130,43 +130,31 @@ public:
 	// output heler
 	output_manager &output() const { return machine().output(); }
 
-	// generic interrupt generators
-	void generic_pulse_irq_line(device_execute_interface &exec, int irqline, int cycles);
-	void generic_pulse_irq_line_and_vector(device_execute_interface &exec, int irqline, int vector, int cycles);
-
 	INTERRUPT_GEN_MEMBER( nmi_line_pulse );
 	INTERRUPT_GEN_MEMBER( nmi_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq0_line_hold );
-	INTERRUPT_GEN_MEMBER( irq0_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq0_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq1_line_hold );
-	INTERRUPT_GEN_MEMBER( irq1_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq1_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq2_line_hold );
-	INTERRUPT_GEN_MEMBER( irq2_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq2_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq3_line_hold );
-	INTERRUPT_GEN_MEMBER( irq3_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq3_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq4_line_hold );
-	INTERRUPT_GEN_MEMBER( irq4_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq4_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq5_line_hold );
-	INTERRUPT_GEN_MEMBER( irq5_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq5_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq6_line_hold );
-	INTERRUPT_GEN_MEMBER( irq6_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq6_line_assert );
 
 	INTERRUPT_GEN_MEMBER( irq7_line_hold );
-	INTERRUPT_GEN_MEMBER( irq7_line_pulse );
 	INTERRUPT_GEN_MEMBER( irq7_line_assert );
 
 
@@ -197,13 +185,13 @@ protected:
 
 	// device-level overrides
 	virtual const tiny_rom_entry *device_rom_region() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
 	virtual void device_reset_after_children() override;
 
 private:
 	// helpers
-	void irq_pulse_clear(void *ptr, s32 param);
 	void updateflip();
 
 	// internal state

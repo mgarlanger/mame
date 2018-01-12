@@ -32,6 +32,7 @@
 #include "cpu/v810/v810.h"
 #include "bus/vboy/slot.h"
 #include "bus/vboy/rom.h"
+#include "machine/timer.h"
 #include "screen.h"
 #include "softlist.h"
 #include "speaker.h"
@@ -61,7 +62,7 @@
 	m_font[((woffs) + 0x4000)] = dat;     /* normal */ \
 	m_font[((woffs) + 0x8000) ^ 7] = dat; /* flip y */ \
 	m_font[((woffs) + 0xc000) ^ 7] = dat; /* flip y */ \
-	dat = BITSWAP16(dat,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14);  \
+	dat = bitswap<16>(dat,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14);  \
 	m_font[((woffs) + 0x10000)] = dat;     /* flip x */ \
 	m_font[((woffs) + 0x14000)] = dat;     /* flip x */ \
 	m_font[((woffs) + 0x18000) ^ 7] = dat; /* flip x+y */ \

@@ -2,7 +2,7 @@
 // copyright-holders:Nathan Woods
 /***************************************************************************
 
-    coco_pak.c
+    coco_pak.cpp
 
     Code for emulating standard CoCo cartridges
 
@@ -14,15 +14,18 @@
 #define CARTSLOT_TAG            "cart"
 #define CART_AUTOSTART_TAG      "cart_autostart"
 
+
 /***************************************************************************
     IMPLEMENTATION
 ***************************************************************************/
 
-static MACHINE_CONFIG_FRAGMENT(coco_pak)
-MACHINE_CONFIG_END
-
 ROM_START( coco_pak )
 	ROM_REGION(0x8000, CARTSLOT_TAG, ROMREGION_ERASE00)
+	// this region is filled by cococart_slot_device::call_load()
+ROM_END
+
+ROM_START( coco_pak_banked )
+	ROM_REGION(0x20000, CARTSLOT_TAG, ROMREGION_ERASE00)
 	// this region is filled by cococart_slot_device::call_load()
 ROM_END
 
@@ -55,7 +58,7 @@ DEFINE_DEVICE_TYPE(COCO_PAK, coco_pak_device, "cocopak", "CoCo Program PAK")
 coco_pak_device::coco_pak_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
 	: device_t(mconfig, type, tag, owner, clock)
 	, device_cococart_interface(mconfig, *this)
-	, m_cart(nullptr), m_owner(nullptr), m_autostart(*this, CART_AUTOSTART_TAG)
+	, m_cart(nullptr), m_autostart(*this, CART_AUTOSTART_TAG)
 {
 }
 
@@ -71,18 +74,8 @@ coco_pak_device::coco_pak_device(const machine_config &mconfig, const char *tag,
 void coco_pak_device::device_start()
 {
 	m_cart = dynamic_cast<device_image_interface *>(owner());
-	m_owner = dynamic_cast<cococart_slot_device *>(owner());
 }
 
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor coco_pak_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( coco_pak );
-}
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports
@@ -111,11 +104,11 @@ void coco_pak_device::device_reset()
 	if (m_cart->exists())
 	{
 		auto cart_line = m_autostart.read_safe(0x01)
-			? cococart_slot_device::line_value::Q
-			: cococart_slot_device::line_value::CLEAR;
+			? line_value::Q
+			: line_value::CLEAR;
 
 		// normal CoCo PAKs tie their CART line to Q - the system clock
-		m_owner->set_line_value(cococart_slot_device::line::CART, cart_line);
+		set_line_value(line::CART, cart_line);
 	}
 }
 
@@ -148,6 +141,7 @@ DEFINE_DEVICE_TYPE(COCO_PAK_BANKED, coco_pak_banked_device, "cocopak_banked", "C
 
 coco_pak_banked_device::coco_pak_banked_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock)
 	: coco_pak_device(mconfig, type, tag, owner, clock)
+	, m_pos(0)
 {
 }
 coco_pak_banked_device::coco_pak_banked_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
@@ -155,50 +149,74 @@ coco_pak_banked_device::coco_pak_banked_device(const machine_config &mconfig, co
 {
 }
 
-/*-------------------------------------------------
-    device_reset - device-specific startup
--------------------------------------------------*/
+//-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const tiny_rom_entry *coco_pak_banked_device::device_rom_region() const
+{
+	return ROM_NAME( coco_pak_banked );
+}
+
+//-------------------------------------------------
+//  device_start - device-specific startup
+//-------------------------------------------------
+
+void coco_pak_banked_device::device_start()
+{
+	coco_pak_device::device_start();
+
+	save_item(NAME(m_pos));
+}
+
+//-------------------------------------------------
+//  device_reset - device-specific startup
+//-------------------------------------------------
 
 void coco_pak_banked_device::device_reset()
 {
 	coco_pak_device::device_reset();
 
-	banked_pak_set_bank(0);
+	m_pos = 0;
+	cart_base_changed();
 }
 
-/*-------------------------------------------------
-    banked_pak_set_bank - function to set the bank
--------------------------------------------------*/
+//-------------------------------------------------
+//  get_cart_base
+//-------------------------------------------------
 
-void coco_pak_banked_device::banked_pak_set_bank(uint32_t bank)
+uint8_t *coco_pak_banked_device::get_cart_base()
 {
-	uint64_t pos;
-	uint32_t i;
 	uint8_t *rom = memregion(CARTSLOT_TAG)->base();
 	uint32_t rom_length = memregion(CARTSLOT_TAG)->bytes();
 
-	if (m_cart->exists()) {
-		pos = (bank * 0x4000) % m_cart->length();
-
-		for (i = 0; i < rom_length / 0x4000; i++)
-		{
-			m_cart->fseek(pos, SEEK_SET);
-			m_cart->fread(&rom[i * 0x4000], 0x4000);
-		}
-	}
+	return &rom[(m_pos * 0x4000) % rom_length];
 }
 
-/*-------------------------------------------------
-    write
--------------------------------------------------*/
+//-------------------------------------------------
+//  get_cart_size
+//-------------------------------------------------
 
-WRITE8_MEMBER(coco_pak_banked_device::write)
+uint32_t coco_pak_banked_device::get_cart_size()
+{
+	return 0x4000;
+}
+
+//-------------------------------------------------
+//  scs_write
+//-------------------------------------------------
+
+WRITE8_MEMBER(coco_pak_banked_device::scs_write)
 {
 	switch(offset)
 	{
 		case 0:
-			/* set the bank */
-			banked_pak_set_bank(data);
+			// set the bank
+			if (m_pos != data)
+			{
+				m_pos = data;
+				cart_base_changed();
+			}
 			break;
 	}
 }

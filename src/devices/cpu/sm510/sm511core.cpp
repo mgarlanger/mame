@@ -4,16 +4,24 @@
 
   Sharp SM511 MCU core implementation
 
+  TODO:
+  - undocumented/guessed opcodes:
+    * $01 is guessed as DIV to ACC transfer, unknown which bits
+    * $5d is certainly CEND
+    * $65 is certainly divider reset, but not sure if it behaves same as on SM510
+    * $6036 and $6037 may be instruction timing? (16kHz and 8kHz), mnemonics unknown
+
 */
 
 #include "emu.h"
 #include "sm510.h"
+#include "sm510d.h"
 #include "debugger.h"
 
 
 // MCU types
-DEFINE_DEVICE_TYPE(SM511, sm511_device, "sm511", "SM511")
-DEFINE_DEVICE_TYPE(SM512, sm512_device, "sm512", "SM512")
+DEFINE_DEVICE_TYPE(SM511, sm511_device, "sm511", "SM511") // 4Kx8 ROM, 128x4 RAM(32x4 for LCD), melody controller
+DEFINE_DEVICE_TYPE(SM512, sm512_device, "sm512", "SM512") // 4Kx8 ROM, 128x4 RAM(48x4 for LCD), melody controller
 
 
 // internal memory maps
@@ -36,10 +44,9 @@ ADDRESS_MAP_END
 
 
 // disasm
-offs_t sm511_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *sm511_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE(sm511);
-	return CPU_DISASSEMBLE_NAME(sm511)(this, stream, pc, oprom, opram, options);
+	return new sm511_disassembler;
 }
 
 

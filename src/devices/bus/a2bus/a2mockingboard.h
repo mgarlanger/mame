@@ -25,9 +25,6 @@ class a2bus_ayboard_device:
 	public device_a2bus_card_interface
 {
 public:
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 	DECLARE_WRITE_LINE_MEMBER( via1_irq_w );
 	DECLARE_WRITE_LINE_MEMBER( via2_irq_w );
 	DECLARE_WRITE8_MEMBER(via1_out_a);
@@ -41,12 +38,13 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// overrides of standard a2bus slot functions
-	virtual uint8_t read_c0nx(address_space &space, uint8_t offset) override;
-	virtual void write_c0nx(address_space &space, uint8_t offset, uint8_t data) override;
-	virtual uint8_t read_cnxx(address_space &space, uint8_t offset) override;
-	virtual void write_cnxx(address_space &space, uint8_t offset, uint8_t data) override;
+	virtual uint8_t read_c0nx(uint8_t offset) override;
+	virtual void write_c0nx(uint8_t offset, uint8_t data) override;
+	virtual uint8_t read_cnxx(uint8_t offset) override;
+	virtual void write_cnxx(uint8_t offset, uint8_t data) override;
 
 	required_device<via6522_device> m_via1;
 	required_device<via6522_device> m_via2;
@@ -72,7 +70,8 @@ class a2bus_phasor_device : public a2bus_ayboard_device
 public:
 	a2bus_phasor_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
+protected:
+	virtual void device_add_mconfig(machine_config &config) override;
 };
 
 class a2bus_echoplus_device : public a2bus_ayboard_device
@@ -80,11 +79,11 @@ class a2bus_echoplus_device : public a2bus_ayboard_device
 public:
 	a2bus_echoplus_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 protected:
-	virtual uint8_t read_c0nx(address_space &space, uint8_t offset) override;
-	virtual void write_c0nx(address_space &space, uint8_t offset, uint8_t data) override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	virtual uint8_t read_c0nx(uint8_t offset) override;
+	virtual void write_c0nx(uint8_t offset, uint8_t data) override;
 
 	required_device<tms5220_device> m_tms;
 };

@@ -2,7 +2,7 @@
 // copyright-holders:<author_name>
 /***************************************************************************
 
-Template for squeleton drivers
+Template for skeleton drivers
 
 ***************************************************************************/
 
@@ -10,6 +10,8 @@ Template for squeleton drivers
 #include "emu.h"
 #include "cpu/z80/z80.h"
 //#include "sound/ay8910.h"
+#include "screen.h"
+#include "speaker.h"
 
 #define MAIN_CLOCK XTAL_8MHz
 
@@ -28,10 +30,10 @@ public:
 
 protected:
 	// driver_device overrides
-	virtual void machine_start();
-	virtual void machine_reset();
+	virtual void machine_start() override;
+	virtual void machine_reset() override;
 
-	virtual void video_start();
+	virtual void video_start() override;
 
 	// devices
 	required_device<cpu_device> m_maincpu;
@@ -154,7 +156,7 @@ static MACHINE_CONFIG_START( xxx )
 //  MCFG_SCREEN_SIZE(32*8, 32*8)
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_RAW_PARAMS(MAIN_CLOCK/2, 442, 0, 320, 264, 0, 240)          /* generic NTSC video timing at 320x240 */
-	//MCFG_SCREEN_RAW_PARAMS(SYS_A_CPU_CLOCK/4, 442, 0, 256, 263, 16, 240)  /* generic NTSC video timing at 256x224 */
+	//MCFG_SCREEN_RAW_PARAMS(XTAL_12MHz/2, 384, 0, 256, 264, 16, 240)  /* generic NTSC video timing at 256x224 */
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xxx)
@@ -193,4 +195,4 @@ ROM_END
 // For a generic system:
 // SYST(YEAR,NAME,PARENT,COMPAT,MACHINE,INPUT,CLASS,INIT,COMPANY,FULLNAME,FLAGS)
 
-GAME( 198?, xxx,  0,   xxx,  xxx, xxxx_state,  0,       ROT0, "<template_manufacturer>",      "<template_machinename>", MACHINE_IS_SKELETON )
+GAME( 198?, xxx,  0,   xxx,  xxx, xxx_state,  0,       ROT0, "<template_manufacturer>",      "<template_machinename>", MACHINE_IS_SKELETON )

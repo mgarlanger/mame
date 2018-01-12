@@ -117,6 +117,14 @@ g65816_device::g65816_device(const machine_config &mconfig, device_type type, co
 }
 
 
+device_memory_interface::space_config_vector g65816_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
+
+
 static ADDRESS_MAP_START(_5a22_map, AS_PROGRAM, 8, _5a22_device)
 	AM_RANGE(0x4202, 0x4202) AM_MIRROR(0xbf0000) AM_WRITE(wrmpya_w)
 	AM_RANGE(0x4203, 0x4203) AM_MIRROR(0xbf0000) AM_WRITE(wrmpyb_w)
@@ -759,18 +767,19 @@ void g65816_device::execute_set_input(int line, int state)
 	(this->*FTABLE_SET_LINE)(line, state);
 }
 
-/* Disassemble an instruction */
-#include "g65816ds.h"
-
-
-offs_t g65816_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *g65816_device::create_disassembler()
 {
-	return g65816_disassemble(stream, (pc & 0x00ffff), (pc & 0xff0000) >> 16, oprom, FLAG_M, FLAG_X);
+	return new g65816_disassembler(this);
 }
 
-CPU_DISASSEMBLE( g65816 )
+bool g65816_device::get_m_flag() const
 {
-	return g65816_disassemble(stream, (pc & 0x00ffff), (pc & 0xff0000) >> 16, oprom, 0/*FLAG_M*/, 0/*FLAG_X*/);
+	return FLAG_M;
+}
+
+bool g65816_device::get_x_flag() const
+{
+	return FLAG_X;
 }
 
 void g65816_device::g65816_restore_state()

@@ -150,7 +150,7 @@ static ADDRESS_MAP_START( toki_map, AS_PROGRAM, 16, toki_state )
 	AM_RANGE(0x06e800, 0x06efff) AM_RAM_WRITE(background1_videoram_w) AM_SHARE("bg1_vram")
 	AM_RANGE(0x06f000, 0x06f7ff) AM_RAM_WRITE(background2_videoram_w) AM_SHARE("bg2_vram")
 	AM_RANGE(0x06f800, 0x06ffff) AM_RAM_WRITE(foreground_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x080000, 0x08000d) AM_DEVREADWRITE("seibu_sound", seibu_sound_device, main_word_r, main_word_w)
+	AM_RANGE(0x080000, 0x08000d) AM_DEVREADWRITE8("seibu_sound", seibu_sound_device, main_r, main_w, 0x00ff)
 	AM_RANGE(0x0a0000, 0x0a005f) AM_WRITE(toki_control_w) AM_SHARE("scrollram")
 	AM_RANGE(0x0c0000, 0x0c0001) AM_READ_PORT("DSW")
 	AM_RANGE(0x0c0002, 0x0c0003) AM_READ_PORT("INPUTS")
@@ -200,7 +200,7 @@ static ADDRESS_MAP_START( toki_audio_map, AS_PROGRAM, 8, toki_state )
 	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("seibu_bank1")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( toki_audio_opcodes_map, AS_DECRYPTED_OPCODES, 8, toki_state )
+static ADDRESS_MAP_START( toki_audio_opcodes_map, AS_OPCODES, 8, toki_state )
 	AM_RANGE(0x0000, 0x1fff) AM_DEVREAD("sei80bu", sei80bu_device, opcode_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("seibu_bank1")
 ADDRESS_MAP_END
@@ -223,7 +223,7 @@ static ADDRESS_MAP_START( jujuba_audio_map, AS_PROGRAM, 8, toki_state )
 	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("seibu_bank1")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( jujuba_audio_opcodes_map, AS_DECRYPTED_OPCODES, 8, toki_state )
+static ADDRESS_MAP_START( jujuba_audio_opcodes_map, AS_OPCODES, 8, toki_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM AM_REGION("audiocpu", 0)
 	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("seibu_bank1")
 ADDRESS_MAP_END
@@ -959,7 +959,7 @@ DRIVER_INIT_MEMBER(toki_state,toki)
 	memcpy(&buffer[0],ROM,0x20000);
 	for( i = 0; i < 0x20000; i++ )
 	{
-		ROM[i] = buffer[BITSWAP24(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
+		ROM[i] = buffer[bitswap<24>(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
 	}
 }
 
@@ -1014,7 +1014,7 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 
 		for (i = 0; i < 0x60000/2; i++)
 		{
-			prgrom[i] = BITSWAP16(prgrom[i],15,12,13,14,
+			prgrom[i] = bitswap<16>(prgrom[i],15,12,13,14,
 											11,10, 9, 8,
 											7, 6,  5, 3,
 											4, 2,  1, 0);
@@ -1029,7 +1029,7 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 		memcpy(&buffer[0],ROM,0x20000);
 		for( i = 0; i < 0x20000; i++ )
 		{
-			ROM[i] = buffer[BITSWAP24(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
+			ROM[i] = buffer[bitswap<24>(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
 		}
 	}
 }

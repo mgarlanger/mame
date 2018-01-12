@@ -35,7 +35,7 @@ Games on this system include....
 | | 2004     | Wangan Midnight Maximum Tune (Export)              | Namco                    | GDROM  | GDX-0009   | 317-5101-COM |
 | | 2004     | Wangan Midnight Maximum Tune (Export) (Rev A)      | Namco                    | GDROM  | GDX-0009A  | 317-5101-COM |
 |*| 2004     | Wangan Midnight Maximum Tune (Export) (Rev B)      | Namco                    | GDROM  | GDX-0009B  | 317-5101-COM |
-| | 2004     | OutRun 2 Special Tours (Japan)                     | Sega                     | GDROM  | GDX-0011   | 317-0396-COM |
+|*| 20040909 | OutRun 2 Special Tours (Japan)                     | Sega                     | GDROM  | GDX-0011   | 317-0396-COM |
 |*| 20041229 | OutRun 2 Special Tours (Japan) (Rev A)             | Sega                     | GDROM  | GDX-0011A  | 317-0396-COM |
 |*| 2004     | Ghost Squad                                        | Sega                     | GDROM  | GDX-0012   | 317-0398-COM |
 |*| 20041209 | Ghost Squad (Rev A)                                | Sega                     | GDROM  | GDX-0012A  | 317-0398-COM |
@@ -366,7 +366,7 @@ SegaBoot Ver.2.00.0 Build:Feb  7 2003 12:28:30
 SegaBoot Ver.2.13.0 Build:Mar  3 2005 17:03:15
 
 ic10_g24lc64.bin: This dump contains the firmware of the Base Board, serial number and REGION of the whole system
-Region is located at Offset 0x00001F10 , 01 means JAP, 02 Means USA, 03 Means EXPORT, if you
+Region is located at Offset 0x00001F10 , 01 means JPN, 02 Means USA, 03 Means EXPORT, if you
 want to change the region of your Chihiro Board, just change this byte.
 
 Thanks to Alex, Mr Mudkips, and Philip Burke for this info.
@@ -393,7 +393,10 @@ Thanks to Alex, Mr Mudkips, and Philip Burke for this info.
 //#define LOG_BASEBOARD
 //#define VERBOSE_MSG
 
-/////////////////////////
+/*
+ * Class declaration for jvs_master
+ */
+
 DECLARE_DEVICE_TYPE(JVS_MASTER, jvs_master)
 
 class jvs_master : public jvs_host
@@ -447,11 +450,13 @@ int jvs_master::received_packet(uint8_t *buffer)
 	return (int)length;
 }
 
-/////////////////////////
+/*
+ * Class declaration for ohci_hlean2131qc_device
+ */
 
 DECLARE_DEVICE_TYPE(OHCI_HLEAN2131QC, ohci_hlean2131qc_device)
 
-class ohci_hlean2131qc_device : public device_t, public ohci_function
+class ohci_hlean2131qc_device : public device_t, public ohci_function, public device_slot_card_interface
 {
 public:
 	ohci_hlean2131qc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
@@ -459,6 +464,7 @@ public:
 	int handle_nonstandard_request(int endpoint, USBSetupPacket *setup) override;
 	int handle_bulk_pid(int endpoint, int pid, uint8_t *buffer, int size) override;
 	void set_region_base(uint8_t *data);
+	void set_region(const char *_region_tag, int _region_offset);
 
 protected:
 	virtual void device_start() override;
@@ -482,6 +488,8 @@ private:
 	static const uint8_t strdesc1[];
 	static const uint8_t strdesc2[];
 	int maximum_send;
+	const char *region_tag;
+	int region_offset;
 	uint8_t *region;
 	struct
 	{
@@ -494,11 +502,18 @@ private:
 	} jvs;
 };
 
-DEFINE_DEVICE_TYPE(OHCI_HLEAN2131QC, ohci_hlean2131qc_device, "ohci_hlean2131qc", "OHCI Hlean2131qc")
+DEFINE_DEVICE_TYPE(OHCI_HLEAN2131QC, ohci_hlean2131qc_device, "ohci_hlean2131qc", "OHCI an2131qc HLE")
+
+#define MCFG_OHCI_HLEAN2131QC_REGION(_region_tag, _region_offset) \
+	downcast<ohci_hlean2131qc_device *>(device)->set_region(_region_tag, _region_offset);
+
+/*
+ * Class declaration for ohci_hlean2131sc_device
+ */
 
 DECLARE_DEVICE_TYPE(OHCI_HLEAN2131SC, ohci_hlean2131sc_device)
 
-class ohci_hlean2131sc_device : public device_t, public ohci_function
+class ohci_hlean2131sc_device : public device_t, public ohci_function, public device_slot_card_interface
 {
 public:
 	ohci_hlean2131sc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
@@ -506,6 +521,7 @@ public:
 	int handle_nonstandard_request(int endpoint, USBSetupPacket *setup) override;
 	int handle_bulk_pid(int endpoint, int pid, uint8_t *buffer, int size) override;
 	void set_region_base(uint8_t *data);
+	void set_region(const char *_region_tag, int _region_offset);
 
 protected:
 	virtual void device_start() override;
@@ -524,6 +540,8 @@ private:
 	static const uint8_t strdesc0[];
 	static const uint8_t strdesc1[];
 	static const uint8_t strdesc2[];
+	const char *region_tag;
+	int region_offset;
 	uint8_t *region;
 	uint8_t midi_rs232;
 	uint8_t response[256];
@@ -532,7 +550,14 @@ private:
 	int step;
 };
 
-DEFINE_DEVICE_TYPE(OHCI_HLEAN2131SC, ohci_hlean2131sc_device, "ohci_hlean2131sc", "OHCI Hlean2131sc")
+DEFINE_DEVICE_TYPE(OHCI_HLEAN2131SC, ohci_hlean2131sc_device, "ohci_hlean2131sc", "OHCI an2131sc HLE")
+
+#define MCFG_OHCI_HLEAN2131SC_REGION(_region_tag, _region_offset) \
+	downcast<ohci_hlean2131sc_device *>(device)->set_region(_region_tag, _region_offset);
+
+/*
+ * Class declaration for chihiro_state
+ */
 
 class chihiro_state : public xbox_base_state
 {
@@ -734,7 +759,7 @@ static const struct
 		uint32_t address;
 		uint8_t write_byte;
 	} modify[16];
-} hacks[HACK_ITEMS] = { { "chihiro",  { { 0x6a79f/*3f79f*/, 0x01 }, { 0x6a7a0/*3f7a0*/, 0x00 }, { 0x6b575/*40575*/, 0x00 }, { 0x6b576/*40576*/, 0x00 }, { 0x6b5af/*405af*/, 0x75 }, { 0x6b78a/*4078a*/, 0x75 }, { 0x6b7ca/*407ca*/, 0x00 }, { 0x6b7b8/*407b8*/, 0x00 }, { 0x8f5b2, 0x75 }, { 0x79a9e/*2ea9e*/, 0x74 }, { 0x79b80/*2eb80*/, 0xeb }, { 0x79b97/*2eb97*/, 0x74 }, { 0, 0 } } },
+} hacks[HACK_ITEMS] = { { "chihiro",  { { 0, 0 } } },
 						{ "outr2",    { { 0, 0 } } },
 						{ "crtaxihr", { { 0x14ada5/*11fda5*/, 0x90 }, { 0x14ada6/*11fda6*/, 0x90 }, { 0, 0 } } },
 						{ "ghostsqu", { { 0x78833/*4d833*/, 0x90 }, { 0x78834/*4d834*/, 0x90 }, { 0, 0 } } },
@@ -745,9 +770,7 @@ void chihiro_state::hack_usb()
 {
 	int p;
 
-	if (hack_counter == 0)
-		p = 0; // need to patch the kernel
-	else if (hack_counter == 1)
+	if (hack_counter == 1)
 		p = hack_index; // need to patch the game
 	else
 		p = -1;
@@ -785,9 +808,12 @@ const uint8_t ohci_hlean2131qc_device::strdesc2[] = { 0x0E,0x03,0x42,0x00,0x41,0
 
 ohci_hlean2131qc_device::ohci_hlean2131qc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, OHCI_HLEAN2131QC, tag, owner, clock),
-	ohci_function()
+	ohci_function(),
+	device_slot_card_interface(mconfig, *this)
 {
 	maximum_send = 0;
+	region_tag = nullptr;
+	region_offset = 0;
 	region = nullptr;
 	jvs.buffer_in_expected = 0;
 	jvs.buffer_out_used = 0;
@@ -821,6 +847,12 @@ void ohci_hlean2131qc_device::initialize(running_machine &machine)
 void ohci_hlean2131qc_device::set_region_base(uint8_t *data)
 {
 	region = data;
+}
+
+void ohci_hlean2131qc_device::set_region(const char *_region_tag, int _region_offset)
+{
+	region_tag = _region_tag;
+	region_offset = _region_offset;
 }
 
 int ohci_hlean2131qc_device::handle_nonstandard_request(int endpoint, USBSetupPacket *setup)
@@ -1085,6 +1117,9 @@ void ohci_hlean2131qc_device::process_jvs_packet()
 
 void ohci_hlean2131qc_device::device_start()
 {
+	initialize(machine());
+	if (region_tag)
+		set_region_base(memregion(region_tag)->base() + region_offset);
 }
 
 //pc20
@@ -1103,9 +1138,12 @@ const uint8_t ohci_hlean2131sc_device::strdesc2[] = { 0x0E,0x03,0x42,0x00,0x41,0
 
 ohci_hlean2131sc_device::ohci_hlean2131sc_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, OHCI_HLEAN2131SC, tag, owner, clock),
-	ohci_function()
+	ohci_function(),
+	device_slot_card_interface(mconfig, *this)
 {
 	region = nullptr;
+	region_tag = nullptr;
+	region_offset = 0;
 	midi_rs232 = 0;
 	response_size = 0;
 	step = 0;
@@ -1114,6 +1152,12 @@ ohci_hlean2131sc_device::ohci_hlean2131sc_device(const machine_config &mconfig, 
 void ohci_hlean2131sc_device::set_region_base(uint8_t *data)
 {
 	region = data;
+}
+
+void ohci_hlean2131sc_device::set_region(const char *_region_tag, int _region_offset)
+{
+	region_tag = _region_tag;
+	region_offset = _region_offset;
 }
 
 void ohci_hlean2131sc_device::initialize(running_machine &machine)
@@ -1405,6 +1449,9 @@ void ohci_hlean2131sc_device::process_packet()
 
 void ohci_hlean2131sc_device::device_start()
 {
+	initialize(machine());
+	if (region_tag)
+		set_region_base(memregion(region_tag)->base() + region_offset);
 }
 
 // ======================> ide_baseboard_device
@@ -1718,9 +1765,6 @@ static INPUT_PORTS_START(chihiro)
 
 void chihiro_state::machine_start()
 {
-	ohci_hlean2131qc_device *usb_device1;
-	ohci_hlean2131sc_device *usb_device2;
-
 	xbox_base_state::machine_start();
 	chihiro_devs.ide = machine().device<bus_master_ide_controller_device>("ide");
 	chihiro_devs.dimmboard = machine().device<naomi_gdrom_board>("rom_board");
@@ -1739,21 +1783,59 @@ void chihiro_state::machine_start()
 			break;
 		}
 	hack_counter = 0;
-	usb_device1 = machine().device<ohci_hlean2131qc_device>("ohci_hlean2131qc");
-	usb_device1->initialize(machine());
-	usb_device1->set_region_base(memregion(":others")->base()); // temporary
-	machine().device<mcpx_ohci_device>(":pci:02.0")->plug_usb_device(1, usb_device1); // connect
-	usb_device2 = machine().device<ohci_hlean2131sc_device>("ohci_hlean2131sc");
-	usb_device2->initialize(machine());
-	usb_device2->set_region_base(memregion(":others")->base() + 0x2080); // temporary
-	machine().device<mcpx_ohci_device>(":pci:02.0")->plug_usb_device(2, usb_device2); // connect
 	// savestates
 	save_item(NAME(hack_counter));
+}
+
+class sega_network_board : public device_t
+{
+public:
+	sega_network_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual const tiny_rom_entry *device_rom_region() const override;
+
+protected:
+	virtual void device_start() override;
+};
+
+DEFINE_DEVICE_TYPE(SEGA_NETWORK_BOARD, sega_network_board, "seganetw", "Sega Network Board")
+
+sega_network_board::sega_network_board(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: device_t(mconfig, SEGA_NETWORK_BOARD, tag, owner, clock)
+{
+}
+
+void sega_network_board::device_start()
+{
+}
+
+ROM_START(seganetw)
+	ROM_REGION( 0x200000, "seganetw", 0)
+	ROM_LOAD16_WORD_SWAP( "ver1305.bin", 0x000000, 0x200000, CRC(a738ea1c) SHA1(45d94d0c39be1cb3db9fab6610a88a550adda4e9) )
+ROM_END
+
+const tiny_rom_entry *sega_network_board::device_rom_region() const
+{
+	return ROM_NAME(seganetw);
 }
 
 static SLOT_INTERFACE_START(ide_baseboard)
 	SLOT_INTERFACE("bb", IDE_BASEBOARD)
 SLOT_INTERFACE_END
+
+SLOT_INTERFACE_START(usb_baseboard)
+	SLOT_INTERFACE("an2131qc", OHCI_HLEAN2131QC)
+	SLOT_INTERFACE("an2131sc", OHCI_HLEAN2131SC)
+	SLOT_INTERFACE("xbox_controller", OHCI_GAME_CONTROLLER)
+SLOT_INTERFACE_END
+
+static MACHINE_CONFIG_START(an2131qc_configuration)
+	MCFG_OHCI_HLEAN2131QC_REGION(":others", 0)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_START(an2131sc_configuration)
+	MCFG_OHCI_HLEAN2131SC_REGION(":others", 0x2080)
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED(chihiro_base, xbox_base)
 	MCFG_CPU_MODIFY("maincpu")
@@ -1766,15 +1848,20 @@ static MACHINE_CONFIG_DERIVED(chihiro_base, xbox_base)
 	MCFG_DEVICE_MODIFY(":pci:09.0:ide:1")
 	MCFG_DEVICE_SLOT_INTERFACE(ide_baseboard, "bb", true)
 
-	// next lines are temporary
-	MCFG_DEVICE_ADD("ohci_hlean2131qc", OHCI_HLEAN2131QC, 0)
-	MCFG_DEVICE_ADD("ohci_hlean2131sc", OHCI_HLEAN2131SC, 0)
+	MCFG_USB_PORT_ADD(":pci:02.0:port1", usb_baseboard, "an2131qc", true)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("an2131qc", an2131qc_configuration)
+	MCFG_USB_PORT_ADD(":pci:02.0:port2", usb_baseboard, "an2131sc", true)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("an2131sc", an2131sc_configuration)
+	MCFG_USB_PORT_ADD(":pci:02.0:port3", usb_baseboard, nullptr, false)
+	MCFG_USB_PORT_ADD(":pci:02.0:port4", usb_baseboard, nullptr, false)
+
 	MCFG_DEVICE_ADD("jvs_master", JVS_MASTER, 0)
 	MCFG_SEGA_837_13551_DEVICE_ADD("837_13551", "jvs_master", ":TILT", ":P1", ":P2", ":A0", ":A1", ":A2", ":A3", ":A4", ":A5", ":A6", ":A7", ":OUTPUT")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED(chihirogd, chihiro_base)
 	MCFG_NAOMI_GDROM_BOARD_ADD("rom_board", ":gdrom", "^pic", nullptr, NOOP)
+	MCFG_DEVICE_ADD("network", SEGA_NETWORK_BOARD, 0)
 MACHINE_CONFIG_END
 
 #define ROM_LOAD16_WORD_SWAP_BIOS(bios,name,offset,length,hash) \
@@ -1792,8 +1879,7 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x204080, "others", 0) \
 	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ic10_g24lc64.bin", 0x0000, 0x2000,   CRC(cfc5e06f) SHA1(3ababd4334d8d57abb22dd98bd2d347df39648d9) ) \
 	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ic11_24lc024.bin", 0x2000, 0x80,     CRC(8dc8374e) SHA1(cc03a0650bfac4bf6cb66e414bbef121cba53efe) ) \
-	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "pc20_g24lc64.bin", 0x2080, 0x2000,   CRC(7742ab62) SHA1(82dad6e2a75bab4a4840dc6939462f1fb9b95101) ) \
-	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ver1305.bin",      0x4080, 0x200000, CRC(a738ea1c) SHA1(45d94d0c39be1cb3db9fab6610a88a550adda4e9) )
+	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "pc20_g24lc64.bin", 0x2080, 0x2000,   CRC(7742ab62) SHA1(82dad6e2a75bab4a4840dc6939462f1fb9b95101) )
 
 ROM_START( chihiro )
 	CHIHIRO_BIOS
@@ -1999,6 +2085,16 @@ ROM_START( wangmid )
 	ROM_LOAD("crp1231lr10_ver0110.ic2", 0, 0x20000, CRC(0d30707c) SHA1(425e25c6203d0b400d12391916db3f7cdad00f7a) ) // H8/3003 code
 ROM_END
 
+ROM_START( outr2stjo )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0011", 0, SHA1(b2cc163109c7f218ce83c76cd995c34e5d2f2812) )
+
+	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
+	ROM_LOAD( "317-0396-com.pic", 0x000000, 0x004000, CRC(f94cf26f) SHA1(dd4af2b52935c7b2d8cd196ec1a30c0ef0993322) )
+ROM_END
+
 ROM_START( outr2stj )
 	CHIHIRO_BIOS
 
@@ -2189,12 +2285,21 @@ ROM_END
 ROM_START( questofd )
 	CHIHIRO_BIOS
 
+	// "Quest of D"
+	// DVD QOD 1.01C
+	// CDV-10005C
 	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "cdv-10005c", 0, SHA1(b30238cf8697fb7313fedbe75b70641e9418090f) )
+	DISK_IMAGE_READONLY( "cdv-10005c", 0, SHA1(b30238cf8697fb7313fedbe75b70641e9418090f) ) // DVD
 
 	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
 	//PIC16C621A (317-0376-JPN)
 	ROM_LOAD("317-0376-jpn.pic", 0x00, 0x4000, CRC(c6914d97) SHA1(e86897efcca86f303117d1ead6ede53ac410add8) )
+
+	// "Quest of D"
+	// DVD QOD FIRMWARE UPDATE
+	// CDV-10018
+	DISK_REGION("update")
+	DISK_IMAGE_READONLY( "cdv-10018", 0, SHA1(46b00118450f68d5e9319ee3111db47efe3c3098) ) // DVD
 ROM_END
 
 ROM_START( gundcb79 )
@@ -2230,7 +2335,7 @@ ROM_START( qofd3 )
 	// DVD QOD 3.02
 	// CDV-10026D
 	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "cdv-10026d", 0, SHA1(b079778f7837100a9b4fa2a536a4efc7817dd2d2) )	// DVD
+	DISK_IMAGE_READONLY( "cdv-10026d", 0, SHA1(b079778f7837100a9b4fa2a536a4efc7817dd2d2) )  // DVD
 
 	// satellite Chihiro security PIC is missing
 	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
@@ -2240,13 +2345,13 @@ ROM_START( qofd3 )
 	// CD QOD3 VERSION UPDATE
 	// CDP-10062
 	DISK_REGION("update")
-	DISK_IMAGE_READONLY( "cdp-10062", 0, SHA1(abe337cb8782155c4cb92895ba22454a175d479d) )	// CD
+	DISK_IMAGE_READONLY( "cdp-10062", 0, SHA1(abe337cb8782155c4cb92895ba22454a175d479d) )   // CD
 
 	// "Quest of D Ver. 2.0"
 	// DVD QOD CHECK DISC
 	// CDV-10028
 	DISK_REGION("check")
-	DISK_IMAGE_READONLY( "cdv-10028", 0, SHA1(9f0f64cb4278cf51a42a21f880cda82b585c63f6) )	// DVD
+	DISK_IMAGE_READONLY( "cdv-10028", 0, SHA1(9f0f64cb4278cf51a42a21f880cda82b585c63f6) )   // DVD
 ROM_END
 
 ROM_START( gundcb83 )
@@ -2282,7 +2387,7 @@ ROM_START( qofdtbk )
 	// DVD QOD VS
 	// CDV-10035B
 	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "cdv-10035b", 0, SHA1(710776b88e7403193c1e0889bbd2d15fc8a92880) )	// DVD
+	DISK_IMAGE_READONLY( "cdv-10035b", 0, SHA1(710776b88e7403193c1e0889bbd2d15fc8a92880) )  // DVD
 
 	// satellite Chihiro security PIC
 	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
@@ -2294,13 +2399,13 @@ ROM_START( qofdtbk )
 	// CD QOD VS VERSION UPDATE
 	// CDP-10078
 	DISK_REGION("update")
-	DISK_IMAGE_READONLY( "cdp-10078", 0, SHA1(f7dde6a95c8b9087f984f92248c22a3b148ef645) )	// CD
+	DISK_IMAGE_READONLY( "cdp-10078", 0, SHA1(f7dde6a95c8b9087f984f92248c22a3b148ef645) )   // CD
 
 	// "Quest of D The Battle Kingdom"
 	// CD QOD SERVICE END
 	// CDP-10136
 	DISK_REGION("serv_end")
-	DISK_IMAGE_READONLY( "cdp-10136", 0, SHA1(3bfb6258bf9c08e1c8056183d02fe8aa3b65db49) )	// CD
+	DISK_IMAGE_READONLY( "cdp-10136", 0, SHA1(3bfb6258bf9c08e1c8056183d02fe8aa3b65db49) )   // CD
 ROM_END
 
 ROM_START( gundcb83b )
@@ -2345,7 +2450,7 @@ ROM_END
 // 0009A    GAME( 2004, wangmida, wangmid,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Export) (Rev A) (GDX-0009A)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING )
 /* 0009B */ GAME( 2004, wangmid,  chihiro,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Export) (Rev B) (GDX-0009B)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING )
 // 0010
-// 0011     GAME( 2004, outr2stjo,outr2st,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Sega",                     "OutRun 2 Special Tours (Japan) (GDX-0011)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING|MACHINE_SUPPORTS_SAVE )
+/* 0011  */ GAME( 2004, outr2stjo,outr2st,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Sega",                     "OutRun 2 Special Tours (Japan) (GDX-0011)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING|MACHINE_SUPPORTS_SAVE )
 /* 0011A */ GAME( 2004, outr2stj, outr2st,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Sega",                     "OutRun 2 Special Tours (Japan) (Rev A) (GDX-0011A)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING|MACHINE_SUPPORTS_SAVE )
 /* 0012  */ GAME( 2004, ghostsqo, ghostsqu, chihirogd,    chihiro, chihiro_state, 0, ROT0, "Sega",                     "Ghost Squad (GDX-0012)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING )
 /* 0012A */ GAME( 2004, ghostsqu, chihiro,  chihirogd,    chihiro, chihiro_state, 0, ROT0, "Sega",                     "Ghost Squad (Rev A) (GDX-0012A)", MACHINE_NO_SOUND|MACHINE_NOT_WORKING )

@@ -28,15 +28,13 @@ public:
 	// construction/destruction
 	a2bus_sam_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// overrides of standard a2bus slot functions
-	virtual void write_c0nx(address_space &space, uint8_t offset, uint8_t data) override;
+	virtual void write_c0nx(uint8_t offset, uint8_t data) override;
 	virtual bool take_c800() override;
 
 	required_device<dac_byte_interface> m_dac;

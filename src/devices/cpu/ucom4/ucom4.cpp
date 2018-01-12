@@ -22,6 +22,7 @@
 
 #include "emu.h"
 #include "ucom4.h"
+#include "ucom4d.h"
 #include "debugger.h"
 
 
@@ -107,6 +108,14 @@ upd552_cpu_device::upd552_cpu_device(const machine_config &mconfig, const char *
 {
 }
 
+device_memory_interface::space_config_vector ucom4_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config)
+	};
+}
+
 
 // disasm
 void ucom4_cpu_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -128,12 +137,10 @@ void ucom4_cpu_device::state_string_export(const device_state_entry &entry, std:
 	}
 }
 
-offs_t ucom4_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *ucom4_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE(ucom4);
-	return CPU_DISASSEMBLE_NAME(ucom4)(this, stream, pc, oprom, opram, options);
+	return new ucom4_disassembler;
 }
-
 
 
 //-------------------------------------------------

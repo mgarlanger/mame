@@ -18,23 +18,21 @@
 // - LPU & PPU RAMs
 // - Text mode screen
 // - Graphic screen
-// - Keyboard
+// - Keyboard (US & German layouts)
 // - T14 and T15 tape drive
 // - Software list to load optional ROMs
 // - Beeper
 // - Correct character generator ROMs (a huge "thank you" to Ansgar Kueckes for the dumps!)
 // - 98775 light pen controller
 // - Display softkeys on 45C & 45T
+// - HLE of integral printer
 // What's not yet in:
 // - Better naming of tape drive image (it's now "magt1" and "magt2", should be "t15" and "t14")
 // - Better documentation of this file
-// - Better keyboard mapping
-// - German keyboard
 // What's wrong:
 // - Speed, as usual
 // - Light pen tracing sometimes behaves erratically in 45C and 45T
 // What will probably never be in:
-// - Integral printer (firmware and character generator ROMs are very difficult to dump)
 // - Fast LPU processor (dump of microcode PROMs is not available)
 
 #include "emu.h"
@@ -42,6 +40,7 @@
 
 #include "bus/hp_optroms/hp_optrom.h"
 #include "bus/hp9845_io/hp9845_io.h"
+#include "machine/timer.h"
 
 #include "render.h"
 #include "softlist.h"
@@ -49,6 +48,7 @@
 
 #include "hp9845b.lh"
 
+#include "machine/hp9845_printer.h"
 
 // Debugging
 #define VERBOSE 0
@@ -188,6 +188,7 @@ constexpr unsigned LP_FOV = 9;  // Field of view
 constexpr unsigned LP_XOFFSET = 5;  // x-offset of LP (due to delay in hit recognition)
 
 // Peripheral Addresses (PA)
+#define PRINTER_PA          0
 #define IO_SLOT_FIRST_PA    1
 #define IO_SLOT_LAST_PA     12
 #define GVIDEO_PA           13
@@ -215,20 +216,20 @@ uint32_t hp9845_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 }
 
 static INPUT_PORTS_START(hp9845_base)
-		// Keyboard is arranged in a 8 x 16 matrix. Of the 128 possible positions, 118 are used.
+	// Keyboard is arranged in a 8 x 16 matrix. Of the 128 possible positions, 118 are used.
 	// Keys are mapped on bit b of KEYn
 	// where b = (row & 1) << 4 + column, n = row >> 1
 	// column = [0..15]
 	// row = [0..7]
 	PORT_START("KEY0")
 	PORT_BIT(BIT_MASK(0)  , IP_ACTIVE_HIGH , IPT_UNUSED)    // N/U
-	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Print All")  // Print All
-	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP+")        // KP +
-	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP,")        // KP ,
-	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP.")        // KP .
-		PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP0")        // KP 0
-	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F12)  PORT_NAME("Execute")    // Execute
-	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F11)  PORT_NAME("Cont")       // Cont
+	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_TOGGLE PORT_NAME("Prt all") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845_base_state, togglekey_changed, 1) // Print All
+	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_PLUS_PAD) PORT_NAME("Keypad +")        // KP +
+	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad ,")        // KP ,
+	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_DEL_PAD) PORT_CHAR(UCHAR_MAMEKEY(DEL_PAD)) PORT_NAME("Keypad .")        // KP .
+	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_0_PAD) PORT_CHAR(UCHAR_MAMEKEY(0_PAD)) PORT_NAME("Keypad 0")            // KP 0
+	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_ENTER_PAD) PORT_CHAR(UCHAR_MAMEKEY(ENTER_PAD)) PORT_NAME("Execute")    // Execute
+	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_ENTER) PORT_NAME("Cont") PORT_CHAR(13)    // Cont
 	PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_RIGHT) PORT_CHAR(UCHAR_MAMEKEY(RIGHT))        // Right
 	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ')  // Space
 	PORT_BIT(BIT_MASK(10)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')  // /
@@ -238,11 +239,11 @@ static INPUT_PORTS_START(hp9845_base)
 	PORT_BIT(BIT_MASK(14)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_X)     PORT_CHAR('x') PORT_CHAR('X')  // X
 	PORT_BIT(BIT_MASK(15)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_LSHIFT)    PORT_CHAR(UCHAR_SHIFT_1)   // Shift
 	PORT_BIT(BIT_MASK(16)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
-	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Auto start") // Auto Start
-	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP-")        // KP -
-	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP3")        // KP 3
-	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP2")        // KP 2
-	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP1")        // KP 1
+	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_TOGGLE PORT_NAME("Auto st") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845_base_state, togglekey_changed, 2) // Auto Start
+	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS_PAD) PORT_CHAR(UCHAR_MAMEKEY(MINUS_PAD)) PORT_NAME("Keypad -")        // KP -
+	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_3_PAD) PORT_CHAR(UCHAR_MAMEKEY(3_PAD)) PORT_NAME("Keypad 3")        // KP 3
+	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_2_PAD) PORT_CHAR(UCHAR_MAMEKEY(2_PAD)) PORT_NAME("Keypad 2")        // KP 2
+	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_1_PAD) PORT_CHAR(UCHAR_MAMEKEY(1_PAD)) PORT_NAME("Keypad 1")        // KP 1
 	PORT_BIT(BIT_MASK(22)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
 	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))  // Left
 	PORT_BIT(BIT_MASK(24)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // Repeat
@@ -256,15 +257,15 @@ static INPUT_PORTS_START(hp9845_base)
 
 	PORT_START("KEY1")
 	PORT_BIT(BIT_MASK(0)  , IP_ACTIVE_HIGH , IPT_UNUSED)    // N/U
-	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_INSERT)       PORT_NAME("INSCHAR")    // Ins Char
-	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP*")        // KP *
-	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP6")        // KP 6
-	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP5")        // KP 5
-	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP4")        // KP 4
-	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP=")        // KP =
-	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F10)  PORT_NAME("Pause")      // Pause
+	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_INSERT) PORT_NAME("Ins chr")    // Ins Char
+	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_ASTERISK) PORT_CHAR(UCHAR_MAMEKEY(ASTERISK)) PORT_NAME("Keypad *")        // KP *
+	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_6_PAD) PORT_CHAR(UCHAR_MAMEKEY(6_PAD)) PORT_NAME("Keypad 6")        // KP 6
+	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_5_PAD) PORT_CHAR(UCHAR_MAMEKEY(5_PAD)) PORT_NAME("Keypad 5")        // KP 5
+	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_4_PAD) PORT_CHAR(UCHAR_MAMEKEY(4_PAD)) PORT_NAME("Keypad 4")        // KP 4
+	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad =")        // KP =
+	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Pause")      // Pause
 	PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_UP)   PORT_CHAR(UCHAR_MAMEKEY(UP))    // Up
-	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_ENTER)        PORT_CHAR(13)   // Store
+	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Store")  // Store
 	PORT_BIT(BIT_MASK(10)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON)     PORT_CHAR(';') PORT_CHAR(':')      // :
 	PORT_BIT(BIT_MASK(11)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_K)     PORT_CHAR('k') PORT_CHAR('K')  // K
 	PORT_BIT(BIT_MASK(12)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_H)     PORT_CHAR('h') PORT_CHAR('H')  // H
@@ -272,13 +273,13 @@ static INPUT_PORTS_START(hp9845_base)
 	PORT_BIT(BIT_MASK(14)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_S)     PORT_CHAR('s') PORT_CHAR('S')  // S
 	PORT_BIT(BIT_MASK(15)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
 	PORT_BIT(BIT_MASK(16)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
-	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("INSLN")      // Ins Ln
-	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP/")        // KP /
-	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP9")        // KP 9
-	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP8")        // KP 8
-	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("KP7")        // KP 7
+	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Ins ln")      // Ins Ln
+	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH_PAD) PORT_CHAR(UCHAR_MAMEKEY(SLASH_PAD)) PORT_NAME("Keypad /")        // KP /
+	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_9_PAD) PORT_CHAR(UCHAR_MAMEKEY(9_PAD)) PORT_NAME("Keypad 9")        // KP 9
+	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_8_PAD) PORT_CHAR(UCHAR_MAMEKEY(8_PAD)) PORT_NAME("Keypad 8")        // KP 8
+	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_7_PAD) PORT_CHAR(UCHAR_MAMEKEY(7_PAD)) PORT_NAME("Keypad 7")        // KP 7
 	PORT_BIT(BIT_MASK(22)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Result")     // Result
-	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F9)   PORT_NAME("Run")        // Run
+	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Run")        // Run
 	PORT_BIT(BIT_MASK(24)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
 	PORT_BIT(BIT_MASK(25)  , IP_ACTIVE_HIGH , IPT_UNUSED)   // N/U
 	PORT_BIT(BIT_MASK(26)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR('\'') PORT_CHAR('"') // "
@@ -290,13 +291,13 @@ static INPUT_PORTS_START(hp9845_base)
 
 	PORT_START("KEY2")
 	PORT_BIT(BIT_MASK(0)  , IP_ACTIVE_HIGH , IPT_UNUSED)    // N/U
-	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("DELLN")      // Del Ln
-	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP^")        // KP ^
-	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP)")        // KP )
-	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KP(")        // KP (
-	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("KPE")        // KP E
-	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Clear line") // Clear Line
-	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F8)   PORT_NAME("Stop")       // Stop
+	PORT_BIT(BIT_MASK(1)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Del ln")          // Del Ln
+	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad ^")        // KP ^
+	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad )")        // KP )
+	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad (")        // KP (
+	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Keypad E")        // KP E
+	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("Clear line")      // Clear Line
+	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_ESC) PORT_CHAR(UCHAR_MAMEKEY(ESC)) PORT_NAME("Stop")       // Stop
 	PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('\\') PORT_CHAR('|')      // |
 	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_CLOSEBRACE)   PORT_CHAR(']') PORT_CHAR('}')   // ]
 	PORT_BIT(BIT_MASK(10)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_P)     PORT_CHAR('p') PORT_CHAR('P')  // P
@@ -306,11 +307,11 @@ static INPUT_PORTS_START(hp9845_base)
 	PORT_BIT(BIT_MASK(14)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_W)     PORT_CHAR('w') PORT_CHAR('W')  // W
 	PORT_BIT(BIT_MASK(15)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_LCONTROL)  PORT_CHAR(UCHAR_SHIFT_2)   // Control
 	PORT_BIT(BIT_MASK(16)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Typwtr")     // Typwtr
-	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_DEL)  PORT_NAME("DELCHAR")    // Del Char
-	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_PGDN) PORT_NAME("ROLLDOWN")   // Roll down
-	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_PGUP) PORT_NAME("ROLLUP")     // Roll up
-	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_HOME) PORT_NAME("HOME")       // Home
-	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Clr to end") // Clr to end
+	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_DEL)  PORT_NAME("Del chr")    // Del Char
+	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_PGDN) PORT_NAME("Roll down")   // Roll down
+	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_PGUP) PORT_NAME("Roll up")     // Roll up
+	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_HOME) PORT_NAME("Home")       // Home
+	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_END) PORT_NAME("Clr to end") // Clr to end
 	PORT_BIT(BIT_MASK(22)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Clear")      // Clear
 	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_TILDE)     PORT_CHAR('`') PORT_CHAR('~')      // ~
 	PORT_BIT(BIT_MASK(24)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)       // BS
@@ -328,34 +329,79 @@ static INPUT_PORTS_START(hp9845_base)
 	PORT_BIT(BIT_MASK(2)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K15")        // K15
 	PORT_BIT(BIT_MASK(3)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K14")        // K14
 	PORT_BIT(BIT_MASK(4)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K13")        // K13
-	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K12")        // K12
-	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K11")        // K11
-	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K10")        // K10
-		PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K9")         // K9
-	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_NAME("K8")         // K8
-	PORT_BIT(BIT_MASK(10)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_0)     PORT_CHAR('0') // 0
-	PORT_BIT(BIT_MASK(11)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_8)     PORT_CHAR('8') PORT_CHAR('(')  // 8
-	PORT_BIT(BIT_MASK(12)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_6)     PORT_CHAR('6') PORT_CHAR('&')  // 6
+	PORT_BIT(BIT_MASK(5)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F12) PORT_CHAR(UCHAR_MAMEKEY(F12)) PORT_NAME("K12")      // K12
+	PORT_BIT(BIT_MASK(6)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F11) PORT_CHAR(UCHAR_MAMEKEY(F11)) PORT_NAME("K11")      // K11
+	PORT_BIT(BIT_MASK(7)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F10) PORT_CHAR(UCHAR_MAMEKEY(F10)) PORT_NAME("K10")      // K10
+	PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F9) PORT_CHAR(UCHAR_MAMEKEY(F9)) PORT_NAME("K9")         // K9
+	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD)  PORT_CODE(KEYCODE_F8) PORT_CHAR(UCHAR_MAMEKEY(F8)) PORT_NAME("K8")         // K8
+	PORT_BIT(BIT_MASK(10)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_0)     PORT_CHAR('0') PORT_CHAR(')') // 0
+	PORT_BIT(BIT_MASK(11)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_8)     PORT_CHAR('8') PORT_CHAR('*')  // 8
+	PORT_BIT(BIT_MASK(12)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_6)     PORT_CHAR('6') PORT_CHAR('^')  // 6
 	PORT_BIT(BIT_MASK(13)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_4)     PORT_CHAR('4') PORT_CHAR('$')  // 4
-	PORT_BIT(BIT_MASK(14)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_2)     PORT_CHAR('2') PORT_CHAR('"')  // 2
+	PORT_BIT(BIT_MASK(14)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_2)     PORT_CHAR('2') PORT_CHAR('@')  // 2
 	PORT_BIT(BIT_MASK(15)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_TAB)   PORT_CHAR('\t')        // Tab
 	PORT_BIT(BIT_MASK(16)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Tab clr")    // Tab clr
-		PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Step")  // Step
-	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F7)   PORT_NAME("K7") // K7
-	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F6)   PORT_NAME("K6") // K6
-	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F5)   PORT_NAME("K5") // K5
-		PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F4)   PORT_NAME("K4") // K4
-		PORT_BIT(BIT_MASK(22)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F3)   PORT_NAME("K3") // K3
-	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F2)   PORT_NAME("K2") // K2
-	PORT_BIT(BIT_MASK(24)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F1)   PORT_NAME("K1") // K1
-	PORT_BIT(BIT_MASK(25)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_ESC)  PORT_NAME("K0") // K0
+	PORT_BIT(BIT_MASK(17)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("Step")  // Step
+	PORT_BIT(BIT_MASK(18)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F7) PORT_CHAR(UCHAR_MAMEKEY(F7)) PORT_NAME("K7") // K7
+	PORT_BIT(BIT_MASK(19)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F6) PORT_CHAR(UCHAR_MAMEKEY(F6)) PORT_NAME("K6") // K6
+	PORT_BIT(BIT_MASK(20)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F5) PORT_CHAR(UCHAR_MAMEKEY(F5)) PORT_NAME("K5") // K5
+	PORT_BIT(BIT_MASK(21)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F4) PORT_CHAR(UCHAR_MAMEKEY(F4)) PORT_NAME("K4") // K4
+	PORT_BIT(BIT_MASK(22)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F3) PORT_CHAR(UCHAR_MAMEKEY(F3)) PORT_NAME("K3") // K3
+	PORT_BIT(BIT_MASK(23)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F2) PORT_CHAR(UCHAR_MAMEKEY(F2)) PORT_NAME("K2") // K2
+	PORT_BIT(BIT_MASK(24)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_F1) PORT_CHAR(UCHAR_MAMEKEY(F1)) PORT_NAME("K1") // K1
+	PORT_BIT(BIT_MASK(25)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_NAME("K0") // K0
 	PORT_BIT(BIT_MASK(26)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS)     PORT_CHAR('-') PORT_CHAR('_')      // _
-	PORT_BIT(BIT_MASK(27)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_9)     PORT_CHAR('9') PORT_CHAR(')')  // 9
-	PORT_BIT(BIT_MASK(28)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_7)     PORT_CHAR('7') PORT_CHAR('\'') // 7
+	PORT_BIT(BIT_MASK(27)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_9)     PORT_CHAR('9') PORT_CHAR('(')  // 9
+	PORT_BIT(BIT_MASK(28)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_7)     PORT_CHAR('7') PORT_CHAR('&') // 7
 	PORT_BIT(BIT_MASK(29)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_5)     PORT_CHAR('5') PORT_CHAR('%')  // 5
 	PORT_BIT(BIT_MASK(30)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_3)     PORT_CHAR('3') PORT_CHAR('#')  // 3
 	PORT_BIT(BIT_MASK(31)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_1)     PORT_CHAR('1') PORT_CHAR('!')  // 1
 
+	PORT_START("SHIFTLOCK");
+	PORT_BIT(BIT_MASK(0)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE PORT_NAME("Shift lock") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845_base_state, togglekey_changed, 0) // Shift lock
+
+INPUT_PORTS_END
+
+/*
+    German keyboard layout
+
+    Remarks:
+    - Most keys including umlauts map correctly to the German keyboard layout of the 9845 without special configuration,
+      provided that the German keyboard firmware ROM is used on the 9845
+    - '#' maps positionally correct to Shift+3
+    - AltGr modifier on the Germany PC keyboard for 9845 shifted keycodes 23=| and 5=@ need to get assigned dynamically
+    - ~{}\'` are not available on the German 9845 keyboard, ^ is available via keypad only
+*/
+static INPUT_PORTS_START(hp9845_base_de)
+	PORT_INCLUDE(hp9845_base)
+
+	PORT_MODIFY("KEY0")
+	PORT_BIT(BIT_MASK(10) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('-') PORT_CHAR('_')           // - _
+	PORT_BIT(BIT_MASK(11) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR(';')           // , ;
+	PORT_BIT(BIT_MASK(27) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR(':')            // . :
+	PORT_BIT(BIT_MASK(31) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_Z) PORT_CHAR('y') PORT_CHAR('Y')               // Y
+
+	PORT_MODIFY("KEY1")
+	PORT_BIT(BIT_MASK(10) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON) PORT_CHAR(0x00f6) PORT_CHAR(0x00d6) // Ö
+	PORT_BIT(BIT_MASK(26) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR(0x00e4) PORT_CHAR(0x00c4) // Ä
+
+	PORT_MODIFY("KEY2")
+	PORT_BIT(BIT_MASK(8)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH2) PORT_CHAR('<') PORT_CHAR('>')      // < >
+	PORT_BIT(BIT_MASK(9)  , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR('+') PORT_CHAR('*')      // + *
+	PORT_BIT(BIT_MASK(12) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_Y) PORT_CHAR('z') PORT_CHAR('Z')               // Z
+	PORT_BIT(BIT_MASK(23) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)                        // Backspace
+	PORT_BIT(BIT_MASK(24) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_TILDE) PORT_CHAR(']') PORT_CHAR('@')           // ] @
+	PORT_BIT(BIT_MASK(25) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('[') PORT_CHAR('|')          // [ |
+	PORT_BIT(BIT_MASK(26) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR(0x00fc) PORT_CHAR(0x00dc) // Ü
+
+	PORT_MODIFY("KEY3")
+	PORT_BIT(BIT_MASK(10) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR('=')               // 0 =
+	PORT_BIT(BIT_MASK(11) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('(')               // 8 (
+	PORT_BIT(BIT_MASK(12) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('&')               // 6 &
+	PORT_BIT(BIT_MASK(14) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('"')               // 2 "
+	PORT_BIT(BIT_MASK(26) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS) PORT_CHAR(0x00df) PORT_CHAR('?')    // ß ?
+	PORT_BIT(BIT_MASK(27) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR(')')               // 9 )
+	PORT_BIT(BIT_MASK(28) , IP_ACTIVE_HIGH , IPT_KEYBOARD) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR('/')               // 7 /
 INPUT_PORTS_END
 
 // *******************
@@ -372,6 +418,7 @@ hp9845_base_state::hp9845_base_state(const machine_config &mconfig, device_type 
 			  m_io_key1(*this , "KEY1"),
 			  m_io_key2(*this , "KEY2"),
 			  m_io_key3(*this , "KEY3"),
+			  m_io_shiftlock(*this, "SHIFTLOCK"),
 			  m_t14(*this , "t14"),
 			  m_t15(*this , "t15"),
 			  m_beeper(*this , "beeper"),
@@ -477,6 +524,8 @@ void hp9845_base_state::machine_reset()
 	m_kb_status = 0;
 
 	m_beeper->set_state(0);
+
+	m_prt_irl = false;
 
 	logerror("STS=%04x FLG=%04x\n" , m_sts_status , m_flg_status);
 }
@@ -587,6 +636,20 @@ void hp9845_base_state::flg_w(uint8_t sc , int state)
 	}
 }
 
+void hp9845_base_state::kb_scan_ioport(ioport_value pressed , ioport_port *port , unsigned idx_base , int& max_seq_len , unsigned& max_seq_idx)
+{
+	while (pressed) {
+		unsigned bit_no = 31 - count_leading_zeros(pressed);
+		ioport_value mask = BIT_MASK(bit_no);
+		int seq_len = port->field(mask)->seq().length();
+		if (seq_len > max_seq_len) {
+			max_seq_len = seq_len;
+			max_seq_idx = bit_no + idx_base;
+		}
+		pressed &= ~mask;
+	}
+}
+
 TIMER_DEVICE_CALLBACK_MEMBER(hp9845_base_state::kb_scan)
 {
 		ioport_value input[ 4 ];
@@ -594,6 +657,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(hp9845_base_state::kb_scan)
 		input[ 1 ] = m_io_key1->read();
 		input[ 2 ] = m_io_key2->read();
 		input[ 3 ] = m_io_key3->read();
+
+		// Shift lock
+		ioport_value shiftlock = m_io_shiftlock->read();
 
 		// Set status bits for "shift", "control", "auto start" & "print all" keys
 		// ** Print all **
@@ -626,31 +692,33 @@ TIMER_DEVICE_CALLBACK_MEMBER(hp9845_base_state::kb_scan)
 		// ** Shift **
 		// (R,C) = (0,15)
 		// Bit 15 in kb status
-		if (BIT(input[ 0 ] , 15)) {
+		if (BIT(input[ 0 ] , 15) || shiftlock) {
 				BIT_SET(m_kb_status , 15);
 				BIT_CLR(input[ 0 ] , 15);
 		} else {
 				BIT_CLR(m_kb_status, 15);
 		}
 
+		int max_seq_len = 0;
+		unsigned max_seq_idx = 0;
+		kb_scan_ioport(input[ 0 ] & ~m_kb_state[ 0 ] , m_io_key0 , 0 , max_seq_len , max_seq_idx);
+		kb_scan_ioport(input[ 1 ] & ~m_kb_state[ 1 ] , m_io_key1 , 32 , max_seq_len , max_seq_idx);
+		kb_scan_ioport(input[ 2 ] & ~m_kb_state[ 2 ] , m_io_key2 , 64 , max_seq_len , max_seq_idx);
+		kb_scan_ioport(input[ 3 ] & ~m_kb_state[ 3 ] , m_io_key3 , 96 , max_seq_len , max_seq_idx);
 		// TODO: handle repeat key
 		// TODO: handle ctrl+stop
 
-		for (unsigned i = 0; i < 128; i++) {
-				ioport_value mask = BIT_MASK(i & 0x1f);
-				unsigned idx = i >> 5;
+		if (max_seq_len) {
+			// Key pressed, store scancode & generate IRL
+			//logerror("idx=%u msl=%d\n" , max_seq_idx , max_seq_len);
+			m_kb_scancode = max_seq_idx;
+			BIT_SET(m_kb_status, 0);
+			update_kb_prt_irq();
 
-				if ((input[ idx ] & ~m_kb_state[ idx ]) & mask) {
-						// Key pressed, store scancode & generate IRL
-						m_kb_scancode = i;
-						irq_w(0 , 1);
-						BIT_SET(m_kb_status, 0);
-
-						// Special case: pressing stop key sets LPU "status" flag
-						if (i == 0x47) {
-								m_lpu->status_w(1);
-						}
-				}
+			// Special case: pressing stop key sets LPU "status" flag
+			if (max_seq_idx == 0x47) {
+				m_lpu->status_w(1);
+			}
 		}
 
 		memcpy(&m_kb_state[ 0 ] , &input[ 0 ] , sizeof(m_kb_state));
@@ -668,8 +736,8 @@ READ16_MEMBER(hp9845_base_state::kb_status_r)
 
 WRITE16_MEMBER(hp9845_base_state::kb_irq_clear_w)
 {
-		irq_w(0 , 0);
 		BIT_CLR(m_kb_status, 0);
+		update_kb_prt_irq();
 		m_lpu->status_w(0);
 
 		if (BIT(data , 15)) {
@@ -677,6 +745,12 @@ WRITE16_MEMBER(hp9845_base_state::kb_irq_clear_w)
 			m_beep_timer->adjust(attotime::from_ticks(64, KEY_SCAN_OSCILLATOR / 512));
 			m_beeper->set_state(1);
 		}
+}
+
+void hp9845_base_state::update_kb_prt_irq()
+{
+	bool state = BIT(m_kb_status , 0) || m_prt_irl;
+	irq_w(0 , state);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(hp9845_base_state::beeper_off)
@@ -690,6 +764,22 @@ WRITE8_MEMBER(hp9845_base_state::pa_w)
 		m_pa = data;
 		update_flg_sts();
 	}
+}
+
+WRITE_LINE_MEMBER(hp9845_base_state::prt_irl_w)
+{
+	m_prt_irl = state;
+	update_kb_prt_irq();
+}
+
+WRITE_LINE_MEMBER(hp9845_base_state::prt_flg_w)
+{
+	flg_w(PRINTER_PA , state);
+}
+
+WRITE_LINE_MEMBER(hp9845_base_state::prt_sts_w)
+{
+	sts_w(PRINTER_PA , state);
 }
 
 WRITE_LINE_MEMBER(hp9845_base_state::t14_irq_w)
@@ -720,6 +810,34 @@ WRITE_LINE_MEMBER(hp9845_base_state::t15_flg_w)
 WRITE_LINE_MEMBER(hp9845_base_state::t15_sts_w)
 {
 	sts_w(T15_PA , state);
+}
+
+INPUT_CHANGED_MEMBER(hp9845_base_state::togglekey_changed)
+{
+	uintptr_t togglekey = (uintptr_t)param;
+	switch (togglekey) {
+	case 0: // Shift lock
+		{
+			bool state = m_io_shiftlock->read();
+			popmessage("SHIFT LOCK %s", state ? "ON" : "OFF");
+			output().set_value("shift_lock_led" , state);
+		}
+		break;
+	case 1: // Prt all
+		{
+			bool state = BIT(m_io_key0->read(), 1);
+			popmessage("PRT ALL %s", state ? "ON" : "OFF");
+			output().set_value("prt_all_led" , state);
+		}
+		break;
+	case 2: // Auto st
+		{
+			bool state = BIT(m_io_key0->read(), 17);
+			popmessage("AUTO ST %s", state ? "ON" : "OFF");
+			output().set_value("auto_st_led" , state);
+		}
+		break;
+	}
 }
 
 // ***************
@@ -954,7 +1072,7 @@ void hp9845b_state::video_fill_buff(bool buff_idx)
 				// Limit on accesses per row reached
 				break;
 			}
-			m_video_word = prog_space.read_word(m_video_mar << 1);
+			m_video_word = prog_space.read_word(m_video_mar);
 			if (m_video_load_mar) {
 				// Load new address into MAR after start of a new frame or NWA instruction
 				if (m_video_first_mar) {
@@ -1370,9 +1488,31 @@ static INPUT_PORTS_START(hp9845ct)
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1) PORT_CODE(MOUSECODE_BUTTON1) PORT_NAME("Gkey")
 INPUT_PORTS_END
 
+static INPUT_PORTS_START(hp9845ct_de)
+	PORT_INCLUDE(hp9845_base_de)
+	PORT_START("SOFTKEYS")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey0") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey1") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey2") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey3") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey4") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey5") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey6") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Softkey7") PORT_CHANGED_MEMBER(DEVICE_SELF, hp9845ct_base_state, softkey_changed, 0)
+
+	PORT_START("LIGHTPENX")
+	PORT_BIT( 0x3ff, 0x000, IPT_LIGHTGUN_X ) PORT_SENSITIVITY(20) PORT_MINMAX(0, VIDEO_TOT_HPIXELS - 1) PORT_CROSSHAIR(X, 1.0, 0.0, 0)
+
+	PORT_START("LIGHTPENY")
+	PORT_BIT( 0x3ff, 0x000, IPT_LIGHTGUN_Y ) PORT_SENSITIVITY(20) PORT_MINMAX(0, GVIDEO_VPIXELS - 1) PORT_CROSSHAIR(Y, 1.0, 0.0, 0)
+
+	PORT_START("GKEY")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1) PORT_CODE(MOUSECODE_BUTTON1) PORT_NAME("Gkey")
+INPUT_PORTS_END
+
 hp9845ct_base_state::hp9845ct_base_state(const machine_config &mconfig, device_type type, const char *tag)
 	: hp9845_base_state(mconfig , type , tag),
-      m_io_softkeys(*this, "SOFTKEYS"),
+	  m_io_softkeys(*this, "SOFTKEYS"),
 	  m_lightpen_x(*this, "LIGHTPENX"),
 	  m_lightpen_y(*this, "LIGHTPENY"),
 	  m_lightpen_sw(*this, "GKEY")
@@ -1467,22 +1607,19 @@ WRITE_LINE_MEMBER(hp9845ct_base_state::vblank_w)
 
 INPUT_CHANGED_MEMBER(hp9845ct_base_state::softkey_changed)
 {
-	if (!m_gv_sk_status) {
-		uint8_t softkey_data = m_io_softkeys->read();
-		unsigned softkey;
-		for (softkey = 0; softkey < 8 && BIT(softkey_data , 7 - softkey); softkey++) {
-		}
-		LOG("SK %02x => %u\n" , softkey_data , softkey);
-		if (softkey < 8) {
-			// softkey pressed
-			m_gv_softkey = softkey;
-			m_gv_sk_status = true;
-			update_graphic_bits();
-		}
-		for (softkey = 0; softkey < 8; softkey++) {
-			output().set_indexed_value("Softkey" , softkey , !BIT(softkey_data , 7 - softkey));
-		}
-
+	uint8_t softkey_data = m_io_softkeys->read();
+	unsigned softkey;
+	for (softkey = 0; softkey < 8; softkey++) {
+		output().set_indexed_value("Softkey" , softkey , !BIT(softkey_data , 7 - softkey));
+	}
+	for (softkey = 0; softkey < 8 && BIT(softkey_data , 7 - softkey); softkey++) {
+	}
+	LOG("SK %02x => %u\n" , softkey_data , softkey);
+	if (softkey < 8 && !m_gv_sk_status) {
+		// softkey pressed
+		m_gv_softkey = softkey;
+		m_gv_sk_status = true;
+		update_graphic_bits();
 	}
 }
 
@@ -1509,7 +1646,7 @@ void hp9845ct_base_state::video_fill_buff(bool buff_idx)
 			// Limit on accesses per row reached
 			break;
 		}
-		m_video_word = prog_space.read_word(m_video_mar << 1);
+		m_video_word = prog_space.read_word(m_video_mar);
 		if (m_video_load_mar) {
 			// Load new address into MAR after start of a new frame or NWA instruction
 			if (m_video_first_mar) {
@@ -2787,7 +2924,7 @@ READ16_MEMBER(hp9845t_state::graphic_r)
 		}
 		// TODO: gsr/
 		if (m_gv_sk_status) {
-			BIT_SET(res, 1);	// Softkey service request
+			BIT_SET(res, 1);    // Softkey service request
 		}
 		BIT_SET(res, 9);        // ID
 		BIT_SET(res, 11);       // ID
@@ -3258,10 +3395,10 @@ void hp9845t_state::advance_gv_fsm(bool ds , bool trigger)
 				break;
 			case 0xc:   // load color mask (no effect, just for compatibility with 9845c), takes a single word as parameter
 				break;
-			case 0xe:	// Y cursor position
+			case 0xe:   // Y cursor position
 				m_gv_lyc = m_gv_data_w;
 				break;
-			case 0xf:	// X cursor position
+			case 0xf:   // X cursor position
 				m_gv_lxc = m_gv_data_w;
 				break;
 			default:
@@ -3584,6 +3721,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(ppu_io_map , AS_IO , 16 , hp9845_base_state)
 	ADDRESS_MAP_UNMAP_LOW
+	// PA = 0, IC = 0..1
+	// Internal printer
+	AM_RANGE(HP_MAKE_IOADDR(PRINTER_PA , 0) , HP_MAKE_IOADDR(PRINTER_PA , 1)) AM_DEVREADWRITE("printer" , hp9845_printer_device , printer_r , printer_w)
 	// PA = 0, IC = 2
 	// Keyboard scancode input
 	AM_RANGE(HP_MAKE_IOADDR(0 , 2) , HP_MAKE_IOADDR(0 , 2)) AM_READ(kb_scancode_r)
@@ -3601,7 +3741,7 @@ static ADDRESS_MAP_START(ppu_io_map , AS_IO , 16 , hp9845_base_state)
 	AM_RANGE(HP_MAKE_IOADDR(T15_PA , 0) , HP_MAKE_IOADDR(T15_PA , 3))        AM_DEVREADWRITE("t15" , hp_taco_device , reg_r , reg_w)
 ADDRESS_MAP_END
 
-static MACHINE_CONFIG_FRAGMENT(hp9845_base)
+static MACHINE_CONFIG_START(hp9845_base)
 	MCFG_CPU_ADD("lpu", HP_5061_3001, 5700000)
 	MCFG_CPU_PROGRAM_MAP(global_mem_map)
 	MCFG_HPHYBRID_SET_9845_BOOT(true)
@@ -3623,7 +3763,7 @@ static MACHINE_CONFIG_FRAGMENT(hp9845_base)
 	// Beeper
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("beeper" , BEEP , KEY_SCAN_OSCILLATOR / 512)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS , "mono" , 1.00)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS , "mono" , 0.50)
 
 	MCFG_TIMER_DRIVER_ADD("beep_timer" , hp9845_base_state , beeper_off);
 
@@ -3680,6 +3820,12 @@ static MACHINE_CONFIG_FRAGMENT(hp9845_base)
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("192K")
 	MCFG_RAM_EXTRA_OPTIONS("64K, 320K, 448K")
+
+	// Internal printer
+	MCFG_DEVICE_ADD("printer" , HP9845_PRINTER , 0)
+	MCFG_9845PRT_IRL_HANDLER(WRITELINE(hp9845_base_state , prt_irl_w))
+	MCFG_9845PRT_FLG_HANDLER(WRITELINE(hp9845_base_state , prt_flg_w))
+	MCFG_9845PRT_STS_HANDLER(WRITELINE(hp9845_base_state , prt_sts_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START(hp9845b)
@@ -3854,11 +4000,53 @@ ROM_START( hp9845t )
 	ROM_LOAD("9845-PPU-Color-Enhanced-Graphics.bin", 0, 0x10000, CRC(96e11edc) SHA1(3f1da50edb35dfc57ec2ecfd816a8c8230e110bd))
 ROM_END
 
-//    YEAR  NAME       PARENT   COMPAT  MACHINE        INPUT        STATE          INIT  COMPANY             FULLNAME  FLAGS
-COMP( 1977, hp9845a,   0,       0,      hp9845a,       hp9845,      hp9845_state,  0,    "Hewlett-Packard",  "9845A",  MACHINE_IS_SKELETON | MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
-COMP( 1977, hp9845s,   hp9845a, 0,      hp9845a,       hp9845,      hp9845_state,  0,    "Hewlett-Packard",  "9845S",  MACHINE_IS_SKELETON | MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
-COMP( 1979, hp9835a,   0,       0,      hp9835a,       hp9845,      hp9845_state,  0,    "Hewlett-Packard",  "9835A",  MACHINE_IS_SKELETON | MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
-COMP( 1979, hp9835b,   hp9835a, 0,      hp9835a,       hp9845,      hp9845_state,  0,    "Hewlett-Packard",  "9835B",  MACHINE_IS_SKELETON | MACHINE_NOT_WORKING | MACHINE_NO_SOUND )
-COMP( 1979, hp9845b,   0,       0,      hp9845b,       hp9845_base, hp9845b_state, 0,    "Hewlett-Packard",  "9845B",  0 )
-COMP( 1982, hp9845t,   0,       0,      hp9845t,       hp9845ct,    hp9845t_state, 0,    "Hewlett-Packard",  "9845T",  0 )
-COMP( 1980, hp9845c,   0,       0,      hp9845c,       hp9845ct,    hp9845c_state, 0,    "Hewlett-Packard",  "9845C",  0 )
+ROM_START( hp9845b_de )
+	ROM_REGION(0x800 , "chargen" , 0)
+	ROM_LOAD("chrgen.bin" , 0 , 0x800 , CRC(fe9e844f) SHA1(0c45ae00766ceba94a19bd5e154bd6d23e208cca))
+
+	ROM_REGION(0x800 , "optional_chargen" , 0)
+	ROM_LOAD("optional_chrgen.bin" , 0 , 0x800 , CRC(0ecfa63b) SHA1(c295e6393d1503d903c1d2ce576fa597df9746bf))
+
+	ROM_REGION(0x10000, "lpu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-LPU-Standard-Processor.bin", 0, 0x10000, CRC(dc266c1b) SHA1(1cf3267f13872fbbfc035b70f8b4ec6b5923f182))
+
+	ROM_REGION(0x10000, "ppu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-PPU-Standard-Graphics-Ger.bin", 0, 0x10000, CRC(c968363d) SHA1(bc6805403371ca49d1a137f22cd254e3b0e0dbb4))
+ROM_END
+
+ROM_START( hp9845c_de )
+	ROM_REGION(0x800 , "chargen" , 0)
+	ROM_LOAD("chrgen.bin" , 0 , 0x800 , CRC(fe9e844f) SHA1(0c45ae00766ceba94a19bd5e154bd6d23e208cca))
+
+	ROM_REGION(0x800 , "optional_chargen" , 0)
+	ROM_LOAD("optional_chrgen.bin" , 0 , 0x800 , CRC(0ecfa63b) SHA1(c295e6393d1503d903c1d2ce576fa597df9746bf))
+
+	ROM_REGION(0x10000, "lpu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-LPU-Standard-Processor.bin", 0, 0x10000, CRC(dc266c1b) SHA1(1cf3267f13872fbbfc035b70f8b4ec6b5923f182))
+
+	ROM_REGION(0x10000, "ppu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-PPU-Color-Enhanced-Graphics-Ger.bin", 0, 0x10000, CRC(a7ef79ee) SHA1(637742ed8fc8201a8e7bac62654f21c5409dfb76))
+ROM_END
+
+ROM_START( hp9845t_de )
+	ROM_REGION(0x1000 , "chargen" , 0)
+	ROM_LOAD("1818-1395.bin" , 0 , 0x1000 , CRC(7b555edf) SHA1(3b08e094635ef02aef9a2e37b049c61bcf1ec037))
+
+	ROM_REGION(0x10000, "lpu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-LPU-Standard-Processor.bin", 0, 0x10000, CRC(dc266c1b) SHA1(1cf3267f13872fbbfc035b70f8b4ec6b5923f182))
+
+	ROM_REGION(0x10000, "ppu", ROMREGION_16BIT | ROMREGION_BE)
+	ROM_LOAD("9845-PPU-Color-Enhanced-Graphics-Ger.bin", 0, 0x10000, CRC(a7ef79ee) SHA1(637742ed8fc8201a8e7bac62654f21c5409dfb76))
+ROM_END
+
+//    YEAR  NAME        PARENT   COMPAT  MACHINE        INPUT           STATE          INIT  COMPANY             FULLNAME  FLAGS
+COMP( 1977, hp9845a,    0,       0,      hp9845a,       hp9845,         hp9845_state,  0,    "Hewlett-Packard",  "9845A",  MACHINE_IS_SKELETON )
+COMP( 1977, hp9845s,    hp9845a, 0,      hp9845a,       hp9845,         hp9845_state,  0,    "Hewlett-Packard",  "9845S",  MACHINE_IS_SKELETON )
+COMP( 1979, hp9835a,    0,       0,      hp9835a,       hp9845,         hp9845_state,  0,    "Hewlett-Packard",  "9835A",  MACHINE_IS_SKELETON )
+COMP( 1979, hp9835b,    hp9835a, 0,      hp9835a,       hp9845,         hp9845_state,  0,    "Hewlett-Packard",  "9835B",  MACHINE_IS_SKELETON )
+COMP( 1979, hp9845b,    0,       0,      hp9845b,       hp9845_base,    hp9845b_state, 0,    "Hewlett-Packard",  "9845B",  0 )
+COMP( 1982, hp9845t,    0,       0,      hp9845t,       hp9845ct,       hp9845t_state, 0,    "Hewlett-Packard",  "9845T",  0 )
+COMP( 1980, hp9845c,    0,       0,      hp9845c,       hp9845ct,       hp9845c_state, 0,    "Hewlett-Packard",  "9845C",  0 )
+COMP( 1979, hp9845b_de, hp9845b, 0,      hp9845b,       hp9845_base_de, hp9845b_state, 0,    "Hewlett-Packard",  "9845B (Germany)", 0 )
+COMP( 1982, hp9845t_de, hp9845t, 0,      hp9845t,       hp9845ct_de,    hp9845t_state, 0,    "Hewlett-Packard",  "9845T (Germany)", 0 )
+COMP( 1980, hp9845c_de, hp9845c, 0,      hp9845c,       hp9845ct_de,    hp9845c_state, 0,    "Hewlett-Packard",  "9845C (Germany)", 0 )

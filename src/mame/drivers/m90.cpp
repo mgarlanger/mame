@@ -28,7 +28,6 @@
 #include "machine/irem_cpu.h"
 #include "sound/dac.h"
 #include "sound/ym2151.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -56,15 +55,6 @@ WRITE16_MEMBER(m90_state::quizf1_bankswitch_w)
 {
 	if (ACCESSING_BITS_0_7)
 		membank("bank1")->set_entry(data & 0xf);
-}
-
-WRITE16_MEMBER(m90_state::dynablsb_sound_command_w)
-{
-	if (ACCESSING_BITS_0_7)
-	{
-		m_soundlatch->write(space, offset, data);
-		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	}
 }
 
 #ifdef UNUSED_FUNCTION
@@ -104,7 +94,7 @@ static ADDRESS_MAP_START( bomblord_main_cpu_map, AS_PROGRAM, 16, m90_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( m90_main_cpu_io_map, AS_IO, 16, m90_state )
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE("m72", m72_audio_device, sound_command_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE8("m72", m72_audio_device, sound_command_w, 0x00ff)
 	AM_RANGE(0x00, 0x01) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x02, 0x03) AM_WRITE(m90_coincounter_w)
 	AM_RANGE(0x02, 0x03) AM_READ_PORT("SYSTEM")
@@ -114,7 +104,7 @@ static ADDRESS_MAP_START( m90_main_cpu_io_map, AS_IO, 16, m90_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dynablsb_main_cpu_io_map, AS_IO, 16, m90_state )
-	AM_RANGE(0x00, 0x01) AM_WRITE(dynablsb_sound_command_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE8("soundlatch", generic_latch_8_device, write, 0x00ff)
 	AM_RANGE(0x00, 0x01) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x02, 0x03) AM_WRITE(m90_coincounter_w)
 	AM_RANGE(0x02, 0x03) AM_READ_PORT("SYSTEM")
@@ -214,7 +204,7 @@ INPUT_PORTS_END
 
 static INPUT_PORTS_START( dynablst )
 	PORT_START("P1_P2")
-	IREM_GENERIC_JOYSTICKS_2_BUTTONS(1, 2)
+	IREM_GENERIC_JOYSTICKS_2_BUTTONS_4WAY(1, 2)
 
 	PORT_START("SYSTEM")
 	IREM_COINS
@@ -258,13 +248,13 @@ static INPUT_PORTS_START( dynablst )
 	IREM_COIN_MODE_2_HIGH
 
 	PORT_START("P3_P4")
-	IREM_INPUT_PLAYER_3
-	IREM_INPUT_PLAYER_4
+	IREM_INPUT_PLAYER_3_4WAY
+	IREM_INPUT_PLAYER_4_4WAY
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( dynablsb )
 	PORT_START("P1_P2")
-	IREM_GENERIC_JOYSTICKS_2_BUTTONS(2, 1)
+	IREM_GENERIC_JOYSTICKS_2_BUTTONS_4WAY(2, 1)
 
 	PORT_START("SYSTEM")
 	IREM_COINS
@@ -308,8 +298,8 @@ static INPUT_PORTS_START( dynablsb )
 	IREM_COIN_MODE_2_HIGH
 
 	PORT_START("P3_P4")
-	IREM_INPUT_PLAYER_3
-	IREM_INPUT_PLAYER_4
+	IREM_INPUT_PLAYER_3_4WAY
+	IREM_INPUT_PLAYER_4_4WAY
 INPUT_PORTS_END
 
 
@@ -324,7 +314,7 @@ INPUT_PORTS_END
 
 static INPUT_PORTS_START( bombrman ) /* Does not appear to support 4 players or cocktail mode */
 	PORT_START("P1_P2")
-	IREM_GENERIC_JOYSTICKS_2_BUTTONS(1, 2)
+	IREM_GENERIC_JOYSTICKS_2_BUTTONS_4WAY(1, 2)
 
 	PORT_START("SYSTEM")
 	IREM_COINS
@@ -368,7 +358,7 @@ INPUT_PORTS_END
 
 static INPUT_PORTS_START( bbmanw )
 	PORT_START("P1_P2")
-	IREM_GENERIC_JOYSTICKS_2_BUTTONS(1, 2)
+	IREM_GENERIC_JOYSTICKS_2_BUTTONS_4WAY(1, 2)
 
 	PORT_START("SYSTEM")
 	IREM_COINS
@@ -412,14 +402,19 @@ static INPUT_PORTS_START( bbmanw )
 	IREM_COIN_MODE_2_HIGH
 
 	PORT_START("P3_P4")
-	IREM_INPUT_PLAYER_3
-	IREM_INPUT_PLAYER_4
+	IREM_INPUT_PLAYER_3_4WAY
+	IREM_INPUT_PLAYER_4_4WAY
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( bbmanwj )
 	PORT_INCLUDE(bbmanw)
 
 	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x000c, 0x000c, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPSETTING(      0x0000, DEF_STR( Easiest ) ) // Errata corrige sheet for the Japanese version shows "Very Easy" instead of "Very Hard"
+	PORT_DIPSETTING(      0x0008, DEF_STR( Easy ) )
+	PORT_DIPSETTING(      0x000c, DEF_STR( Medium ) )
+	PORT_DIPSETTING(      0x0004, DEF_STR( Hard ) )
 	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:5") /* Manual says "NOT USE" - No Game Title Change */
 	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
@@ -703,7 +698,7 @@ INTERRUPT_GEN_MEMBER(m90_state::bomblord_fake_nmi)
 
 INTERRUPT_GEN_MEMBER(m90_state::m90_interrupt)
 {
-	generic_pulse_irq_line(device.execute(), NEC_INPUT_LINE_INTP0, 1);
+	device.execute().pulse_input_line(NEC_INPUT_LINE_INTP0, device.execute().minimum_quantum_time());
 }
 
 INTERRUPT_GEN_MEMBER(m90_state::dynablsb_interrupt)
@@ -758,8 +753,7 @@ static MACHINE_CONFIG_START( m90 )
 	MCFG_SOUND_ROUTE(1, "speaker", 0.15)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.1) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -846,6 +840,9 @@ static MACHINE_CONFIG_DERIVED( dynablsb, m90 )
 	MCFG_VIDEO_START_OVERRIDE(m90_state,dynablsb)
 
 	MCFG_DEVICE_REMOVE("m72")
+
+	MCFG_DEVICE_MODIFY("soundlatch")
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
 
 	MCFG_SOUND_MODIFY("ymsnd")
 	MCFG_YM2151_IRQ_HANDLER(NOOP) /* this bootleg polls the YM2151 instead of taking interrupts from it */
@@ -1249,10 +1246,10 @@ DRIVER_INIT_MEMBER(m90_state,bomblord)
 
 	for (int i = 0; i < 0x100000 / 2; i += 4)
 	{
-		ROM[i+0]=BITSWAP16(ROM[i+0],0xc,0x8,0xd,0xe,0xf,0xb,0xa,0x9,0x6,0x4,0x7,0x3,0x1,0x2,0x0,0x5);
-		ROM[i+1]=BITSWAP16(ROM[i+1],0xc,0xb,0xd,0xa,0xe,0x9,0xf,0x8,0x0,0x6,0x1,0x5,0x3,0x4,0x2,0x7);
-		ROM[i+2]=BITSWAP16(ROM[i+2],0xd,0x9,0xc,0x8,0xe,0xf,0xa,0xb,0x4,0x7,0x3,0x2,0x5,0x6,0x1,0x0);
-		ROM[i+3]=BITSWAP16(ROM[i+3],0xe,0xd,0xf,0x8,0xb,0xa,0x9,0xc,0x6,0x3,0x7,0x5,0x0,0x1,0x4,0x2);
+		ROM[i+0]=bitswap<16>(ROM[i+0],0xc,0x8,0xd,0xe,0xf,0xb,0xa,0x9,0x6,0x4,0x7,0x3,0x1,0x2,0x0,0x5);
+		ROM[i+1]=bitswap<16>(ROM[i+1],0xc,0xb,0xd,0xa,0xe,0x9,0xf,0x8,0x0,0x6,0x1,0x5,0x3,0x4,0x2,0x7);
+		ROM[i+2]=bitswap<16>(ROM[i+2],0xd,0x9,0xc,0x8,0xe,0xf,0xa,0xb,0x4,0x7,0x3,0x2,0x5,0x6,0x1,0x0);
+		ROM[i+3]=bitswap<16>(ROM[i+3],0xe,0xd,0xf,0x8,0xb,0xa,0x9,0xc,0x6,0x3,0x7,0x5,0x0,0x1,0x4,0x2);
 	}
 }
 

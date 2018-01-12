@@ -66,8 +66,8 @@ huc6260_device::huc6260_device(const machine_config &mconfig, const char *tag, d
 
 void huc6260_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	int vpos = m_screen->vpos();
-	int hpos = m_screen->hpos();
+	int vpos = screen().vpos();
+	int hpos = screen().hpos();
 	int h = m_last_h;
 	int v = m_last_v;
 	uint16_t *bitmap_line = &m_bmp->pix16(v);
@@ -80,13 +80,9 @@ void huc6260_device::device_timer(emu_timer &timer, device_timer_id id, int para
 			/* Get next pixel information */
 			m_pixel_data = m_next_pixel_data_cb( 0, 0xffff );
 			g_profiler.stop();
-			if ( m_greyscales )
-			{
-				m_pixel_data += 512;
-			}
 		}
 
-		bitmap_line[ h ] = m_palette[ m_pixel_data ];
+		bitmap_line[ h ] = m_palette[ m_pixel_data ] | m_greyscales;
 		m_pixel_clock = ( m_pixel_clock + 1 ) % m_pixels_per_clock;
 		h = ( h + 1 ) % WPF;
 
@@ -181,7 +177,7 @@ void huc6260_device::device_timer(emu_timer &timer, device_timer_id id, int para
 		}
 	}
 
-	m_timer->adjust( m_screen->time_until_pos( v, h ) );
+	m_timer->adjust( screen().time_until_pos( v, h ) );
 }
 
 
@@ -231,7 +227,7 @@ WRITE8_MEMBER( huc6260_device::write )
 	switch ( offset & 7 )
 	{
 		case 0x00:  /* Control register */
-			m_greyscales = data & 0x80;
+			m_greyscales = (data & 0x80) << 2; // setup the greyscale base
 			m_blur = data & 0x04;
 			m_pixels_per_clock = ( data & 0x02 ) ? 2 : ( ( data & 0x01 ) ? 3 : 4 );
 			break;
@@ -298,22 +294,16 @@ void huc6260_device::device_reset()
 	m_pixel_clock = 0;
 	memset(m_palette, 0x00, sizeof(m_palette));
 
-	m_last_v = m_screen->vpos();
-	m_last_h = m_screen->hpos();
-	m_timer->adjust( m_screen->time_until_pos( ( m_screen->vpos() + 1 ) % 263, 0 ) );
+	m_last_v = screen().vpos();
+	m_last_h = screen().hpos();
+	m_timer->adjust( screen().time_until_pos( ( screen().vpos() + 1 ) % 263, 0 ) );
 }
 
-static MACHINE_CONFIG_FRAGMENT( huc6260 )
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+MACHINE_CONFIG_MEMBER( huc6260_device::device_add_mconfig )
 	MCFG_PALETTE_ADD("palette",  huc6260_device::PALETTE_SIZE)
 	MCFG_PALETTE_INIT_OWNER(huc6260_device, huc6260)
 MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
-//-------------------------------------------------
-
-machine_config_constructor huc6260_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( huc6260 );
-}

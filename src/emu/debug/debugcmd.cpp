@@ -14,12 +14,14 @@
 #include "debugcmd.h"
 #include "debugcon.h"
 #include "debugcpu.h"
+#include "debugbuf.h"
 #include "express.h"
 #include "debughlp.h"
 #include "debugvw.h"
 #include "natkeyboard.h"
 #include "render.h"
 #include <ctype.h>
+#include <fstream>
 
 
 
@@ -98,15 +100,15 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	, m_cpu(cpu)
 	, m_console(console)
 {
-	m_global_array = auto_alloc_array_clear(m_machine, global_entry, MAX_GLOBALS);
+	m_global_array = std::make_unique<global_entry []>(MAX_GLOBALS);
 
 	symbol_table *symtable = m_cpu.get_global_symtable();
 
 	/* add a few simple global functions */
 	using namespace std::placeholders;
-	symtable->add("min", nullptr, 2, 2, std::bind(&debugger_commands::execute_min, this, _1, _2, _3, _4));
-	symtable->add("max", nullptr, 2, 2, std::bind(&debugger_commands::execute_max, this, _1, _2, _3, _4));
-	symtable->add("if", nullptr, 3, 3, std::bind(&debugger_commands::execute_if, this, _1, _2, _3, _4));
+	symtable->add("min", 2, 2, std::bind(&debugger_commands::execute_min, this, _1, _2, _3));
+	symtable->add("max", 2, 2, std::bind(&debugger_commands::execute_max, this, _1, _2, _3));
+	symtable->add("if", 3, 3, std::bind(&debugger_commands::execute_if, this, _1, _2, _3));
 
 	/* add all single-entry save state globals */
 	for (int itemnum = 0; itemnum < MAX_GLOBALS; itemnum++)
@@ -126,7 +128,10 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 			sprintf(symname, ".%s", strrchr(name, '/') + 1);
 			m_global_array[itemnum].base = base;
 			m_global_array[itemnum].size = valsize;
-			symtable->add(symname, &m_global_array, std::bind(&debugger_commands::global_get, this, _1, _2), std::bind(&debugger_commands::global_set, this, _1, _2, _3));
+			symtable->add(
+					symname,
+					std::bind(&debugger_commands::global_get, this, _1, &m_global_array[itemnum]),
+					std::bind(&debugger_commands::global_set, this, _1, &m_global_array[itemnum], _2));
 		}
 	}
 
@@ -180,8 +185,8 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	m_console.register_command("wpd",       CMDFLAG_NONE, AS_DATA, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
 	m_console.register_command("wpiset",    CMDFLAG_NONE, AS_IO, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
 	m_console.register_command("wpi",       CMDFLAG_NONE, AS_IO, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
-	m_console.register_command("wposet",    CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
-	m_console.register_command("wpo",       CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
+	m_console.register_command("wposet",    CMDFLAG_NONE, AS_OPCODES, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
+	m_console.register_command("wpo",       CMDFLAG_NONE, AS_OPCODES, 3, 5, std::bind(&debugger_commands::execute_wpset, this, _1, _2));
 	m_console.register_command("wpclear",   CMDFLAG_NONE, 0, 0, 1, std::bind(&debugger_commands::execute_wpclear, this, _1, _2));
 	m_console.register_command("wpdisable", CMDFLAG_NONE, 0, 0, 1, std::bind(&debugger_commands::execute_wpdisenable, this, _1, _2));
 	m_console.register_command("wpenable",  CMDFLAG_NONE, 1, 0, 1, std::bind(&debugger_commands::execute_wpdisenable, this, _1, _2));
@@ -201,20 +206,23 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	m_console.register_command("stateload", CMDFLAG_NONE, 0, 1, 1, std::bind(&debugger_commands::execute_stateload, this, _1, _2));
 	m_console.register_command("sl",        CMDFLAG_NONE, 0, 1, 1, std::bind(&debugger_commands::execute_stateload, this, _1, _2));
 
+	m_console.register_command("rewind",    CMDFLAG_NONE, 0, 0, 0, std::bind(&debugger_commands::execute_rewind, this, _1, _2));
+	m_console.register_command("rw",        CMDFLAG_NONE, 0, 0, 0, std::bind(&debugger_commands::execute_rewind, this, _1, _2));
+
 	m_console.register_command("save",      CMDFLAG_NONE, AS_PROGRAM, 3, 4, std::bind(&debugger_commands::execute_save, this, _1, _2));
 	m_console.register_command("saved",     CMDFLAG_NONE, AS_DATA, 3, 4, std::bind(&debugger_commands::execute_save, this, _1, _2));
 	m_console.register_command("savei",     CMDFLAG_NONE, AS_IO, 3, 4, std::bind(&debugger_commands::execute_save, this, _1, _2));
-	m_console.register_command("saveo",     CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 3, 4, std::bind(&debugger_commands::execute_save, this, _1, _2));
+	m_console.register_command("saveo",     CMDFLAG_NONE, AS_OPCODES, 3, 4, std::bind(&debugger_commands::execute_save, this, _1, _2));
 
-	m_console.register_command("load",      CMDFLAG_NONE, AS_PROGRAM, 3, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
-	m_console.register_command("loadd",     CMDFLAG_NONE, AS_DATA, 3, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
-	m_console.register_command("loadi",     CMDFLAG_NONE, AS_IO, 3, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
-	m_console.register_command("loado",     CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 3, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
+	m_console.register_command("load",      CMDFLAG_NONE, AS_PROGRAM, 2, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
+	m_console.register_command("loadd",     CMDFLAG_NONE, AS_DATA, 2, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
+	m_console.register_command("loadi",     CMDFLAG_NONE, AS_IO, 2, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
+	m_console.register_command("loado",     CMDFLAG_NONE, AS_OPCODES, 2, 4, std::bind(&debugger_commands::execute_load, this, _1, _2));
 
 	m_console.register_command("dump",      CMDFLAG_NONE, AS_PROGRAM, 3, 7, std::bind(&debugger_commands::execute_dump, this, _1, _2));
 	m_console.register_command("dumpd",     CMDFLAG_NONE, AS_DATA, 3, 7, std::bind(&debugger_commands::execute_dump, this, _1, _2));
 	m_console.register_command("dumpi",     CMDFLAG_NONE, AS_IO, 3, 7, std::bind(&debugger_commands::execute_dump, this, _1, _2));
-	m_console.register_command("dumpo",     CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 3, 7, std::bind(&debugger_commands::execute_dump, this, _1, _2));
+	m_console.register_command("dumpo",     CMDFLAG_NONE, AS_OPCODES, 3, 7, std::bind(&debugger_commands::execute_dump, this, _1, _2));
 
 	m_console.register_command("cheatinit", CMDFLAG_NONE, 0, 0, 4, std::bind(&debugger_commands::execute_cheatinit, this, _1, _2));
 	m_console.register_command("ci",        CMDFLAG_NONE, 0, 0, 4, std::bind(&debugger_commands::execute_cheatinit, this, _1, _2));
@@ -239,8 +247,8 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	m_console.register_command("findd",     CMDFLAG_KEEP_QUOTES, AS_DATA, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
 	m_console.register_command("fi",        CMDFLAG_KEEP_QUOTES, AS_IO, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
 	m_console.register_command("findi",     CMDFLAG_KEEP_QUOTES, AS_IO, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
-	m_console.register_command("fo",        CMDFLAG_KEEP_QUOTES, AS_DECRYPTED_OPCODES, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
-	m_console.register_command("findo",     CMDFLAG_KEEP_QUOTES, AS_DECRYPTED_OPCODES, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
+	m_console.register_command("fo",        CMDFLAG_KEEP_QUOTES, AS_OPCODES, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
+	m_console.register_command("findo",     CMDFLAG_KEEP_QUOTES, AS_OPCODES, 3, MAX_COMMAND_PARAMS, std::bind(&debugger_commands::execute_find, this, _1, _2));
 
 	m_console.register_command("dasm",      CMDFLAG_NONE, 0, 3, 5, std::bind(&debugger_commands::execute_dasm, this, _1, _2));
 
@@ -255,7 +263,7 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	m_console.register_command("pcatmemp",  CMDFLAG_NONE, AS_PROGRAM, 1, 2, std::bind(&debugger_commands::execute_pcatmem, this, _1, _2));
 	m_console.register_command("pcatmemd",  CMDFLAG_NONE, AS_DATA,    1, 2, std::bind(&debugger_commands::execute_pcatmem, this, _1, _2));
 	m_console.register_command("pcatmemi",  CMDFLAG_NONE, AS_IO,      1, 2, std::bind(&debugger_commands::execute_pcatmem, this, _1, _2));
-	m_console.register_command("pcatmemo",  CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 1, 2, std::bind(&debugger_commands::execute_pcatmem, this, _1, _2));
+	m_console.register_command("pcatmemo",  CMDFLAG_NONE, AS_OPCODES, 1, 2, std::bind(&debugger_commands::execute_pcatmem, this, _1, _2));
 
 	m_console.register_command("snap",      CMDFLAG_NONE, 0, 0, 1, std::bind(&debugger_commands::execute_snap, this, _1, _2));
 
@@ -264,7 +272,7 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
 	m_console.register_command("map",       CMDFLAG_NONE, AS_PROGRAM, 1, 1, std::bind(&debugger_commands::execute_map, this, _1, _2));
 	m_console.register_command("mapd",      CMDFLAG_NONE, AS_DATA, 1, 1, std::bind(&debugger_commands::execute_map, this, _1, _2));
 	m_console.register_command("mapi",      CMDFLAG_NONE, AS_IO, 1, 1, std::bind(&debugger_commands::execute_map, this, _1, _2));
-	m_console.register_command("mapo",      CMDFLAG_NONE, AS_DECRYPTED_OPCODES, 1, 1, std::bind(&debugger_commands::execute_map, this, _1, _2));
+	m_console.register_command("mapo",      CMDFLAG_NONE, AS_OPCODES, 1, 1, std::bind(&debugger_commands::execute_map, this, _1, _2));
 	m_console.register_command("memdump",   CMDFLAG_NONE, 0, 0, 1, std::bind(&debugger_commands::execute_memdump, this, _1, _2));
 
 	m_console.register_command("symlist",   CMDFLAG_NONE, 0, 0, 1, std::bind(&debugger_commands::execute_symlist, this, _1, _2));
@@ -291,7 +299,7 @@ debugger_commands::debugger_commands(running_machine& machine, debugger_cpu& cpu
     execute_min - return the minimum of two values
 -------------------------------------------------*/
 
-u64 debugger_commands::execute_min(symbol_table &table, void *ref, int params, const u64 *param)
+u64 debugger_commands::execute_min(symbol_table &table, int params, const u64 *param)
 {
 	return (param[0] < param[1]) ? param[0] : param[1];
 }
@@ -301,7 +309,7 @@ u64 debugger_commands::execute_min(symbol_table &table, void *ref, int params, c
     execute_max - return the maximum of two values
 -------------------------------------------------*/
 
-u64 debugger_commands::execute_max(symbol_table &table, void *ref, int params, const u64 *param)
+u64 debugger_commands::execute_max(symbol_table &table, int params, const u64 *param)
 {
 	return (param[0] > param[1]) ? param[0] : param[1];
 }
@@ -311,7 +319,7 @@ u64 debugger_commands::execute_max(symbol_table &table, void *ref, int params, c
     execute_if - if (a) return b; else return c;
 -------------------------------------------------*/
 
-u64 debugger_commands::execute_if(symbol_table &table, void *ref, int params, const u64 *param)
+u64 debugger_commands::execute_if(symbol_table &table, int params, const u64 *param)
 {
 	return param[0] ? param[1] : param[2];
 }
@@ -326,9 +334,8 @@ u64 debugger_commands::execute_if(symbol_table &table, void *ref, int params, co
     global_get - symbol table getter for globals
 -------------------------------------------------*/
 
-u64 debugger_commands::global_get(symbol_table &table, void *ref)
+u64 debugger_commands::global_get(symbol_table &table, global_entry *global)
 {
-	global_entry *global = (global_entry *)ref;
 	switch (global->size)
 	{
 		case 1:     return *(u8 *)global->base;
@@ -344,9 +351,8 @@ u64 debugger_commands::global_get(symbol_table &table, void *ref)
     global_set - symbol table setter for globals
 -------------------------------------------------*/
 
-void debugger_commands::global_set(symbol_table &table, void *ref, u64 value)
+void debugger_commands::global_set(symbol_table &table, global_entry *global, u64 value)
 {
-	global_entry *global = (global_entry *)ref;
 	switch (global->size)
 	{
 		case 1:     *(u8 *)global->base = value; break;
@@ -759,7 +765,7 @@ void debugger_commands::execute_tracesym(int ref, const std::vector<std::string>
 
 void debugger_commands::execute_quit(int ref, const std::vector<std::string> &params)
 {
-	osd_printf_error("Exited via the debugger\n");
+	osd_printf_warning("Exited via the debugger\n");
 	m_machine.schedule_exit();
 }
 
@@ -1398,7 +1404,7 @@ void debugger_commands::execute_wplist(int ref, const std::vector<std::string> &
 
 	/* loop over all CPUs */
 	for (device_t &device : device_iterator(m_machine.root_device()))
-		for (address_spacenum spacenum = AS_0; spacenum < ADDRESS_SPACES; ++spacenum)
+		for (int spacenum = 0; spacenum < device.debug()->watchpoint_space_count(); ++spacenum)
 			if (device.debug()->watchpoint_first(spacenum) != nullptr)
 			{
 				static const char *const types[] = { "unkn ", "read ", "write", "r/w  " };
@@ -1624,13 +1630,32 @@ void debugger_commands::execute_stateload(int ref, const std::vector<std::string
 	const std::string &filename(params[0]);
 	m_machine.immediate_load(filename.c_str());
 
-	// Clear all PC & memory tracks
+	// clear all PC & memory tracks
 	for (device_t &device : device_iterator(m_machine.root_device()))
 	{
 		device.debug()->track_pc_data_clear();
 		device.debug()->track_mem_data_clear();
 	}
 	m_console.printf("State load attempted.  Please refer to window message popup for results.\n");
+}
+
+
+/*-------------------------------------------------
+    execute_rewind - execute the rewind command
+-------------------------------------------------*/
+
+void debugger_commands::execute_rewind(int ref, const std::vector<std::string> &params)
+{
+	bool success = m_machine.rewind_step();
+	if (success)
+		// clear all PC & memory tracks
+		for (device_t &device : device_iterator(m_machine.root_device()))
+		{
+			device.debug()->track_pc_data_clear();
+			device.debug()->track_mem_data_clear();
+		}
+	else
+		m_console.printf("Rewind error occured.  See error.log for details.\n");
 }
 
 
@@ -1643,7 +1668,6 @@ void debugger_commands::execute_save(int ref, const std::vector<std::string> &pa
 	u64 offset, endoffset, length;
 	address_space *space;
 	FILE *f;
-	u64 i;
 
 	/* validate parameters */
 	if (!validate_number_parameter(params[1], offset))
@@ -1654,8 +1678,9 @@ void debugger_commands::execute_save(int ref, const std::vector<std::string> &pa
 		return;
 
 	/* determine the addresses to write */
-	endoffset = space->address_to_byte(offset + length - 1) & space->bytemask();
-	offset = space->address_to_byte(offset) & space->bytemask();
+	endoffset = (offset + length - 1) & space->addrmask();
+	offset = offset & space->addrmask();
+	endoffset ++;
 
 	/* open the file */
 	f = fopen(params[0].c_str(), "wb");
@@ -1666,10 +1691,46 @@ void debugger_commands::execute_save(int ref, const std::vector<std::string> &pa
 	}
 
 	/* now write the data out */
-	for (i = offset; i <= endoffset; i++)
+	auto dis = space->device().machine().disable_side_effect();
+	switch (space->addr_shift())
 	{
-		u8 byte = m_cpu.read_byte(*space, i, true);
-		fwrite(&byte, 1, 1, f);
+	case -3:
+		for (offs_t i = offset; i != endoffset; i++)
+		{
+			u64 data = space->read_qword(i);
+			fwrite(&data, 8, 1, f);
+		}
+		break;
+	case -2:
+		for (offs_t i = offset; i != endoffset; i++)
+		{
+			u32 data = space->read_dword(i);
+			fwrite(&data, 4, 1, f);
+		}
+		break;
+	case -1:
+		for (offs_t i = offset; i != endoffset; i++)
+		{
+			u16 byte = space->read_word(i);
+			fwrite(&byte, 2, 1, f);
+		}
+		break;
+	case  0:
+		for (offs_t i = offset; i != endoffset; i++)
+		{
+			u8 byte = space->read_byte(i);
+			fwrite(&byte, 1, 1, f);
+		}
+		break;
+	case  3:
+		offset &= ~15;
+		endoffset &= ~15;
+		for (offs_t i = offset; i != endoffset; i+=16)
+		{
+			u16 byte = space->read_word(i >> 4);
+			fwrite(&byte, 2, 1, f);
+		}
+		break;
 	}
 
 	/* close the file */
@@ -1684,44 +1745,97 @@ void debugger_commands::execute_save(int ref, const std::vector<std::string> &pa
 
 void debugger_commands::execute_load(int ref, const std::vector<std::string> &params)
 {
-	u64 offset, endoffset, length;
+	u64 offset, endoffset, length = 0;
 	address_space *space;
-	FILE *f;
-	u64 i;
 
-	/* validate parameters */
+	// validate parameters
 	if (!validate_number_parameter(params[1], offset))
 		return;
-	if (!validate_number_parameter(params[2], length))
+	if (params.size() > 2 && !validate_number_parameter(params[2], length))
 		return;
 	if (!validate_cpu_space_parameter((params.size() > 3) ? params[3].c_str() : nullptr, ref, space))
 		return;
 
-	/* determine the addresses to read */
-	endoffset = space->address_to_byte(offset + length - 1) & space->bytemask();
-	offset = space->address_to_byte(offset) & space->bytemask();
-
-	/* open the file */
-	f = fopen(params[0].c_str(), "rb");
-	if (!f)
+	// open the file
+	std::ifstream f;
+	f.open(params[0], std::ifstream::in | std::ifstream::binary);
+	if (f.fail())
 	{
 		m_console.printf("Error opening file '%s'\n", params[0].c_str());
 		return;
 	}
 
-	/* now read the data in, ignore endoffset and load entire file if length has been set to zero (offset-1) */
-	u8 byte;
-	for (i = offset; i <= endoffset || endoffset == offset - 1 ; i++)
+	// determine the file size, if not specified
+	if (params.size() <= 2)
 	{
-		fread(&byte, 1, 1, f);
-		/* check if end of file has been reached and stop loading if it has */
-		if (feof(f))
-			break;
-		m_cpu.write_byte(*space, i, byte, true);
+		f.seekg(0, std::ios::end);
+		length = f.tellg();
+		f.seekg(0);
+		if (space->addr_shift() < 0)
+			length >>= -space->addr_shift();
+		else if (space->addr_shift() > 0)
+			length <<= space->addr_shift();
 	}
-	/* close the file */
-	fclose(f);
-	if ( i == offset)
+
+	// determine the addresses to read
+	endoffset = (offset + length - 1) & space->addrmask();
+	offset = offset & space->addrmask();
+	offs_t i = 0;
+	// now read the data in, ignore endoffset and load entire file if length has been set to zero (offset-1)
+	switch (space->addr_shift())
+	{
+	case -3:
+		for (i = offset; f.good() && (i <= endoffset || endoffset == offset - 1); i++)
+		{
+			u64 data;
+			f.read((char *)&data, 8);
+			if (f)
+				space->write_qword(i, data);
+		}
+		break;
+	case -2:
+		for (i = offset; f.good() && (i <= endoffset || endoffset == offset - 1); i++)
+		{
+			u32 data;
+			f.read((char *)&data, 4);
+			if (f)
+				space->write_dword(i, data);
+		}
+		break;
+	case -1:
+		for (i = offset; f.good() && (i <= endoffset || endoffset == offset - 1); i++)
+		{
+			u16 data;
+			f.read((char *)&data, 2);
+			if (f)
+				space->write_word(i, data);
+		}
+		break;
+	case  0:
+		for (i = offset; f.good() && (i <= endoffset || endoffset == offset - 1); i++)
+		{
+			u8 data;
+			f.read((char *)&data, 1);
+			if (f)
+				space->write_byte(i, data);
+		}
+		break;
+	case  3:
+		offset &= ~15;
+		endoffset &= ~15;
+		for (i = offset; f.good() && (i <= endoffset || endoffset == offset - 16); i+=16)
+		{
+			u16 data;
+			f.read((char *)&data, 2);
+			if (f)
+				space->write_word(i >> 4, data);
+		}
+		break;
+	}
+
+	if (!f.good())
+		m_console.printf("I/O error, load failed\n");
+	else if (i == offset)
 		m_console.printf("Length specified too large, load failed\n");
 	else
 		m_console.printf("Data loaded successfully to memory : 0x%X to 0x%X\n", offset, i-1);
@@ -1759,6 +1873,9 @@ void debugger_commands::execute_dump(int ref, const std::vector<std::string> &pa
 	if (!validate_cpu_space_parameter((params.size() > 6) ? params[6].c_str() : nullptr, ref, space))
 		return;
 
+	int shift = space->addr_shift();
+	u64 granularity = shift > 0 ? 2 : 1 << -shift;
+
 	/* further validation */
 	if (width == 0)
 		width = space->data_width() / 8;
@@ -1769,14 +1886,19 @@ void debugger_commands::execute_dump(int ref, const std::vector<std::string> &pa
 		m_console.printf("Invalid width! (must be 1,2,4 or 8)\n");
 		return;
 	}
+	if (width < granularity)
+	{
+		m_console.printf("Invalid width! (must be at least %d)\n", granularity);
+		return;
+	}
 	if (rowsize == 0 || (rowsize % width) != 0)
 	{
-		m_console.printf("Invalid row size! (must be a positive multiple of %d)", width);
+		m_console.printf("Invalid row size! (must be a positive multiple of %d)\n", width);
 		return;
 	}
 
-	u64 endoffset = space->address_to_byte(offset + length - 1) & space->bytemask();
-	offset = space->address_to_byte(offset) & space->bytemask();
+	u64 endoffset = (offset + length - 1) & space->addrmask();
+	offset = offset & space->addrmask();
 
 	/* open the file */
 	FILE* f = fopen(params[0].c_str(), "w");
@@ -1789,13 +1911,22 @@ void debugger_commands::execute_dump(int ref, const std::vector<std::string> &pa
 	/* now write the data out */
 	util::ovectorstream output;
 	output.reserve(200);
-	for (u64 i = offset; i <= endoffset; i += rowsize)
+
+	if (shift > 0)
+		width <<= shift;
+	else if(shift < 0)
+		width >>= -shift;
+
+	auto dis = space->device().machine().disable_side_effect();
+	bool be = space->endianness() == ENDIANNESS_BIG;
+
+	for (offs_t i = offset; i <= endoffset; i += rowsize)
 	{
 		output.clear();
 		output.rdbuf()->clear();
 
 		/* print the address */
-		util::stream_format(output, "%0*X: ", space->logaddrchars(), u32(space->byte_to_address(i)));
+		util::stream_format(output, "%0*X: ", space->logaddrchars(), i);
 
 		/* print the bytes */
 		for (u64 j = 0; j < rowsize; j += width)
@@ -1805,8 +1936,21 @@ void debugger_commands::execute_dump(int ref, const std::vector<std::string> &pa
 				offs_t curaddr = i + j;
 				if (space->device().memory().translate(space->spacenum(), TRANSLATE_READ_DEBUG, curaddr))
 				{
-					u64 value = m_cpu.read_memory(*space, i + j, width, true);
-					util::stream_format(output, " %0*X", width * 2, value);
+					switch (width)
+					{
+					case 8:
+						util::stream_format(output, " %016X", space->read_qword(i+j));
+						break;
+					case 4:
+						util::stream_format(output, " %08X", space->read_dword(i+j));
+						break;
+					case 2:
+						util::stream_format(output, " %04X", space->read_word(i+j));
+						break;
+					case 1:
+						util::stream_format(output, " %02X", space->read_byte(i+j));
+						break;
+					}
 				}
 				else
 				{
@@ -1821,13 +1965,31 @@ void debugger_commands::execute_dump(int ref, const std::vector<std::string> &pa
 		if (ascii)
 		{
 			util::stream_format(output, "  ");
-			for (u64 j = 0; j < rowsize && (i + j) <= endoffset; j++)
+			for (u64 j = 0; j < rowsize && (i + j) <= endoffset; j += width)
 			{
 				offs_t curaddr = i + j;
 				if (space->device().memory().translate(space->spacenum(), TRANSLATE_READ_DEBUG, curaddr))
 				{
-					u8 byte = m_cpu.read_byte(*space, i + j, true);
-					util::stream_format(output, "%c", (byte >= 32 && byte < 127) ? byte : '.');
+					u64 data = 0;
+					switch (width)
+					{
+					case 8:
+						data = space->read_qword(i+j);
+						break;
+					case 4:
+						data = space->read_dword(i+j);
+						break;
+					case 2:
+						data = space->read_word(i+j);
+						break;
+					case 1:
+						data = space->read_byte(i+j);
+						break;
+					}
+					for (unsigned int b = 0; b != width; b++) {
+						u8 byte = data >> (8 * (be ? (width-i-b) : b));
+						util::stream_format(output, "%c", (byte >= 32 && byte < 127) ? byte : '.');
+					}
 				}
 				else
 				{
@@ -1912,8 +2074,8 @@ void debugger_commands::execute_cheatinit(int ref, const std::vector<std::string
 	{
 		for (address_map_entry &entry : space->map()->m_entrylist)
 		{
-			cheat_region[region_count].offset = space->address_to_byte(entry.m_addrstart) & space->bytemask();
-			cheat_region[region_count].endoffset = space->address_to_byte(entry.m_addrend) & space->bytemask();
+			cheat_region[region_count].offset = entry.m_addrstart & space->addrmask();
+			cheat_region[region_count].endoffset = entry.m_addrend & space->addrmask();
 			cheat_region[region_count].share = entry.m_share;
 			cheat_region[region_count].disabled = (entry.m_write.m_type == AMH_RAM) ? false : true;
 
@@ -1936,8 +2098,8 @@ void debugger_commands::execute_cheatinit(int ref, const std::vector<std::string
 			return;
 
 		/* force region to the specified range */
-		cheat_region[region_count].offset = space->address_to_byte(offset) & space->bytemask();
-		cheat_region[region_count].endoffset = space->address_to_byte(offset + length - 1) & space->bytemask();
+		cheat_region[region_count].offset = offset & space->addrmask();
+		cheat_region[region_count].endoffset = (offset + length - 1) & space->addrmask();
 		cheat_region[region_count].share = nullptr;
 		cheat_region[region_count].disabled = false;
 		region_count++;
@@ -2206,7 +2368,7 @@ void debugger_commands::execute_cheatlist(int ref, const std::vector<std::string
 		case AS_PROGRAM:    spaceletter = 'p';  break;
 		case AS_DATA:   spaceletter = 'd';  break;
 		case AS_IO:     spaceletter = 'i';  break;
-		case AS_DECRYPTED_OPCODES: spaceletter = 'o'; break;
+		case AS_OPCODES: spaceletter = 'o'; break;
 	}
 
 	switch (m_cheat.width)
@@ -2312,9 +2474,9 @@ void debugger_commands::execute_find(int ref, const std::vector<std::string> &pa
 		return;
 
 	/* further validation */
-	endoffset = space->address_to_byte(offset + length - 1) & space->bytemask();
-	offset = space->address_to_byte(offset) & space->bytemask();
-	cur_data_size = space->address_to_byte(1);
+	endoffset = (offset + length - 1) & space->addrmask();
+	offset = offset & space->addrmask();
+	cur_data_size = space->addr_shift() > 0 ? 2 : 1 << -space->addr_shift();
 	if (cur_data_size == 0)
 		cur_data_size = 1;
 
@@ -2395,10 +2557,7 @@ void debugger_commands::execute_find(int ref, const std::vector<std::string> &pa
 void debugger_commands::execute_dasm(int ref, const std::vector<std::string> &params)
 {
 	u64 offset, length, bytes = 1;
-	int minbytes, maxbytes, byteswidth;
-	address_space *space, *decrypted_space;
-	FILE *f;
-	int j;
+	address_space *space;
 
 	/* validate parameters */
 	if (!validate_number_parameter(params[1], offset))
@@ -2409,10 +2568,6 @@ void debugger_commands::execute_dasm(int ref, const std::vector<std::string> &pa
 		return;
 	if (!validate_cpu_space_parameter(params.size() > 4 ? params[4].c_str() : nullptr, AS_PROGRAM, space))
 		return;
-	if (space->device().memory().has_space(AS_DECRYPTED_OPCODES))
-		decrypted_space = &space->device().memory().space(AS_DECRYPTED_OPCODES);
-	else
-		decrypted_space = space;
 
 	/* determine the width of the bytes */
 	device_disasm_interface *dasmintf;
@@ -2421,104 +2576,72 @@ void debugger_commands::execute_dasm(int ref, const std::vector<std::string> &pa
 		m_console.printf("No disassembler available for %s\n", space->device().name());
 		return;
 	}
-	minbytes = dasmintf->min_opcode_bytes();
-	maxbytes = dasmintf->max_opcode_bytes();
-	byteswidth = 0;
-	if (bytes)
+
+	/* build the data, check the maximum size of the opcodes and disasm */
+	std::vector<offs_t> pcs;
+	std::vector<std::string> instructions;
+	std::vector<std::string> tpc;
+	std::vector<std::string> topcodes;
+	int max_opcodes_size = 0;
+	int max_disasm_size = 0;
+
+	debug_disasm_buffer buffer(space->device());
+
+	for (u64 i = 0; i < length; )
 	{
-		byteswidth = (maxbytes + (minbytes - 1)) / minbytes;
-		byteswidth *= (2 * minbytes) + 1;
+		std::string instruction;
+		offs_t next_offset;
+		offs_t size;
+		u32 info;
+		buffer.disassemble(offset, instruction, next_offset, size, info);
+		pcs.push_back(offset);
+		instructions.emplace_back(instruction);
+		tpc.emplace_back(buffer.pc_to_string(offset));
+		topcodes.emplace_back(buffer.data_to_string(offset, size, true));
+
+		int osize = topcodes.back().size();
+		if(osize > max_opcodes_size)
+			max_opcodes_size = osize;
+
+		int dsize = instructions.back().size();
+		if(dsize > max_disasm_size)
+			max_disasm_size = dsize;
+
+		i += size;
+		offset = next_offset;
 	}
 
-	/* open the file */
-	f = fopen(params[0].c_str(), "w");
-	if (!f)
+	/* write the data */
+	std::ofstream f(params[0]);
+	if (!f.good())
 	{
-		m_console.printf("Error opening file '%s'\n", params[0].c_str());
+		m_console.printf("Error opening file '%s'\n", params[0]);
 		return;
 	}
 
-	/* now write the data out */
-	util::ovectorstream output;
-	util::ovectorstream disasm;
-	output.reserve(512);
-	for (u64 i = 0; i < length; )
+	if (bytes)
 	{
-		int pcbyte = space->address_to_byte(offset + i) & space->bytemask();
-		const char *comment;
-		offs_t tempaddr;
-		int numbytes = 0;
-		output.clear();
-		output.rdbuf()->clear();
-		disasm.clear();
-		disasm.seekp(0);
-
-		/* print the address */
-		stream_format(output, "%0*X: ", space->logaddrchars(), u32(space->byte_to_address(pcbyte)));
-
-		/* make sure we can translate the address */
-		tempaddr = pcbyte;
-		if (space->device().memory().translate(space->spacenum(), TRANSLATE_FETCH_DEBUG, tempaddr))
+		for(unsigned int i=0; i != pcs.size(); i++)
 		{
-			{
-				u8 opbuf[64], argbuf[64];
-
-				/* fetch the bytes up to the maximum */
-				for (numbytes = 0; numbytes < maxbytes; numbytes++)
-				{
-					opbuf[numbytes] = m_cpu.read_opcode(*decrypted_space, pcbyte + numbytes, 1);
-					argbuf[numbytes] = m_cpu.read_opcode(*space, pcbyte + numbytes, 1);
-				}
-
-				/* disassemble the result */
-				i += numbytes = dasmintf->disassemble(disasm, offset + i, opbuf, argbuf) & DASMFLAG_LENGTHMASK;
-			}
-
-			/* print the bytes */
-			if (bytes)
-			{
-				auto const startdex = output.tellp();
-				numbytes = space->address_to_byte(numbytes);
-				for (j = 0; j < numbytes; j += minbytes)
-					stream_format(output, "%0*X ", minbytes * 2, m_cpu.read_opcode(*decrypted_space, pcbyte + j, minbytes));
-				if ((output.tellp() - startdex) < byteswidth)
-					stream_format(output, "%*s", byteswidth - (output.tellp() - startdex), "");
-				stream_format(output, "  ");
-			}
-		}
-		else
-		{
-			disasm << "<unmapped>";
-			i += minbytes;
-		}
-
-		/* add the disassembly */
-		disasm.put('\0');
-		stream_format(output, "%s", &disasm.vec()[0]);
-
-		/* attempt to add the comment */
-		comment = space->device().debug()->comment_text(tempaddr);
-		if (comment != nullptr)
-		{
-			/* somewhat arbitrary guess as to how long most disassembly lines will be [column 60] */
-			if (output.tellp() < 60)
-			{
-				/* pad the comment space out to 60 characters and null-terminate */
-				while (output.tellp() < 60) output.put(' ');
-
-				stream_format(output, "// %s", comment);
-			}
+			const char *comment = space->device().debug()->comment_text(pcs[i]);
+			if (comment)
+				util::stream_format(f, "%s: %-*s %-*s // %s\n", tpc[i], max_opcodes_size, topcodes[i], max_disasm_size, instructions[i], comment);
 			else
-				stream_format(output, "\t// %s", comment);
+				util::stream_format(f, "%s: %-*s %s\n", tpc[i], max_opcodes_size, topcodes[i], instructions[i]);
 		}
-
-		/* output the result */
-		auto const &text(output.vec());
-		fprintf(f, "%.*s\n", int(unsigned(text.size())), &text[0]);
+	}
+	else
+	{
+		for(unsigned int i=0; i != pcs.size(); i++)
+		{
+			const char *comment = space->device().debug()->comment_text(pcs[i]);
+			if (comment)
+				util::stream_format(f, "%s: %-*s // %s\n", tpc[i], max_disasm_size, instructions[i], comment);
+			else
+				util::stream_format(f, "%s: %s\n", tpc[i], instructions[i]);
+		}
 	}
 
-	/* close the file */
-	fclose(f);
 	m_console.printf("Data dumped successfully\n");
 }
 
@@ -2632,13 +2755,9 @@ void debugger_commands::execute_traceflush(int ref, const std::vector<std::strin
 void debugger_commands::execute_history(int ref, const std::vector<std::string> &params)
 {
 	/* validate parameters */
-	address_space *space, *decrypted_space;
+	address_space *space;
 	if (!validate_cpu_space_parameter(!params.empty() ? params[0].c_str() : nullptr, AS_PROGRAM, space))
 		return;
-	if (space->device().memory().has_space(AS_DECRYPTED_OPCODES))
-		decrypted_space = &space->device().memory().space(AS_DECRYPTED_OPCODES);
-	else
-		decrypted_space = space;
 
 	u64 count = device_debug::HISTORY_SIZE;
 	if (params.size() > 1 && !validate_number_parameter(params[1], count))
@@ -2657,25 +2776,19 @@ void debugger_commands::execute_history(int ref, const std::vector<std::string> 
 		m_console.printf("No disassembler available for %s\n", space->device().name());
 		return;
 	}
-	int maxbytes = dasmintf->max_opcode_bytes();
+
+	debug_disasm_buffer buffer(space->device());
+
 	for (int index = 0; index < (int) count; index++)
 	{
 		offs_t pc = debug->history_pc(-index);
+		std::string instruction;
+		offs_t next_offset;
+		offs_t size;
+		u32 info;
+		buffer.disassemble(pc, instruction, next_offset, size, info);
 
-		/* fetch the bytes up to the maximum */
-		offs_t pcbyte = space->address_to_byte(pc) & space->bytemask();
-		u8 opbuf[64], argbuf[64];
-		for (int numbytes = 0; numbytes < maxbytes; numbytes++)
-		{
-			opbuf[numbytes] = m_cpu.read_opcode(*decrypted_space, pcbyte + numbytes, 1);
-			argbuf[numbytes] = m_cpu.read_opcode(*space, pcbyte + numbytes, 1);
-		}
-
-		util::ovectorstream buffer;
-		dasmintf->disassemble(buffer, pc, opbuf, argbuf);
-		buffer.put('\0');
-
-		m_console.printf("%0*X: %s\n", space->logaddrchars(), pc, &buffer.vec()[0]);
+		m_console.printf("%s: %s\n", buffer.pc_to_string(pc), instruction);
 	}
 }
 
@@ -2786,7 +2899,7 @@ void debugger_commands::execute_pcatmem(int ref, const std::vector<std::string> 
 	const u64 data = m_cpu.read_memory(*space, space->address_to_byte(address), native_data_width, true);
 
 	// Recover the pc & print
-	const address_spacenum space_num = (address_spacenum)ref;
+	const int space_num = (int)ref;
 	const offs_t result = space->device().debug()->track_mem_pc_from_space_address_data(space_num, address, data);
 	if (result != (offs_t)(-1))
 		m_console.printf("%02x\n", result);
@@ -2874,15 +2987,15 @@ void debugger_commands::execute_map(int ref, const std::vector<std::string> &par
 	for (intention = TRANSLATE_READ_DEBUG; intention <= TRANSLATE_FETCH_DEBUG; intention++)
 	{
 		static const char *const intnames[] = { "Read", "Write", "Fetch" };
-		taddress = space->address_to_byte(address) & space->bytemask();
+		taddress = address & space->addrmask();
 		if (space->device().memory().translate(space->spacenum(), intention, taddress))
 		{
-			const char *mapname = space->get_handler_string((intention == TRANSLATE_WRITE_DEBUG) ? ROW_WRITE : ROW_READ, taddress);
+			const char *mapname = space->get_handler_string((intention == TRANSLATE_WRITE_DEBUG) ? read_or_write::WRITE : read_or_write::READ, taddress);
 			m_console.printf(
 					"%7s: %0*X logical == %0*X physical -> %s\n",
 					intnames[intention & 3],
 					space->logaddrchars(), address,
-					space->addrchars(), space->byte_to_address(taddress),
+					space->addrchars(), taddress,
 					mapname);
 		}
 		else
@@ -2907,7 +3020,9 @@ void debugger_commands::execute_memdump(int ref, const std::vector<std::string> 
 	file = fopen(filename, "w");
 	if (file)
 	{
-		m_machine.memory().dump(file);
+		memory_interface_iterator iter(m_machine.root_device());
+		for (device_memory_interface &memory : iter)
+			memory.dump(file);
 		fclose(file);
 	}
 }

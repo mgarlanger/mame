@@ -2,9 +2,8 @@
 // copyright-holders:Farfetch'd, R. Belmont
 #include "emu.h"
 #include "i960.h"
+#include "i960dis.h"
 #include "debugger.h"
-
-CPU_DISASSEMBLE( i960  );
 
 #ifdef _MSC_VER
 /* logb prototype is different for MS Visual C */
@@ -22,6 +21,14 @@ i960_cpu_device::i960_cpu_device(const machine_config &mconfig, const char *tag,
 	, m_rcache_pos(0), m_SAT(0), m_PRCB(0), m_PC(0), m_AC(0), m_IP(0), m_PIP(0), m_ICR(0), m_bursting(0), m_immediate_irq(0)
 	, m_immediate_vector(0), m_immediate_pri(0), m_program(nullptr), m_direct(nullptr), m_icount(0)
 {
+}
+
+
+device_memory_interface::space_config_vector i960_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -2096,7 +2103,7 @@ void i960_cpu_device::execute_set_input(int irqline, int state)
 void i960_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	save_item(NAME(m_IP));
 	save_item(NAME(m_PIP));
@@ -2201,9 +2208,7 @@ void i960_cpu_device::device_reset()
 	m_rcache_pos = 0;
 }
 
-
-offs_t i960_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *i960_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( i960 );
-	return CPU_DISASSEMBLE_NAME(i960)(this, stream, pc, oprom, opram, options);
+	return new i960_disassembler;
 }

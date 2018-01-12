@@ -246,7 +246,7 @@ static ADDRESS_MAP_START( jongkyo_memmap, AS_PROGRAM, 8, jongkyo_state )
 	AM_RANGE(0x8000, 0xffff) AM_RAM AM_SHARE("videoram")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, jongkyo_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, jongkyo_state )
 	AM_RANGE(0x0000, 0x6bff) AM_ROMBANK("bank0d")
 	AM_RANGE(0x6c00, 0x6fff) AM_ROMBANK("bank1d")
 ADDRESS_MAP_END
@@ -564,7 +564,7 @@ DRIVER_INIT_MEMBER(jongkyo_state,jongkyo)
 	/* first of all, do a simple bitswap */
 	for (int i = 0x6000; i < 0x8c00; ++i)
 	{
-		rom[i] = BITSWAP8(rom[i], 7,6,5,3,4,2,1,0);
+		rom[i] = bitswap<8>(rom[i], 7,6,5,3,4,2,1,0);
 	}
 
 	uint8_t *opcodes = auto_alloc_array(machine(), uint8_t, 0x6c00+0x400*8);

@@ -29,23 +29,10 @@ ROM_START( kanji )
 	ROM_LOAD("kanji.rom", 0x00000, 0x20000, BAD_DUMP CRC(de99a726) SHA1(65fead5d0d779b242f6e0ac25fcc9899dc343101))
 ROM_END
 
-MACHINE_CONFIG_FRAGMENT( kanji )
-	// nothing to add
-MACHINE_CONFIG_END
 
 /***************************************************************************
     FUNCTION PROTOTYPES
 ***************************************************************************/
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor bml3bus_kanji_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( kanji );
-}
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -91,7 +78,7 @@ void bml3bus_kanji_device::device_start()
 	m_rom = memregion(KANJI_ROM_REGION)->base();
 
 	// install into memory
-	address_space &space_prg = machine().firstcpu->space(AS_PROGRAM);
+	address_space &space_prg = m_bml3bus->space();
 	space_prg.install_readwrite_handler(0xff75, 0xff76, read8_delegate( FUNC(bml3bus_kanji_device::bml3_kanji_r), this), write8_delegate(FUNC(bml3bus_kanji_device::bml3_kanji_w), this) );
 }
 

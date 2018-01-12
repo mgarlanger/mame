@@ -25,6 +25,10 @@ Atomiswave ROM board specs from Cah4e3 @ http://cah4e3.wordpress.com/2009/07/26/
 
   Both low and high words of 32-bit offset from start of EPR-ROM area. Used for
   reading header and program code data, cannot be used for reading MPR-ROMs data.
+  During program code DMA transfer Romeo MCU perform data checksuming (decrypted data, in 8bit units),
+  result must match some CPLD / encryption key-specific value, otherwise MPR-ROM access
+  described below will not work correctly.
+  Game header (first 256 bytes of ROM) is not checksum protected.
 
  AW_MPR_RECORD_INDEX                                     Register addres: 0x5f700c
  +-------------------------------------------------------------------------------+
@@ -237,10 +241,10 @@ uint16_t aw_rom_board::decrypt(uint16_t cipherText, uint32_t address, const uint
 	const int* pbox = permutation_table[key>>18];
 	const sbox_set* ss = &sboxes_table[(key>>16)&3];
 
-	aux = BITSWAP16(cipherText,
+	aux = bitswap<16>(cipherText,
 					pbox[15],pbox[14],pbox[13],pbox[12],pbox[11],pbox[10],pbox[9],pbox[8],
 					pbox[7],pbox[6],pbox[5],pbox[4],pbox[3],pbox[2],pbox[1],pbox[0]);
-	aux = aux ^ BITSWAP16(address, 13,5,2, 14,10,9,4, 15,11,6,1, 12,8,7,3,0);
+	aux = aux ^ bitswap<16>(address, 13,5,2, 14,10,9,4, 15,11,6,1, 12,8,7,3,0);
 
 	b0 = aux&0x1f;
 	b1 = (aux>>5)&0xf;

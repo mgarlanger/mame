@@ -52,12 +52,15 @@ constexpr int AUTO_ALLOC_INPUT  = 65535;
 #define MCFG_MIXER_ROUTE(_output, _target, _gain, _mixoutput) \
 	device_sound_interface::static_add_route(*device, _output, _target, _gain, AUTO_ALLOC_INPUT, _mixoutput);
 
+#define MCFG_SOUND_REFERENCE_INPUT(_input, _ref) \
+	device_sound_interface::static_add_reference_input(*device, _input, _ref);
+#define MCFG_SOUND_REFERENCE_INPUTS_RESET() \
+	device_sound_interface::static_reset_reference_inputs(*device);
+
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-class sound_stream;
 
 
 // ======================> device_sound_interface
@@ -77,6 +80,15 @@ public:
 		std::string      m_target;           // target tag
 	};
 
+	class sound_reference_input
+	{
+	public:
+		sound_reference_input(u32 input, double level);
+
+		u32              m_input;            // target input index
+		double           m_level;            // reference level
+	};
+
 	// construction/destruction
 	device_sound_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_sound_interface();
@@ -85,10 +97,13 @@ public:
 
 	// configuration access
 	const std::vector<std::unique_ptr<sound_route>> &routes() const { return m_route_list; }
+	const std::vector<std::unique_ptr<sound_reference_input>> &refs() const { return m_ref_list; }
 
 	// static inline configuration helpers
 	static void static_add_route(device_t &device, u32 output, const char *target, double gain, u32 input = AUTO_ALLOC_INPUT, u32 mixoutput = 0);
 	static void static_reset_routes(device_t &device);
+	static void static_add_reference_input(device_t &device, u32 input, double ref);
+	static void static_reset_reference_inputs(device_t &device);
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) = 0;
@@ -99,8 +114,8 @@ public:
 	// helpers
 	int inputs() const;
 	int outputs() const;
-	sound_stream *input_to_stream_input(int inputnum, int &stream_inputnum);
-	sound_stream *output_to_stream_output(int outputnum, int &stream_outputnum);
+	sound_stream *input_to_stream_input(int inputnum, int &stream_inputnum) const;
+	sound_stream *output_to_stream_output(int outputnum, int &stream_outputnum) const;
 	void set_input_gain(int inputnum, float gain);
 	void set_output_gain(int outputnum, float gain);
 	int inputnum_from_device(device_t &device, int outputnum = 0) const;
@@ -116,6 +131,7 @@ protected:
 	std::vector<std::unique_ptr<sound_route>> m_route_list;      // list of sound routes
 	int             m_outputs;                  // number of outputs from this instance
 	int             m_auto_allocated_inputs;    // number of auto-allocated inputs targeting us
+	std::vector<std::unique_ptr<sound_reference_input>> m_ref_list;  // reference inputs
 };
 
 // iterator

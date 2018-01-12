@@ -105,7 +105,7 @@ WRITE8_MEMBER(mainevt_state::mainevt_sh_bankswitch_w)
 {
 	int bank_A, bank_B;
 
-//logerror("CPU #1 PC: %04x bank switch = %02x\n",space.device().safe_pc(),data);
+//logerror("CPU #1 PC: %04x bank switch = %02x\n", m_audiocpu->pc(),data);
 
 	/* bits 0-3 select the 007232 banks */
 	bank_A = (data & 0x3);
@@ -120,7 +120,7 @@ WRITE8_MEMBER(mainevt_state::dv_sh_bankswitch_w)
 {
 	int bank_A, bank_B;
 
-//logerror("CPU #1 PC: %04x bank switch = %02x\n",space.device().safe_pc(),data);
+//logerror("CPU #1 PC: %04x bank switch = %02x\n",m_audiocpu->pc(),data);
 
 	/* bits 0-3 select the 007232 banks */
 	bank_A = (data & 0x3);
@@ -239,16 +239,16 @@ static INPUT_PORTS_START( mainevt )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SERVICE4 )
 
 	PORT_START("P1")
-	KONAMI8_B21_UNK(1)
+	KONAMI8_B12_UNK(1)
 
 	PORT_START("P2")
-	KONAMI8_B21_UNK(2)
+	KONAMI8_B12_UNK(2)
 
 	PORT_START("P3")
-	KONAMI8_B21_UNK(3)
+	KONAMI8_B12_UNK(3)
 
 	PORT_START("P4")
-	KONAMI8_B21_UNK(4)
+	KONAMI8_B12_UNK(4)
 
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SW1:1,2,3,4")

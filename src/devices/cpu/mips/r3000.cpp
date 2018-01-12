@@ -10,6 +10,7 @@
 
 #include "emu.h"
 #include "r3000.h"
+#include "r3kdasm.h"
 #include "debugger.h"
 
 
@@ -213,7 +214,7 @@ void r3000_device::device_start()
 {
 	// get our address spaces
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	// determine the cache sizes
 	switch (m_chip_type)
@@ -394,12 +395,11 @@ void r3000_device::device_reset()
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config *r3000_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector r3000_device::memory_space_config() const
 {
-	if (spacenum == AS_PROGRAM)
-		return (m_endianness == ENDIANNESS_BIG) ? &m_program_config_be : &m_program_config_le;
-	else
-		return nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, (m_endianness == ENDIANNESS_BIG) ? &m_program_config_be : &m_program_config_le)
+	};
 }
 
 
@@ -454,41 +454,13 @@ void r3000_device::state_string_export(const device_state_entry &entry, std::str
 
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t r3000_device::disasm_min_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t r3000_device::disasm_max_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t r3000_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *r3000_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( r3000le );
-	extern CPU_DISASSEMBLE( r3000be );
-
-	if (m_endianness == ENDIANNESS_BIG)
-		return CPU_DISASSEMBLE_NAME(r3000be)(this, stream, pc, oprom, opram, options);
-	else
-		return CPU_DISASSEMBLE_NAME(r3000le)(this, stream, pc, oprom, opram, options);
+	return new r3000_disassembler;
 }
 
 

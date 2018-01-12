@@ -21,9 +21,9 @@ Main CPU:
 #include "includes/kingobox.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/clock.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -442,22 +442,14 @@ static GFXDECODE_START( rk )
 	GFXDECODE_ENTRY( "gfx4", 0x00000, rk_bglayout,       0, 32 )    /* bg tiles */
 GFXDECODE_END
 
-INTERRUPT_GEN_MEMBER(kingofb_state::kingofb_interrupt)
-{
-	if (m_nmi_enable)
-		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-}
-
 void kingofb_state::machine_start()
 {
-	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_palette_bank));
 }
 
 void kingofb_state::machine_reset()
 {
-	m_nmi_enable = 0;
-	m_palette_bank = 0;
+	kingofb_f800_w(machine().dummy_space(), 0, 0); // LS174 reset
 }
 
 static MACHINE_CONFIG_START( kingofb )
@@ -465,20 +457,24 @@ static MACHINE_CONFIG_START( kingofb )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(kingobox_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
 
 	MCFG_CPU_ADD("video", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(kingobox_video_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
 
 	MCFG_CPU_ADD("sprite", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(kingobox_sprite_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
+
+	MCFG_INPUT_MERGER_ALL_HIGH("nmigate")
+	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_DEVCB_CHAIN_OUTPUT(INPUTLINE("video", INPUT_LINE_NMI))
+	MCFG_DEVCB_CHAIN_OUTPUT(INPUTLINE("sprite", INPUT_LINE_NMI))
 
 	MCFG_CPU_ADD("audiocpu", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(kingobox_sound_map)
 	MCFG_CPU_IO_MAP(kingobox_sound_io_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(kingofb_state, nmi_line_pulse,  6000)  /* Hz */
+
+	MCFG_DEVICE_ADD("soundnmi", CLOCK, 6000)  /* Hz */
+	MCFG_CLOCK_SIGNAL_HANDLER(INPUTLINE("audiocpu", INPUT_LINE_NMI))
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000)) /* We really need heavy synching among the processors */
 
@@ -491,6 +487,7 @@ static MACHINE_CONFIG_START( kingofb )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kingofb_state, screen_update_kingofb)
 	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_VBLANK_CALLBACK(DEVWRITELINE("nmigate", input_merger_device, in_w<0>))
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kingobox)
 	MCFG_PALETTE_ADD("palette", 256+8*2)
@@ -507,9 +504,8 @@ static MACHINE_CONFIG_START( kingofb )
 	MCFG_AY8910_PORT_A_READ_CB(DEVREAD8("soundlatch", generic_latch_8_device, read))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
 
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.125) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.125) // 100K (R30-44 even)/200K (R31-45 odd) ladder network
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -519,20 +515,24 @@ static MACHINE_CONFIG_START( ringking )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(ringking_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
 
 	MCFG_CPU_ADD("video", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(ringking_video_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
 
 	MCFG_CPU_ADD("sprite", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(ringking_sprite_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", kingofb_state,  kingofb_interrupt)
+
+	MCFG_INPUT_MERGER_ALL_HIGH("nmigate")
+	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_DEVCB_CHAIN_OUTPUT(INPUTLINE("video", INPUT_LINE_NMI))
+	MCFG_DEVCB_CHAIN_OUTPUT(INPUTLINE("sprite", INPUT_LINE_NMI))
 
 	MCFG_CPU_ADD("audiocpu", Z80, 4000000)        /* 4.0 MHz */
 	MCFG_CPU_PROGRAM_MAP(kingobox_sound_map)
 	MCFG_CPU_IO_MAP(ringking_sound_io_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(kingofb_state, nmi_line_pulse,  6000)  /* Hz */
+
+	MCFG_DEVICE_ADD("soundnmi", CLOCK, 6000)  /* Hz */
+	MCFG_CLOCK_SIGNAL_HANDLER(INPUTLINE("audiocpu", INPUT_LINE_NMI))
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000)) /* We really need heavy synching among the processors */
 
@@ -545,6 +545,7 @@ static MACHINE_CONFIG_START( ringking )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kingofb_state, screen_update_ringking)
 	MCFG_SCREEN_PALETTE("palette")
+	MCFG_SCREEN_VBLANK_CALLBACK(DEVWRITELINE("nmigate", input_merger_device, in_w<0>))
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rk)
 	MCFG_PALETTE_ADD("palette", 256+8*2)
@@ -562,8 +563,7 @@ static MACHINE_CONFIG_START( ringking )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.125) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -680,7 +680,7 @@ ROM_START( ringkingw )
 	ROM_LOAD( "18.f4",  0x00000, 0x4000, CRC(c057e28e) SHA1(714d8f14d55a070efcf205f8946269181bf2198b) )
 	ROM_LOAD( "19.h4",  0x04000, 0x4000, CRC(060253dd) SHA1(9a24fc6aca64262e935971f96b3a103df9711f20) )
 	ROM_LOAD( "20.j4",  0x08000, 0x4000, CRC(64c137a4) SHA1(e38adeb19e24357cc5581f0a3097c1d24914e25c) )
-	
+
 	ROM_REGION( 0x2000, "gfx1", 0 )
 	ROM_LOAD( "13.d14", 0x00000, 0x2000, CRC(e36d4f4f) SHA1(059799b04a7d3e02c1a7f9a5b878d06afef305df) ) /* characters */
 

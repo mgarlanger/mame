@@ -100,10 +100,10 @@ const tiny_rom_entry *ibm_3270pc_122_keyboard_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( ibm_pc_at_84_keyboard )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( ibm_pc_at_84_keyboard )
+MACHINE_CONFIG_MEMBER( ibm_pc_at_84_keyboard_device::device_add_mconfig )
 	MCFG_CPU_ADD(I8048_TAG, I8048, 5364000)
 	MCFG_MCS48_PORT_BUS_OUT_CB(WRITE8(ibm_pc_at_84_keyboard_device, bus_w))
 	MCFG_MCS48_PORT_P1_IN_CB(READ8(ibm_pc_at_84_keyboard_device, p1_r))
@@ -113,17 +113,6 @@ static MACHINE_CONFIG_FRAGMENT( ibm_pc_at_84_keyboard )
 	MCFG_MCS48_PORT_T0_IN_CB(READLINE(ibm_pc_at_84_keyboard_device, t0_r))
 	MCFG_MCS48_PORT_T1_IN_CB(READLINE(ibm_pc_at_84_keyboard_device, t1_r))
 MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor ibm_pc_at_84_keyboard_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( ibm_pc_at_84_keyboard );
-}
 
 
 //-------------------------------------------------
@@ -247,7 +236,7 @@ INPUT_PORTS_START( ibm_pc_at_84_keyboard )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_ENTER) PORT_CHAR(13)
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_TILDE) PORT_CHAR('`') PORT_CHAR('~')
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('\\') PORT_CHAR('|')
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 

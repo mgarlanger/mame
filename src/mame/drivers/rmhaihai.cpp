@@ -123,8 +123,8 @@ READ8_MEMBER(rmhaihai_state::keyboard_r)
 {
 	static const char *const keynames[] = { "KEY0", "KEY1" };
 
-	logerror("%04x: keyboard_r\n",space.device().safe_pc());
-	switch(space.device().safe_pc())
+	logerror("%04x: keyboard_r\n",m_maincpu->pc());
+	switch(m_maincpu->pc())
 	{
 		/* read keyboard */
 		case 0x0280:
@@ -173,7 +173,7 @@ READ8_MEMBER(rmhaihai_state::keyboard_r)
 
 WRITE8_MEMBER(rmhaihai_state::keyboard_w)
 {
-logerror("%04x: keyboard_w %02x\n",space.device().safe_pc(),data);
+logerror("%04x: keyboard_w %02x\n",m_maincpu->pc(),data);
 	m_keyboard_cmd = data;
 }
 
@@ -492,7 +492,7 @@ static MACHINE_CONFIG_START( rmhaihai )
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rmhaihai)
 
-	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 0x100)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", "proms", 0x100)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

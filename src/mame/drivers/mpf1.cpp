@@ -64,7 +64,7 @@ static ADDRESS_MAP_START( mpf1_map, AS_PROGRAM, 8, mpf1_state )
 	AM_RANGE(0x1800, 0x1fff) AM_RAM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( mpf1_step, AS_DECRYPTED_OPCODES, 8, mpf1_state )
+static ADDRESS_MAP_START( mpf1_step, AS_OPCODES, 8, mpf1_state )
 	AM_RANGE(0x0000, 0xffff) AM_READ(step_r)
 ADDRESS_MAP_END
 
@@ -276,7 +276,7 @@ READ8_MEMBER( mpf1_state::ppi_pa_r )
 WRITE8_MEMBER( mpf1_state::ppi_pb_w )
 {
 	/* swap bits around for the mame 7-segment emulation */
-	uint8_t led_data = BITSWAP8(data, 6, 1, 2, 0, 7, 5, 4, 3);
+	uint8_t led_data = bitswap<8>(data, 6, 1, 2, 0, 7, 5, 4, 3);
 
 	/* timer to update segments */
 	m_led_refresh_timer->adjust(attotime::from_usec(70), led_data);

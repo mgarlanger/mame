@@ -22,11 +22,11 @@ public:
 	template <class Object> static devcb_base &set_irq_handler(device_t &device, Object &&cb) { return downcast<ncr5390_device &>(device).m_irq_handler.set_callback(std::forward<Object>(cb)); }
 	template <class Object> static devcb_base &set_drq_handler(device_t &device, Object &&cb) { return downcast<ncr5390_device &>(device).m_drq_handler.set_callback(std::forward<Object>(cb)); }
 
-	DECLARE_ADDRESS_MAP(map, 8);
+	virtual DECLARE_ADDRESS_MAP(map, 8);
 
-	DECLARE_READ8_MEMBER(tcount_lo_r);
+	DECLARE_READ8_MEMBER(tcounter_lo_r);
 	DECLARE_WRITE8_MEMBER(tcount_lo_w);
-	DECLARE_READ8_MEMBER(tcount_hi_r);
+	DECLARE_READ8_MEMBER(tcounter_hi_r);
 	DECLARE_WRITE8_MEMBER(tcount_hi_w);
 	DECLARE_READ8_MEMBER(fifo_r);
 	DECLARE_WRITE8_MEMBER(fifo_w);
@@ -42,6 +42,7 @@ public:
 	DECLARE_WRITE8_MEMBER(sync_offset_w);
 	DECLARE_READ8_MEMBER(conf_r);
 	DECLARE_WRITE8_MEMBER(conf_w);
+	DECLARE_WRITE8_MEMBER(test_w);
 	DECLARE_WRITE8_MEMBER(clock_w);
 
 	virtual void scsi_ctrl_changed() override;
@@ -49,12 +50,17 @@ public:
 	uint8_t dma_r();
 	void dma_w(uint8_t val);
 
+	// memory mapped wrappers for dma read/write
+	DECLARE_READ8_MEMBER(mdma_r) { return dma_r(); }
+	DECLARE_WRITE8_MEMBER(mdma_w) { dma_w(data); }
+
 protected:
+	ncr5390_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
-private:
 	enum { MODE_D, MODE_T, MODE_I };
 	enum { IDLE };
 
@@ -106,6 +112,8 @@ private:
 		INIT_XFR_RECV_PAD,
 		INIT_XFR_RECV_BYTE_ACK,
 		INIT_XFR_RECV_BYTE_NACK,
+		INIT_XFR_FUNCTION_COMPLETE,
+		INIT_XFR_BUS_COMPLETE,
 		INIT_XFR_WAIT_REQ,
 		INIT_CPT_RECV_BYTE_ACK,
 		INIT_CPT_RECV_WAIT_REQ,
@@ -190,6 +198,7 @@ private:
 	uint8_t clock_conv, sync_offset, sync_period, bus_id, select_timeout, seq;
 	uint8_t fifo[16];
 	uint16_t tcount;
+	uint16_t tcounter;
 	int mode, fifo_pos, command_pos;
 	int state, xfr_phase;
 	int command_length;
@@ -197,6 +206,8 @@ private:
 	int dma_dir;
 
 	bool irq, drq;
+	bool dma_command;
+	bool test_mode;
 
 	void dma_set(int dir);
 	void drq_set();
@@ -214,7 +225,10 @@ private:
 	void command_pop_and_chain();
 	void check_irq();
 
+protected:
 	void reset_soft();
+
+private:
 	void reset_disconnect();
 
 	uint8_t fifo_pop();
@@ -225,10 +239,61 @@ private:
 	void delay(int cycles);
 	void delay_cycles(int cycles);
 
+	void decrement_tcounter();
+
 	devcb_write_line m_irq_handler;
 	devcb_write_line m_drq_handler;
 };
 
+class ncr53c90a_device : public ncr5390_device
+{
+public:
+	ncr53c90a_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual DECLARE_ADDRESS_MAP(map, 8) override;
+
+	DECLARE_READ8_MEMBER(status_r);
+
+	DECLARE_READ8_MEMBER(conf2_r) { return config2; };
+	DECLARE_WRITE8_MEMBER(conf2_w) { config2 = data; };
+
+protected:
+	ncr53c90a_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual void device_start() override;
+	void reset_soft();
+
+	// 53c90a uses a previously reserved bit as an interrupt flag
+	enum {
+		S_INTERRUPT = 0x80,
+	};
+
+private:
+	u8 config2;
+};
+
+class ncr53c94_device : public ncr53c90a_device
+{
+public:
+	ncr53c94_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+
+	virtual DECLARE_ADDRESS_MAP(map, 8) override;
+
+	DECLARE_READ8_MEMBER(conf3_r) { return config3; };
+	DECLARE_WRITE8_MEMBER(conf3_w) { config3 = data; };
+	DECLARE_WRITE8_MEMBER(fifo_align_w) { fifo_align = data; };
+
+protected:
+	virtual void device_start() override;
+	void reset_soft();
+
+private:
+	u8 config3;
+	u8 fifo_align;
+};
+
 DECLARE_DEVICE_TYPE(NCR5390, ncr5390_device)
+DECLARE_DEVICE_TYPE(NCR53C90A, ncr53c90a_device)
+DECLARE_DEVICE_TYPE(NCR53C94, ncr53c94_device)
 
 #endif // MAME_MACHINE_NCR5390_H

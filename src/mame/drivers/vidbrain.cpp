@@ -39,7 +39,6 @@
 #include "includes/vidbrain.h"
 
 #include "machine/rescap.h"
-#include "sound/volt_reg.h"
 #include "softlist.h"
 #include "speaker.h"
 
@@ -207,12 +206,12 @@ WRITE8_MEMBER( vidbrain_state::f3853_w )
 		logerror("%s: F3853 Interrupt Control %u\n", machine().describe_context(), m_int_enable);
 		interrupt_check();
 
-		if (m_int_enable == 0x03) fatalerror("F3853 Timer not supported!\n");
+		if (m_int_enable == 0x03) logerror("F3853 Timer not supported!\n");
 		break;
 
 	case 3:
 		// timer 8-bit polynomial counter
-		fatalerror("%s: F3853 Timer not supported!\n", machine().describe_context());
+		logerror("%s: F3853 Timer not supported!\n", machine().describe_context());
 	}
 }
 
@@ -518,8 +517,7 @@ static MACHINE_CONFIG_START( vidbrain )
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_2BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.167) // 74ls74.u16 + 120k + 56k
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	// devices
 	MCFG_DEVICE_ADD(F3853_TAG, F3853, XTAL_4MHz/2)

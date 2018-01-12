@@ -68,6 +68,7 @@ int configuration_manager::load_settings()
 	{
 		/* open the config file */
 		emu_file file(machine().options().ctrlr_path(), OPEN_FLAG_READ);
+		osd_printf_verbose("Attempting to parse: %s.cfg\n",controller);
 		osd_file::error filerr = file.open(controller, ".cfg");
 
 		if (filerr != osd_file::error::NONE)
@@ -81,11 +82,13 @@ int configuration_manager::load_settings()
 	/* next load the defaults file */
 	emu_file file(machine().options().cfg_directory(), OPEN_FLAG_READ);
 	osd_file::error filerr = file.open("default.cfg");
+	osd_printf_verbose("Attempting to parse: default.cfg\n");
 	if (filerr == osd_file::error::NONE)
 		load_xml(file, config_type::DEFAULT);
 
 	/* finally, load the game-specific file */
 	filerr = file.open(machine().basename(), ".cfg");
+	osd_printf_verbose("Attempting to parse: %s.cfg\n",machine().basename());
 	if (filerr == osd_file::error::NONE)
 		loaded = load_xml(file, config_type::GAME);
 
@@ -94,7 +97,7 @@ int configuration_manager::load_settings()
 		type.load(config_type::FINAL, nullptr);
 
 	/* if we didn't find a saved config, return 0 so the main core knows that it */
-	/* is the first time the game is run and it should diplay the disclaimer. */
+	/* is the first time the game is run and it should display the disclaimer. */
 	return loaded;
 }
 
@@ -132,9 +135,7 @@ void configuration_manager::save_settings()
 int configuration_manager::load_xml(emu_file &file, config_type which_type)
 {
 	/* read the file */
-	std::unique_ptr<util::xml::data_node, void (*)(util::xml::data_node *)> const root(
-			util::xml::data_node::file_read(file, nullptr),
-			[] (util::xml::data_node *node) { node->file_free(); });
+	util::xml::file::ptr const root(util::xml::file::read(file, nullptr));
 	if (!root)
 		return 0;
 
@@ -225,9 +226,7 @@ int configuration_manager::load_xml(emu_file &file, config_type which_type)
 
 int configuration_manager::save_xml(emu_file &file, config_type which_type)
 {
-	std::unique_ptr<util::xml::data_node, void (*)(util::xml::data_node *)> const root(
-			util::xml::data_node::file_create(),
-			[] (util::xml::data_node *node) { node->file_free(); });
+	util::xml::file::ptr root(util::xml::file::create());
 
 	/* if we don't have a root, bail */
 	if (!root)
@@ -260,7 +259,7 @@ int configuration_manager::save_xml(emu_file &file, config_type which_type)
 	}
 
 	/* flush the file */
-	root->file_write(file);
+	root->write(file);
 
 	/* free and get out of here */
 	return 1;

@@ -111,7 +111,7 @@ DIP locations verified for:
 #include "includes/baraduke.h"
 
 #include "cpu/m6809/m6809.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 #include "machine/watchdog.h"
 #include "screen.h"
 #include "speaker.h"
@@ -373,7 +373,7 @@ GFXDECODE_END
 static MACHINE_CONFIG_START( baraduke )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_49_152MHz/32)
+	MCFG_CPU_ADD("maincpu", MC6809E, XTAL_49_152MHz/32) // 68A09E
 	MCFG_CPU_PROGRAM_MAP(baraduke_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", baraduke_state,  irq0_line_assert)
 

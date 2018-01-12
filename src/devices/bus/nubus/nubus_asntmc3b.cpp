@@ -19,13 +19,6 @@
 #define MAC8390_839X  "dp83902"
 
 
-MACHINE_CONFIG_FRAGMENT( asntm3b )
-	MCFG_DEVICE_ADD(MAC8390_839X, DP8390D, 0)
-	MCFG_DP8390D_IRQ_CB(WRITELINE(nubus_mac8390_device, dp_irq_w))
-	MCFG_DP8390D_MEM_READ_CB(READ8(nubus_mac8390_device, dp_mem_read))
-	MCFG_DP8390D_MEM_WRITE_CB(WRITE8(nubus_mac8390_device, dp_mem_write))
-MACHINE_CONFIG_END
-
 ROM_START( asntm3nb )
 	ROM_REGION(0x4000, MAC8390_ROM_REGION, 0)
 	ROM_LOAD( "asante_mc3b.bin", 0x000000, 0x004000, CRC(4f86d451) SHA1(d0a41df667e6b51fbc63f9251d593f4fc49104ba) )
@@ -45,14 +38,15 @@ DEFINE_DEVICE_TYPE(NUBUS_APPLEENET, nubus_appleenet_device, "nb_aenet", "Apple N
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor nubus_mac8390_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( asntm3b );
-}
+MACHINE_CONFIG_MEMBER( nubus_mac8390_device::device_add_mconfig )
+	MCFG_DEVICE_ADD(MAC8390_839X, DP8390D, 0)
+	MCFG_DP8390D_IRQ_CB(WRITELINE(nubus_mac8390_device, dp_irq_w))
+	MCFG_DP8390D_MEM_READ_CB(READ8(nubus_mac8390_device, dp_mem_read))
+	MCFG_DP8390D_MEM_WRITE_CB(WRITE8(nubus_mac8390_device, dp_mem_write))
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -161,7 +155,7 @@ WRITE32_MEMBER( nubus_mac8390_device::en_w )
 	}
 	else
 	{
-		fatalerror("asntmc3nb: write %08x to DP83902 @ %x with unhandled mask %08x (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
+		fatalerror("%s", util::string_format("asntmc3nb: write %08x to DP83902 @ %x with unhandled mask %08x %s\n", data, offset, mem_mask, machine().describe_context()).c_str());
 	}
 }
 
@@ -179,7 +173,7 @@ READ32_MEMBER( nubus_mac8390_device::en_r )
 	}
 	else
 	{
-		fatalerror("asntmc3nb: read DP83902 @ %x with unhandled mask %08x (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+		fatalerror("%s", util::string_format("asntmc3nb: read DP83902 @ %x with unhandled mask %08x %s\n", offset, mem_mask, machine().describe_context()).c_str());
 	}
 
 	return 0;

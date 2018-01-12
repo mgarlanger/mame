@@ -21,6 +21,7 @@ Ver. 2.2 should exist
 #include "cpu/z80/z80.h"
 #include "machine/nvram.h"
 #include "machine/ticket.h"
+#include "machine/timer.h"
 #include "sound/ay8910.h"
 #include "sound/flt_rc.h"
 #include "sound/msm5205.h"
@@ -356,7 +357,6 @@ WRITE8_MEMBER(mgavegas_state::csoki_w)
 
 WRITE8_MEMBER(mgavegas_state::cso1_w)
 {
-	int hopper_data = 0x00;
 	if (LOG_CSO1)
 		logerror("write to CSO1 data = %02X\n",data);
 
@@ -371,8 +371,7 @@ WRITE8_MEMBER(mgavegas_state::cso1_w)
 
 	update_custom();
 
-	hopper_data=(m_hop&0x01)<<7;
-	m_ticket->write(machine().dummy_space(), 0, hopper_data);
+	m_ticket->motor_w(m_hop);
 }
 
 WRITE8_MEMBER(mgavegas_state::cso2_w)

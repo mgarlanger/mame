@@ -8,12 +8,13 @@
 
 ***************************************************************************/
 
+#ifndef MAME_EMU_DEBUG_EXPRESS_H
+#define MAME_EMU_DEBUG_EXPRESS_H
+
 #pragma once
 
-#ifndef __EXPRESS_H__
-#define __EXPRESS_H__
-
 #include "emucore.h"
+
 #include <functional>
 #include <unordered_map>
 
@@ -45,10 +46,6 @@ enum expression_space
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward references
-class symbol_table;
-
 
 // ======================> expression_error
 
@@ -117,7 +114,7 @@ protected:
 	};
 
 	// construction/destruction
-	symbol_entry(symbol_table &table, symbol_type type, const char *name, const std::string &format, void *ref);
+	symbol_entry(symbol_table &table, symbol_type type, const char *name, const std::string &format);
 public:
 	virtual ~symbol_entry();
 
@@ -141,7 +138,6 @@ protected:
 	symbol_type     m_type;                     // type of symbol
 	std::string     m_name;                     // name of the symbol
 	std::string     m_format;                   // format of symbol (or empty if unspecified)
-	void *          m_ref;                      // internal reference
 };
 
 
@@ -153,11 +149,11 @@ class symbol_table
 {
 public:
 	// callback functions for getting/setting a symbol value
-	typedef std::function<u64(symbol_table &table, void *symref)> getter_func;
-	typedef std::function<void(symbol_table &table, void *symref, u64 value)> setter_func;
+	typedef std::function<u64(symbol_table &table)> getter_func;
+	typedef std::function<void(symbol_table &table, u64 value)> setter_func;
 
 	// callback functions for function execution
-	typedef std::function<u64(symbol_table &table, void *symref, int numparams, const u64 *paramlist)> execute_func;
+	typedef std::function<u64(symbol_table &table, int numparams, const u64 *paramlist)> execute_func;
 
 	// callback functions for memory reads/writes
 	typedef std::function<expression_error::error_code(void *cbparam, const char *name, expression_space space)> valid_func;
@@ -184,8 +180,8 @@ public:
 	// symbol access
 	void add(const char *name, read_write rw, u64 *ptr = nullptr);
 	void add(const char *name, u64 constvalue);
-	void add(const char *name, void *ref, getter_func getter, setter_func setter = nullptr, const std::string &format_string = "");
-	void add(const char *name, void *ref, int minparams, int maxparams, execute_func execute);
+	void add(const char *name, getter_func getter, setter_func setter = nullptr, const std::string &format_string = "");
+	void add(const char *name, int minparams, int maxparams, execute_func execute);
 	symbol_entry *find(const char *name) const { if (name) { auto search = m_symlist.find(name); if (search != m_symlist.end()) return search->second.get(); else return nullptr; } else return nullptr; }
 	symbol_entry *find_deep(const char *name);
 
@@ -389,5 +385,4 @@ private:
 	parse_token         m_token_stack[MAX_STACK_DEPTH]; // token stack (used during execution)
 };
 
-
-#endif
+#endif // MAME_EMU_DEBUG_EXPRESS_H

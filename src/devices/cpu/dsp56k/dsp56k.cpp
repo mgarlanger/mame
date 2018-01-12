@@ -33,6 +33,7 @@
 
 #include "emu.h"
 #include "dsp56k.h"
+#include "dsp56dsm.h"
 
 #include "opcode.h"
 
@@ -125,6 +126,14 @@ dsp56k_device::dsp56k_device(const machine_config &mconfig, const char *tag, dev
 	, m_data_config("data", ENDIANNESS_LITTLE, 16, 16, -1, ADDRESS_MAP_NAME(dsp56156_x_data_map))
 	, m_program_ram(*this, "dsk56k_program_ram")
 {
+}
+
+device_memory_interface::space_config_vector dsp56k_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config)
+	};
 }
 
 /***************************************************************************
@@ -281,7 +290,7 @@ void dsp56k_device::device_start()
 	save_item(NAME(m_dsp56k_core.peripheral_ram));
 
 	m_dsp56k_core.program = &space(AS_PROGRAM);
-	m_dsp56k_core.direct = &m_dsp56k_core.program->direct();
+	m_dsp56k_core.direct = m_dsp56k_core.program->direct<-1>();
 	m_dsp56k_core.data = &space(AS_DATA);
 
 	state_add(DSP56K_PC,     "PC", m_dsp56k_core.PCU.pc).formatstr("%04X");
@@ -455,9 +464,9 @@ static size_t execute_one_new(dsp56k_core* cpustate)
 	cpustate->ppc = PC;
 	debugger_instruction_hook(cpustate->device, PC);
 
-	cpustate->op = ROPCODE(ADDRESS(PC));
-	uint16_t w0 = ROPCODE(ADDRESS(PC));
-	uint16_t w1 = ROPCODE(ADDRESS(PC) + ADDRESS(1));
+	cpustate->op = ROPCODE(PC);
+	uint16_t w0 = ROPCODE(PC);
+	uint16_t w1 = ROPCODE(PC + 1);
 
 	Opcode op(w0, w1);
 	op.evaluate(cpustate);
@@ -495,9 +504,9 @@ void dsp56k_device::execute_run()
 }
 
 
-offs_t dsp56k_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *dsp56k_device::create_disassembler()
 {
-	return CPU_DISASSEMBLE_NAME(dsp56k)(this, stream, pc, oprom, opram, options);
+	return new dsp56k_disassembler;
 }
 
 } // namespace DSP56K

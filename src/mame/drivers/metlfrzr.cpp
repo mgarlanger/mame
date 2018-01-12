@@ -24,6 +24,7 @@
 #include "audio/t5182.h"
 
 #include "cpu/z80/z80.h"
+#include "machine/timer.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -202,7 +203,7 @@ static ADDRESS_MAP_START( metlfrzr_map, AS_PROGRAM, 8, metlfrzr_state )
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("wram")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, metlfrzr_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, metlfrzr_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_SHARE("decrypted_opcodes")
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("wram") // executes code at 0xf5d5
@@ -448,14 +449,14 @@ DRIVER_INIT_MEMBER(metlfrzr_state, metlfrzr)
 			m_decrypted_opcodes[A] ^= 0x02;
 
 		if (BIT(A,9) || !BIT(A,5) || BIT(A,3))
-			m_decrypted_opcodes[A] = BITSWAP8(m_decrypted_opcodes[A],7,6,1,4,3,2,5,0);
+			m_decrypted_opcodes[A] = bitswap<8>(m_decrypted_opcodes[A],7,6,1,4,3,2,5,0);
 
 		/* decode the data */
 		if (BIT(A,5))
 			rom[A] ^= 0x40;
 
 		if (BIT(A,9) || !BIT(A,5))
-			rom[A] = BITSWAP8(rom[A],7,6,1,4,3,2,5,0);
+			rom[A] = bitswap<8>(rom[A],7,6,1,4,3,2,5,0);
 	}
 }
 

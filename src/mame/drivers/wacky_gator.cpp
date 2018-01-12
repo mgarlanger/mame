@@ -21,6 +21,7 @@
 #include "machine/i8255.h"
 #include "machine/pit8253.h"
 #include "machine/ticket.h"
+#include "machine/timer.h"
 #include "sound/msm5205.h"
 #include "sound/ym2413.h"
 #include "speaker.h"
@@ -108,7 +109,7 @@ WRITE8_MEMBER(wackygtr_state::status_lamps_w)
 	set_lamps(0, data & 0x3f);
 
 	machine().bookkeeping().coin_counter_w(0, BIT(data, 6));
-	m_ticket->write(space, 0, data & 0x80);
+	m_ticket->motor_w(BIT(data, 7));
 }
 
 WRITE8_MEMBER(wackygtr_state::sample_ctrl_w)
@@ -272,7 +273,7 @@ ADDRESS_MAP_END
 
 static MACHINE_CONFIG_START( wackygtr )
 
-	MCFG_CPU_ADD("maincpu", M6809E, XTAL_3_579545MHz)   // HD68B09P
+	MCFG_CPU_ADD("maincpu", MC6809, XTAL_3_579545MHz)   // HD68B09P
 	MCFG_CPU_PROGRAM_MAP(program_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(wackygtr_state, irq0_line_assert, 50)  // FIXME
 

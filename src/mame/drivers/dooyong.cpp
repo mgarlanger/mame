@@ -77,6 +77,7 @@ are almost identical, except for much darker BG layer colors).
 #include "cpu/m68000/m68000.h"
 #include "cpu/z80/z80.h"
 #include "machine/gen_latch.h"
+#include "machine/timer.h"
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
 #include "sound/ym2151.h"
@@ -428,7 +429,7 @@ WRITE8_MEMBER(dooyong_z80_state::primella_ctrl_w)
 
 	/* bit 5 used but unknown */
 
-//  logerror("%04x: bankswitch = %02x\n",space.device().safe_pc(),data&0xe0);
+//  logerror("%04x: bankswitch = %02x\n",m_maincpu->pc(),data&0xe0);
 }
 
 
@@ -1413,7 +1414,7 @@ WRITE_LINE_MEMBER(dooyong_z80_ym2203_state::irqhandler_2203_2)
 ***************************************************************************/
 
 
-MACHINE_CONFIG_FRAGMENT( sound_2203 )
+MACHINE_CONFIG_START( sound_2203 )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
@@ -1429,7 +1430,7 @@ MACHINE_CONFIG_FRAGMENT( sound_2203 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_FRAGMENT( sound_2151 )
+MACHINE_CONFIG_START( sound_2151 )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
@@ -1443,7 +1444,7 @@ MACHINE_CONFIG_FRAGMENT( sound_2151 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
-MACHINE_CONFIG_FRAGMENT( sound_2151_4mhz )
+MACHINE_CONFIG_START( sound_2151_4mhz )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")

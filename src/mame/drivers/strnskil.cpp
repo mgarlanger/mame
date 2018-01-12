@@ -50,7 +50,7 @@ READ8_MEMBER(strnskil_state::pettanp_protection_r)
 {
 	int res;
 
-	switch (space.device().safe_pc())
+	switch (m_maincpu->pc())
 	{
 		case 0x6066:    res = 0xa5; break;
 		case 0x60dc:    res = 0x20; break;  /* bits 0-3 unknown */
@@ -61,7 +61,7 @@ READ8_MEMBER(strnskil_state::pettanp_protection_r)
 		default:        res = 0xff; break;
 	}
 
-	logerror("%04x: protection_r -> %02x\n",space.device().safe_pc(),res);
+	logerror("%04x: protection_r -> %02x\n",m_maincpu->pc(),res);
 	return res;
 }
 
@@ -69,7 +69,7 @@ READ8_MEMBER(strnskil_state::banbam_protection_r)
 {
 	int res;
 
-	switch (space.device().safe_pc())
+	switch (m_maincpu->pc())
 	{
 		case 0x6094:    res = 0xa5; break;
 		case 0x6118:    res = 0x20; break;  /* bits 0-3 unknown */
@@ -80,13 +80,13 @@ READ8_MEMBER(strnskil_state::banbam_protection_r)
 		default:        res = 0xff; break;
 	}
 
-	logerror("%04x: protection_r -> %02x\n",space.device().safe_pc(),res);
+	logerror("%04x: protection_r -> %02x\n",m_maincpu->pc(),res);
 	return res;
 }
 
 WRITE8_MEMBER(strnskil_state::protection_w)
 {
-	logerror("%04x: protection_w %02x\n",space.device().safe_pc(),data);
+	logerror("%04x: protection_w %02x\n",m_maincpu->pc(),data);
 }
 
 /****************************************************************************/
@@ -117,12 +117,6 @@ static ADDRESS_MAP_START( strnskil_map2, AS_PROGRAM, 8, strnskil_state )
 
 	AM_RANGE(0xd801, 0xd801) AM_DEVWRITE("sn1", sn76496_device, write)
 	AM_RANGE(0xd802, 0xd802) AM_DEVWRITE("sn2", sn76496_device, write)
-ADDRESS_MAP_END
-
-
-static ADDRESS_MAP_START( mcu_io_map, AS_IO, 8, strnskil_state )
-//  AM_RANGE(MB88_PORTK,  MB88_PORTK)  AM_READ(mcu_portk_r)
-//  AM_RANGE(MB88_PORTR0, MB88_PORTR0) AM_READWRITE(mcu_portr0_r, mcu_portr0_w)
 ADDRESS_MAP_END
 
 /****************************************************************************/
@@ -383,7 +377,9 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( banbam, strnskil )
 	MCFG_CPU_ADD("mcu", MB8841, 8000000/2)
-	MCFG_CPU_IO_MAP(mcu_io_map)
+//  MCFG_MB88XX_READ_K_CB(READ8(strnskil_state, mcu_portk_r))
+//  MCFG_MB88XX_READ_R0_CB(READ8(strnskil_state, mcu_portr0_r))
+//  MCFG_MB88XX_WRITE_R0_CB(WRITE8(strnskil_state, mcu_portr0_w))
 MACHINE_CONFIG_END
 
 /****************************************************************************/

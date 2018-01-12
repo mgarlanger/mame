@@ -10,6 +10,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "score.h"
+#include "scoredsm.h"
 
 
 //**************************************************************************
@@ -72,7 +73,7 @@ void score7_cpu_device::device_start()
 {
 	// find address spaces
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	// set our instruction counter
 	m_icountptr = &m_icount;
@@ -153,9 +154,11 @@ void score7_cpu_device::state_string_export(const device_state_entry &entry, std
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config * score7_cpu_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector score7_cpu_device::memory_space_config() const
 {
-	return  (spacenum == AS_PROGRAM) ? &m_program_config: nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -1345,4 +1348,9 @@ void score7_cpu_device::op_undef()
 void score7_cpu_device::unemulated_op(const char * op)
 {
 	fatalerror("%s: unemulated %s (PC=0x%08x)\n", tag(), op, m_ppc);
+}
+
+util::disasm_interface *score7_cpu_device::create_disassembler()
+{
+	return new score7_disassembler;
 }

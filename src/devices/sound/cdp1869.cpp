@@ -12,7 +12,6 @@
 
     - white noise
     - scanline based update
-    - CMSEL output
 
 */
 
@@ -78,7 +77,7 @@ DEVICE_ADDRESS_MAP_START( page_map, 8, cdp1869_device )
 ADDRESS_MAP_END
 
 // default address map
-static ADDRESS_MAP_START( cdp1869, AS_0, 8, cdp1869_device )
+static ADDRESS_MAP_START( cdp1869, 0, 8, cdp1869_device )
 	AM_RANGE(0x000, 0x7ff) AM_RAM
 ADDRESS_MAP_END
 
@@ -178,7 +177,7 @@ inline void cdp1869_device::update_prd_changed_timer()
 	int start = SCANLINE_PREDISPLAY_START_PAL;
 	int end = SCANLINE_PREDISPLAY_END_PAL;
 	int next_state;
-	int scanline = m_screen->vpos();
+	int scanline = screen().vpos();
 	int next_scanline;
 
 	if (is_ntsc())
@@ -208,7 +207,7 @@ inline void cdp1869_device::update_prd_changed_timer()
 		next_state = CLEAR_LINE;
 	}
 
-	attotime duration = m_screen->time_until_pos(next_scanline);
+	attotime duration = screen().time_until_pos(next_scanline);
 	m_prd_timer->adjust(duration, next_state);
 }
 
@@ -354,20 +353,15 @@ cdp1869_device::cdp1869_device(const machine_config &mconfig, const char *tag, d
 {
 }
 
-static MACHINE_CONFIG_FRAGMENT( cdp1869 )
+
+//-------------------------------------------------
+//  device_add_mconfig - add device configuration
+//-------------------------------------------------
+
+MACHINE_CONFIG_MEMBER( cdp1869_device::device_add_mconfig )
 	MCFG_PALETTE_ADD("palette", 8+64)
 	MCFG_PALETTE_INIT_OWNER(cdp1869_device, cdp1869)
 MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  machine_config_additions - return a pointer to
-//  the device's machine fragment
-//-------------------------------------------------
-
-machine_config_constructor cdp1869_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( cdp1869 );
-}
 
 
 //-------------------------------------------------
@@ -465,9 +459,11 @@ void cdp1869_device::device_timer(emu_timer &timer, device_timer_id id, int para
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *cdp1869_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector cdp1869_device::memory_space_config() const
 {
-	return (spacenum == 0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 

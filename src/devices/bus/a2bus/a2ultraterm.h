@@ -24,27 +24,21 @@ class a2bus_videx160_device:
 	public device_t,
 	public device_a2bus_card_interface
 {
-public:
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
-	DECLARE_WRITE_LINE_MEMBER(vsync_changed);
-	MC6845_UPDATE_ROW(crtc_update_row);
-
 protected:
 	// construction/destruction
 	a2bus_videx160_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// overrides of standard a2bus slot functions
-	virtual uint8_t read_c0nx(address_space &space, uint8_t offset) override;
-	virtual void write_c0nx(address_space &space, uint8_t offset, uint8_t data) override;
-	virtual uint8_t read_cnxx(address_space &space, uint8_t offset) override;
-	virtual void write_cnxx(address_space &space, uint8_t offset, uint8_t data) override;
-	virtual uint8_t read_c800(address_space &space, uint16_t offset) override;
-	virtual void write_c800(address_space &space, uint16_t offset, uint8_t data) override;
+	virtual uint8_t read_c0nx(uint8_t offset) override;
+	virtual void write_c0nx(uint8_t offset, uint8_t data) override;
+	virtual uint8_t read_cnxx(uint8_t offset) override;
+	virtual void write_cnxx(uint8_t offset, uint8_t data) override;
+	virtual uint8_t read_c800(uint16_t offset) override;
+	virtual void write_c800(uint16_t offset, uint8_t data) override;
 
 	uint8_t *m_rom, *m_chrrom;
 	uint8_t m_ram[256*16];
@@ -54,6 +48,9 @@ protected:
 	required_device<mc6845_device> m_crtc;
 
 private:
+	DECLARE_WRITE_LINE_MEMBER(vsync_changed);
+	MC6845_UPDATE_ROW(crtc_update_row);
+
 	int m_rambank;
 };
 

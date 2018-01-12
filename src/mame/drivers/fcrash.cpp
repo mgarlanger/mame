@@ -196,7 +196,7 @@ WRITE16_MEMBER(cps_state::dinopic_layer_w)
 		m_cps_a_regs[0x14 / 2] = data;
 		break;
 	default:
-		logerror("%s: Unknown layer cmd %X %X\n",space.machine().describe_context(),offset<<1,data);
+		logerror("%s: Unknown layer cmd %X %X\n",machine().describe_context(),offset<<1,data);
 
 	}
 }
@@ -321,7 +321,7 @@ WRITE16_MEMBER(cps_state::punipic_layer_w)
 		// unknown
 		break;
 	default:
-		logerror("%s: Unknown layer cmd %X %X\n",space.machine().describe_context(),offset<<1,data);
+		logerror("%s: Unknown layer cmd %X %X\n",machine().describe_context(),offset<<1,data);
 
 	}
 }
@@ -379,7 +379,7 @@ WRITE16_MEMBER(cps_state::sf2m1_layer_w)
 		m_cps_a_regs[0x06 / 2] = data;
 		break;
 	default:
-		logerror("%s: Unknown layer cmd %X %X\n",space.machine().describe_context(),offset<<1,data);
+		logerror("%s: Unknown layer cmd %X %X\n",machine().describe_context(),offset<<1,data);
 
 	}
 }
@@ -1565,6 +1565,7 @@ static MACHINE_CONFIG_START( fcrash )
 	MCFG_CPU_ADD("maincpu", M68000, 10000000)
 	MCFG_CPU_PROGRAM_MAP(fcrash_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state,  cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 24000000/6) /* ? */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
@@ -1629,6 +1630,7 @@ static MACHINE_CONFIG_START( kodb )
 	MCFG_CPU_ADD("maincpu", M68000, 10000000)
 	MCFG_CPU_PROGRAM_MAP(fcrash_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state,  cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
 	MCFG_CPU_PROGRAM_MAP(kodb_sound_map)
@@ -1725,6 +1727,7 @@ static MACHINE_CONFIG_START( knightsb )
 	MCFG_CPU_ADD("maincpu", M68000, 24000000 / 2)
 	MCFG_CPU_PROGRAM_MAP(knightsb_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 29821000 / 8)
 	MCFG_CPU_PROGRAM_MAP(knightsb_z80map)
@@ -2107,6 +2110,7 @@ static MACHINE_CONFIG_START( dinopic )
 	MCFG_CPU_ADD("maincpu", M68000, 12000000)
 	MCFG_CPU_PROGRAM_MAP(dinopic_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	//MCFG_CPU_ADD("audiocpu", PIC16C57, 12000000)
 	//MCFG_DEVICE_DISABLE() /* no valid dumps .. */
@@ -2266,6 +2270,7 @@ static MACHINE_CONFIG_START( sgyxz )
 	MCFG_CPU_ADD("maincpu", M68000, 12000000)
 	MCFG_CPU_PROGRAM_MAP(sgyxz_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state,  cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
 	MCFG_CPU_PROGRAM_MAP(sgyxz_sound_map)
@@ -2349,7 +2354,7 @@ MACHINE_START_MEMBER(cps_state, punipic)
 	m_layer_mask_reg[3] = 0x0a;
 	m_layer_scroll1x_offset = 0x46; // text
 	m_layer_scroll3x_offset = 0x46; // green patch in the park
-	m_sprite_base = 0x000;
+	m_sprite_base = 0x1000;
 	m_sprite_list_end_marker = 0x8000;
 	m_sprite_x_offset = 0;
 }
@@ -2360,6 +2365,7 @@ static MACHINE_CONFIG_START( punipic )
 	MCFG_CPU_ADD("maincpu", M68000, 12000000)
 	MCFG_CPU_PROGRAM_MAP(punipic_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	//MCFG_CPU_ADD("audiocpu", PIC16C57, 12000000)
 	//MCFG_DEVICE_DISABLE() /* no valid dumps .. */
@@ -2555,6 +2561,7 @@ static MACHINE_CONFIG_START( sf2m1 )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_12MHz )
 	MCFG_CPU_PROGRAM_MAP(sf2m1_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(sgyxz_sound_map)
@@ -2888,6 +2895,7 @@ static MACHINE_CONFIG_START( slampic )
 	MCFG_CPU_ADD("maincpu", M68000, 12000000)
 	MCFG_CPU_PROGRAM_MAP(slampic_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	//MCFG_CPU_ADD("audiocpu", PIC16C57, 12000000)
 	//MCFG_DEVICE_DISABLE() /* no valid dumps .. */
@@ -2989,6 +2997,7 @@ static MACHINE_CONFIG_START( varthb )
 	MCFG_CPU_ADD("maincpu", M68000, 12000000)
 	MCFG_CPU_PROGRAM_MAP(varthb_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state,  cps1_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cps_state, cps1_int_ack)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
 	MCFG_CPU_PROGRAM_MAP(sgyxz_sound_map)

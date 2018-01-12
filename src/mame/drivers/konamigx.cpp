@@ -343,18 +343,12 @@ void konamigx_state::sexyparo_esc(address_space &space, uint32_t p1, uint32_t p2
 {
 	// The d20000 should probably be p3
 	// TODO: debugging bootcamp, remove once finished
-	if(p1 != 0)
+#ifdef UNUSED_FUNCTION
+	if (p1 != 0)
 	{
-		static bool shorter_debug_msg;
-
-		if(machine().input().code_pressed_once(KEYCODE_L))
-			shorter_debug_msg = true;
-
-		if(shorter_debug_msg == true)
-			popmessage("%02x",p1);
-		else
-			popmessage("%02x P1 param detected, please drop a note at MAMETesters #06035, press L if you understood and make this message shorter",p1);
+		logerror("sexyparo_esc P1 param: %02x\n", p1);
 	}
+#endif
 	generate_sprites(space, 0xc00604, 0xd20000, 0xfc);
 }
 
@@ -498,7 +492,7 @@ WRITE32_MEMBER(konamigx_state::eeprom_w)
 		*/
 
 		m_gx_wrport1_1 = (data>>16)&0xff;
-//      logerror("write %x to IRQ register (PC=%x)\n", m_gx_wrport1_1, space.device().safe_pc());
+//      logerror("write %x to IRQ register (PC=%x)\n", m_gx_wrport1_1, m_maincpu->pc());
 
 		// m_gx_syncen is to ensure each IRQ is triggered at least once after being enabled
 		if (m_gx_wrport1_1 & 0x80)
@@ -951,20 +945,20 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 				else if(m_last_prot_op == 0x515) // vsnetscr screen 1
 				{
 					int adr;
-					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, space.device().safe_pc());
+					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, m_maincpu->pc());
 					for (adr = 0; adr < 0x400; adr += 2)
 						space.write_word(0xc01c00+adr, space.read_word(0xc01800+adr));
 				}
 				else if(m_last_prot_op == 0x115d) // vsnetscr screen 2
 				{
 					int adr;
-					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, space.device().safe_pc());
+					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, m_maincpu->pc());
 					for (adr = 0; adr < 0x400; adr += 2)
 						space.write_word(0xc18c00+adr, space.read_word(0xc18800+adr));
 				}
 				else
 				{
-					//printf("GXT4: unknown protection command %x (PC=%x)\n", m_last_prot_op, space.device().safe_pc());
+					//printf("GXT4: unknown protection command %x (PC=%x)\n", m_last_prot_op, m_maincpu->pc());
 				}
 
 				if (m_gx_wrport1_1 & 0x10)
@@ -3979,8 +3973,8 @@ GAME( 1995, tkmmpzdm, konamigx, konamigx_6bpp, puzldama, konamigx_state, konamig
 GAME( 1995, dragoona, konamigx, dragoonj, dragoonj, konamigx_state, posthack, ROT0, "Konami", "Dragoon Might (ver AAB)", MACHINE_IMPERFECT_GRAPHICS )
 GAME( 1995, dragoonj, dragoona, dragoonj, dragoonj, konamigx_state, posthack, ROT0, "Konami", "Dragoon Might (ver JAA)", MACHINE_IMPERFECT_GRAPHICS )
 
-GAME( 1996, sexyparo, konamigx, sexyparo, gokuparo, konamigx_state, konamigx, ROT0, "Konami", "Sexy Parodius (ver JAA)", MACHINE_IMPERFECT_GRAPHICS )
-GAME( 1996, sexyparoa,sexyparo, sexyparo, gokuparo, konamigx_state, konamigx, ROT0, "Konami", "Sexy Parodius (ver AAA)", MACHINE_IMPERFECT_GRAPHICS )
+GAME( 1996, sexyparo, konamigx, sexyparo, gokuparo, konamigx_state, konamigx, ROT0, "Konami", "Sexy Parodius (ver JAA)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_UNEMULATED_PROTECTION )
+GAME( 1996, sexyparoa,sexyparo, sexyparo, gokuparo, konamigx_state, konamigx, ROT0, "Konami", "Sexy Parodius (ver AAA)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_UNEMULATED_PROTECTION )
 
 GAME( 1996, daiskiss, konamigx, konamigx, gokuparo, konamigx_state, konamigx, ROT0, "Konami", "Daisu-Kiss (ver JAA)", MACHINE_IMPERFECT_GRAPHICS )
 

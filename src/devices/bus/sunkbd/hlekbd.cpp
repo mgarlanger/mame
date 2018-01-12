@@ -95,7 +95,7 @@
     48  49    63       64  65  66  67  68  69  6a  6b  6c  6d         6e        14        70  71  72
     5f  61    77     13   78                79                7a  43  0d    18  1b  1c      5e    32  5a
 
-    0f is a blank key
+    0f has a blank keycap
     backspace immediately above return
     backslash and backtick/tilde at top right of main area
     control on home row, caps lock at bottom left corner of main area
@@ -727,18 +727,6 @@ INPUT_PORTS_START( hle_type5_jp_device )
 	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Kana")         PORT_CODE(KEYCODE_RALT) // かな
 INPUT_PORTS_END
 
-
-
-/***************************************************************************
-    MACHINE CONFIGURATION FRAGMENTS
-***************************************************************************/
-
-MACHINE_CONFIG_FRAGMENT(sparc_keyboard)
-	MCFG_SPEAKER_STANDARD_MONO("bell")
-	MCFG_SOUND_ADD("beeper", BEEP, ATTOSECONDS_TO_HZ(480 * ATTOSECONDS_PER_MICROSECOND))
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bell", 1.0)
-MACHINE_CONFIG_END
-
 } // anonymous namespace
 
 
@@ -784,17 +772,6 @@ hle_device_base::~hle_device_base()
 
 
 /*--------------------------------------------------
-    hle_device_base::device_mconfig_additions
-    get machine configuration additions
---------------------------------------------------*/
-
-machine_config_constructor hle_device_base::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(sparc_keyboard);
-}
-
-
-/*--------------------------------------------------
     hle_device_base::input_txd
     handle serial input line changes
 --------------------------------------------------*/
@@ -806,6 +783,18 @@ WRITE_LINE_MEMBER( hle_device_base::input_txd )
 
 
 /*--------------------------------------------------
+    hle_device_base::device_add_mconfig
+    add machine configuration
+--------------------------------------------------*/
+
+MACHINE_CONFIG_MEMBER(hle_device_base::device_add_mconfig)
+	MCFG_SPEAKER_STANDARD_MONO("bell")
+	MCFG_SOUND_ADD("beeper", BEEP, ATTOSECONDS_TO_HZ(480 * ATTOSECONDS_PER_MICROSECOND))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bell", 1.0)
+MACHINE_CONFIG_END
+
+
+/*--------------------------------------------------
     hle_device_base::device_start
     perform expensive initialisations, allocate
     resources, register for save state
@@ -813,8 +802,6 @@ WRITE_LINE_MEMBER( hle_device_base::input_txd )
 
 void hle_device_base::device_start()
 {
-	device_buffered_serial_interface::register_save_state(machine().save(), this);
-
 	m_click_timer = timer_alloc(CLICK_TIMER_ID);
 
 	save_item(NAME(m_make_count));
@@ -885,8 +872,7 @@ void hle_device_base::device_timer(emu_timer &timer, device_timer_id id, int par
 		break;
 
 	default:
-		device_matrix_keyboard_interface::device_timer(timer, id, param, ptr);
-		device_buffered_serial_interface::device_timer(timer, id, param, ptr);
+		break;
 	}
 }
 

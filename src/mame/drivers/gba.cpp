@@ -2,7 +2,7 @@
 // copyright-holders:R. Belmont,Ryan Holtz
 /***************************************************************************
 
-  gba.c
+  gba.cpp
 
   Driver file to handle emulation of the Nintendo Game Boy Advance.
 
@@ -17,7 +17,6 @@
 #include "cpu/arm7/arm7.h"
 #include "cpu/arm7/arm7core.h"
 #include "sound/gb.h"
-#include "sound/volt_reg.h"
 #include "softlist.h"
 #include "speaker.h"
 
@@ -238,8 +237,8 @@ void gba_state::dma_exec(int ch)
 	{
 		if ((ctrl>>10) & 1)
 		{
-			src &= 0xfffffffc;
-			dst &= 0xfffffffc;
+			src &= 0xfffffffe;
+			dst &= 0xfffffffe;
 
 			// 32-bit
 			space.write_dword(dst, space.read_dword(src));
@@ -531,7 +530,7 @@ TIMER_CALLBACK_MEMBER(gba_state::handle_irq)
 	m_irq_timer->adjust(attotime::never);
 }
 
-static const char *reg_names[] = {
+static const char *const reg_names[] = {
 	/* Sound Registers */
 	"SOUND1CNT_L", "SOUND1CNT_H", "SOUND1CNT_X", "Unused",
 	"SOUND2CNT_L", "Unused",      "SOUND2CNT_H", "Unused",
@@ -669,7 +668,7 @@ READ32_MEMBER(gba_state::gba_io_r)
 				double time, ticks;
 				int timer = offset + 0x60/4 - 0x100/4;
 
-//              printf("Read timer reg %x (PC=%x)\n", timer, space.device().safe_pc());
+//              printf("Read timer reg %x (PC=%x)\n", timer, m_maincpu->pc());
 
 				// update times for
 				if (m_timer_regs[timer] & 0x800000)
@@ -970,24 +969,48 @@ WRITE32_MEMBER(gba_state::gba_io_w)
 			}
 			break;
 		case 0x00a0/4:
-			m_fifo_a_in %= 17;
-			m_fifo_a[m_fifo_a_in++] = (data)&0xff;
-			m_fifo_a_in %= 17;
-			m_fifo_a[m_fifo_a_in++] = (data>>8)&0xff;
-			m_fifo_a_in %= 17;
-			m_fifo_a[m_fifo_a_in++] = (data>>16)&0xff;
-			m_fifo_a_in %= 17;
-			m_fifo_a[m_fifo_a_in++] = (data>>24)&0xff;
+			if (ACCESSING_BITS_0_7)
+			{
+				m_fifo_a_in %= 17;
+				m_fifo_a[m_fifo_a_in++] = (data)&0xff;
+			}
+			if (ACCESSING_BITS_8_15)
+			{
+				m_fifo_a_in %= 17;
+				m_fifo_a[m_fifo_a_in++] = (data>>8)&0xff;
+			}
+			if (ACCESSING_BITS_16_23)
+			{
+				m_fifo_a_in %= 17;
+				m_fifo_a[m_fifo_a_in++] = (data>>16)&0xff;
+			}
+			if (ACCESSING_BITS_24_31)
+			{
+				m_fifo_a_in %= 17;
+				m_fifo_a[m_fifo_a_in++] = (data>>24)&0xff;
+			}
 			break;
 		case 0x00a4/4:
-			m_fifo_b_in %= 17;
-			m_fifo_b[m_fifo_b_in++] = (data)&0xff;
-			m_fifo_b_in %= 17;
-			m_fifo_b[m_fifo_b_in++] = (data>>8)&0xff;
-			m_fifo_b_in %= 17;
-			m_fifo_b[m_fifo_b_in++] = (data>>16)&0xff;
-			m_fifo_b_in %= 17;
-			m_fifo_b[m_fifo_b_in++] = (data>>24)&0xff;
+			if (ACCESSING_BITS_0_7)
+			{
+				m_fifo_b_in %= 17;
+				m_fifo_b[m_fifo_b_in++] = (data)&0xff;
+			}
+			if (ACCESSING_BITS_8_15)
+			{
+				m_fifo_b_in %= 17;
+				m_fifo_b[m_fifo_b_in++] = (data>>8)&0xff;
+			}
+			if (ACCESSING_BITS_16_23)
+			{
+				m_fifo_b_in %= 17;
+				m_fifo_b[m_fifo_b_in++] = (data>>16)&0xff;
+			}
+			if (ACCESSING_BITS_24_31)
+			{
+				m_fifo_b_in %= 17;
+				m_fifo_b[m_fifo_b_in++] = (data>>24)&0xff;
+			}
 			break;
 		case 0x00b8/4:
 		case 0x00c4/4:
@@ -1035,7 +1058,7 @@ WRITE32_MEMBER(gba_state::gba_io_w)
 
 				m_timer_regs[timer] = (m_timer_regs[timer] & ~(mem_mask & 0xFFFF0000)) | (data & (mem_mask & 0xFFFF0000));
 
-//              printf("%x to timer %d (mask %x PC %x)\n", data, timer, ~mem_mask, space.device().safe_pc());
+//              printf("%x to timer %d (mask %x PC %x)\n", data, timer, ~mem_mask, m_maincpu->pc());
 
 				if (ACCESSING_BITS_0_15)
 				{
@@ -1155,16 +1178,21 @@ READ32_MEMBER(gba_state::gba_bios_r)
 
 READ32_MEMBER(gba_state::gba_10000000_r)
 {
+	auto &mspace = m_maincpu->space(AS_PROGRAM);
 	uint32_t data;
 	uint32_t pc = m_maincpu->state_int(ARM7_PC);
+	if (pc >= 0x10000000)
+	{
+		return 0;
+	}
 	uint32_t cpsr = m_maincpu->state_int(ARM7_CPSR);
 	if (T_IS_SET( cpsr))
 	{
-		data = space.read_dword(pc + 8);
+		data = mspace.read_dword(pc + 8);
 	}
 	else
 	{
-		uint16_t insn = space.read_word(pc + 4);
+		uint16_t insn = mspace.read_word(pc + 4);
 		data = (insn << 16) | (insn << 0);
 	}
 	logerror("%s: unmapped program memory read from %08X = %08X & %08X\n", machine().describe_context( ), 0x10000000 + (offset << 2), data, mem_mask);
@@ -1210,16 +1238,16 @@ WRITE_LINE_MEMBER(gba_state::dma_vblank_callback)
 
 static ADDRESS_MAP_START( gba_map, AS_PROGRAM, 32, gba_state )
 	ADDRESS_MAP_UNMAP_HIGH // for "Fruit Mura no Doubutsu Tachi" and "Classic NES Series"
-	AM_RANGE(0x00000000, 0x00003fff) AM_ROM AM_READ(gba_bios_r)
+	AM_RANGE(0x00000000, 0x00003fff) AM_ROM AM_MIRROR(0x01ffc000) AM_READ(gba_bios_r)
 	AM_RANGE(0x02000000, 0x0203ffff) AM_RAM AM_MIRROR(0xfc0000)
 	AM_RANGE(0x03000000, 0x03007fff) AM_RAM AM_MIRROR(0xff8000)
 	AM_RANGE(0x04000000, 0x0400005f) AM_DEVREADWRITE("lcd", gba_lcd_device, video_r, video_w)
 	AM_RANGE(0x04000060, 0x040003ff) AM_READWRITE(gba_io_r, gba_io_w)
 	AM_RANGE(0x04000400, 0x04ffffff) AM_NOP                                         // Not used
-	AM_RANGE(0x05000000, 0x050003ff) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_pram_r, gba_pram_w)  // Palette RAM
-	AM_RANGE(0x06000000, 0x06017fff) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_vram_r, gba_vram_w)  // VRAM
-	AM_RANGE(0x07000000, 0x070003ff) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_oam_r, gba_oam_w)    // OAM
-	AM_RANGE(0x07000400, 0x07ffffff) AM_NOP                                         // Not used
+	AM_RANGE(0x05000000, 0x050003ff) AM_MIRROR(0x00fffc00) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_pram_r, gba_pram_w)  // Palette RAM
+	AM_RANGE(0x06000000, 0x06017fff) AM_MIRROR(0x00fe0000) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_vram_r, gba_vram_w)  // VRAM
+	AM_RANGE(0x06018000, 0x0601ffff) AM_MIRROR(0x00fe0000) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_vram_r, gba_vram_w)  // VRAM
+	AM_RANGE(0x07000000, 0x070003ff) AM_MIRROR(0x00fffc00) AM_DEVREADWRITE("lcd", gba_lcd_device, gba_oam_r, gba_oam_w)    // OAM
 	//AM_RANGE(0x08000000, 0x0cffffff)  // cart ROM + mirrors, mapped here at machine_start if a cart is present
 	AM_RANGE(0x10000000, 0xffffffff) AM_READ(gba_10000000_r) // for "Justice League Chronicles" (game bug)
 ADDRESS_MAP_END
@@ -1325,6 +1353,8 @@ void gba_state::machine_start()
 		{
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0xe000000, 0xe00ffff, read32_delegate(FUNC(gba_cart_slot_device::read_ram),(gba_cart_slot_device*)m_cart));
 			m_maincpu->space(AS_PROGRAM).install_write_handler(0xe000000, 0xe00ffff, write32_delegate(FUNC(gba_cart_slot_device::write_ram),(gba_cart_slot_device*)m_cart));
+			m_maincpu->space(AS_PROGRAM).install_read_handler(0xe010000, 0xe01ffff, read32_delegate(FUNC(gba_cart_slot_device::read_ram),(gba_cart_slot_device*)m_cart));
+			m_maincpu->space(AS_PROGRAM).install_write_handler(0xe010000, 0xe01ffff, write32_delegate(FUNC(gba_cart_slot_device::write_ram),(gba_cart_slot_device*)m_cart));
 		}
 		if (m_cart->get_type() == GBA_EEPROM || m_cart->get_type() == GBA_EEPROM4 || m_cart->get_type() == GBA_EEPROM64 || m_cart->get_type() == GBA_BOKTAI)
 		{
@@ -1415,14 +1445,13 @@ static MACHINE_CONFIG_START( gbadv )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.5)
 
 	MCFG_SOUND_ADD("ldaca", DAC_8BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdaca", DAC_8BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("ldacb", DAC_8BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdacb", DAC_8BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldaca", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldaca", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdaca", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdaca", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "ldacb", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldacb", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdacb", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdacb", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_GBA_CARTRIDGE_ADD("cartslot", gba_cart, nullptr)
 	MCFG_SOFTWARE_LIST_ADD("cart_list","gba")

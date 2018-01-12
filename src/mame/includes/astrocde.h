@@ -152,7 +152,6 @@ public:
 	DECLARE_WRITE8_MEMBER(demndrgn_banksw_w);
 	DECLARE_READ8_MEMBER(demndrgn_io_r);
 	DECLARE_WRITE8_MEMBER(demndrgn_sound_w);
-	DECLARE_WRITE8_MEMBER(tenpindx_sound_w);
 	DECLARE_WRITE8_MEMBER(tenpindx_lamp_w);
 	DECLARE_WRITE8_MEMBER(tenpindx_counter_w);
 	DECLARE_WRITE8_MEMBER(tenpindx_lights_w);
@@ -190,7 +189,7 @@ public:
 	void astrocade_trigger_lightpen(uint8_t vfeedback, uint8_t hfeedback);
 	inline void increment_source(uint8_t curwidth, uint8_t *u13ff);
 	inline void increment_dest(uint8_t curwidth);
-	void execute_blit(address_space &space);
+	void execute_blit();
 	void init_sparklestar();
 	virtual void machine_start() override;
 

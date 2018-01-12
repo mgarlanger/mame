@@ -19,12 +19,12 @@
 #define MCFG_MOS8563_ADD(_tag, _screen_tag, _clock, _map) \
 	MCFG_DEVICE_ADD(_tag, MOS8563, _clock) \
 	MCFG_VIDEO_SET_SCREEN(_screen_tag) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _map)
+	MCFG_DEVICE_ADDRESS_MAP(0, _map)
 
 #define MCFG_MOS8568_ADD(_tag, _screen_tag, _clock, _map) \
 	MCFG_DEVICE_ADD(_tag, MOS8568, _clock) \
 	MCFG_VIDEO_SET_SCREEN(_screen_tag) \
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, _map)
+	MCFG_DEVICE_ADDRESS_MAP(0, _map)
 
 
 #define MCFG_MC6845_SHOW_BORDER_AREA(_show) \
@@ -115,15 +115,19 @@ public:
 
 	/* select one of the registers for reading or writing */
 	DECLARE_WRITE8_MEMBER( address_w );
+	void address_w(uint8_t data);
 
 	/* read from the status register */
 	DECLARE_READ8_MEMBER( status_r );
+	uint8_t status_r();
 
 	/* read from the currently selected register */
 	DECLARE_READ8_MEMBER( register_r );
+	uint8_t register_r();
 
 	/* write to the currently selected register */
 	DECLARE_WRITE8_MEMBER( register_w );
+	void register_w(uint8_t data);
 
 	// read display enable line state
 	DECLARE_READ_LINE_MEMBER( de_r );
@@ -256,6 +260,7 @@ protected:
 
 	void update_upd_adr_timer();
 	void call_on_update_address(int strobe);
+	void transparent_update();
 	void recompute_parameters(bool postload);
 	void update_counters();
 	void set_de(int state);
@@ -429,9 +434,7 @@ class mos8563_device : public mc6845_device,
 public:
 	mos8563_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
-
-	DECLARE_PALETTE_INIT(mos8563);
+	virtual space_config_vector memory_space_config() const override;
 
 	DECLARE_WRITE8_MEMBER( address_w );
 	DECLARE_READ8_MEMBER( status_r );
@@ -447,7 +450,7 @@ protected:
 	mos8563_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -486,6 +489,8 @@ protected:
 	static const device_timer_id TIMER_BLOCK_COPY = 9;
 
 	emu_timer *m_block_copy_timer;
+
+	DECLARE_PALETTE_INIT(mos8563);
 };
 
 class mos8568_device : public mos8563_device

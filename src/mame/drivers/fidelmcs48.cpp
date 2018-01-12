@@ -3,7 +3,7 @@
 // thanks-to:yoyo_chessboard
 /******************************************************************************
 
-    Fidelity generic MCS-48 based chess computer driver
+    Fidelity Electronics generic MCS-48 based chess computer driver
 
     NOTE: MAME doesn't include a generalized implementation for boardpieces yet,
     greatly affecting user playability of emulated electronic board games.
@@ -27,7 +27,6 @@ Sensory Chess Challenger 6 (model SC6):
 #include "includes/fidelbase.h"
 
 #include "cpu/mcs48/mcs48.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 // internal artwork
@@ -71,12 +70,12 @@ WRITE8_MEMBER(fidelmcs48_state::sc6_mux_w)
 {
 	// P24-P27: 7442 A-D
 	u16 sel = 1 << (data >> 4 & 0xf) & 0x3ff;
-	
+
 	// 7442 0-8: input mux, 7seg data
 	m_inp_mux = sel & 0x1ff;
 	m_7seg_data = sel & 0x7f;
 	sc6_prepare_display();
-	
+
 	// 7442 9: speaker out
 	m_dac->write(BIT(sel, 9));
 }
@@ -161,8 +160,7 @@ static MACHINE_CONFIG_START( sc6 )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -183,4 +181,4 @@ ROM_END
 ******************************************************************************/
 
 //    YEAR  NAME      PARENT  CMP MACHINE    INPUT   STATE          INIT  COMPANY, FULLNAME, FLAGS
-CONS( 1982, fscc6,    0,       0, sc6,       sc6,    fidelmcs48_state, 0, "Fidelity", "Sensory Chess Challenger 6", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
+CONS( 1982, fscc6,    0,       0, sc6,       sc6,    fidelmcs48_state, 0, "Fidelity Electronics", "Sensory Chess Challenger 6", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK | MACHINE_IMPERFECT_CONTROLS )

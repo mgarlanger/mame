@@ -18,7 +18,6 @@
 #include "sound/samples.h"
 #include "sound/tms36xx.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 
 
 /*************************************
@@ -30,7 +29,7 @@
 #define SEGA005_555_TIMER_FREQ      (1.44 / ((15000 + 2 * 4700) * 1.5e-6))
 #define SEGA005_COUNTER_FREQ        (100000)    /* unknown, just a guess */
 
-DEFINE_DEVICE_TYPE(SEGA005, sega005_sound_device, "sega005_sound", "Sega 005 Audio Custom")
+DEFINE_DEVICE_TYPE(SEGA005, sega005_sound_device, "sega005_sound", "Sega 005 Custom Sound")
 
 sega005_sound_device::sega005_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: device_t(mconfig, SEGA005, tag, owner, clock)
@@ -231,7 +230,7 @@ static const char *const astrob_sample_names[] =
 };
 
 
-MACHINE_CONFIG_FRAGMENT( astrob_sound_board )
+MACHINE_CONFIG_START( astrob_sound_board )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("samples", SAMPLES, 0)
@@ -418,7 +417,7 @@ static const char *const sega005_sample_names[] =
 };
 
 
-MACHINE_CONFIG_FRAGMENT( 005_sound_board )
+MACHINE_CONFIG_START( 005_sound_board )
 
 	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
 	MCFG_I8255_OUT_PORTA_CB(WRITE8(segag80r_state, sega005_sound_a_w))
@@ -580,7 +579,7 @@ static const char *const spaceod_sample_names[] =
 };
 
 
-MACHINE_CONFIG_FRAGMENT( spaceod_sound_board )
+MACHINE_CONFIG_START( spaceod_sound_board )
 
 	/* sound hardware */
 
@@ -678,7 +677,7 @@ static const char *const monsterb_sample_names[] =
  *
  *************************************/
 
-MACHINE_CONFIG_FRAGMENT( monsterb_sound_board )
+MACHINE_CONFIG_START( monsterb_sound_board )
 	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
 	MCFG_I8255_OUT_PORTA_CB(WRITE8(segag80r_state, monsterb_sound_a_w))
 	MCFG_I8255_OUT_PORTB_CB(WRITE8(segag80r_state, monsterb_sound_b_w))
@@ -708,9 +707,8 @@ MACHINE_CONFIG_FRAGMENT( monsterb_sound_board )
 	MCFG_TMS36XX_DECAY_TIMES(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
 
-	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // 50K (R91-97)/100K (R98-106) ladder network
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 

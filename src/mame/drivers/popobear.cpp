@@ -79,6 +79,7 @@ Component Side   A   B   Solder Side
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/timer.h"
 #include "sound/okim6295.h"
 #include "sound/ym2413.h"
 #include "screen.h"
@@ -138,7 +139,7 @@ WRITE16_MEMBER(popobear_state::vram_w)
 	COMBINE_DATA(&m_vram[offset]);
 
 	// the graphic data for the tiles is in a strange order, rearrange it so that we can use it as tiles..
-	int swapped_offset = BITSWAP32(offset, /* unused bits */ 31,30,29,28,27,26,25,24,23,22,21,20,19, /* end unused bits */
+	int swapped_offset = bitswap<32>(offset, /* unused bits */ 31,30,29,28,27,26,25,24,23,22,21,20,19, /* end unused bits */
 
 	18,17,16,15,14,13,12,
 

@@ -121,7 +121,6 @@
 #include "emu.h"
 #include "includes/meadows.h"
 
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 #include "deadeye.lh"
@@ -141,7 +140,7 @@
 READ8_MEMBER(meadows_state::hsync_chain_r)
 {
 	uint8_t val = m_screen->hpos();
-	return BITSWAP8(val,0,1,2,3,4,5,6,7);
+	return bitswap<8>(val,0,1,2,3,4,5,6,7);
 }
 
 
@@ -362,7 +361,7 @@ static ADDRESS_MAP_START( minferno_main_map, AS_PROGRAM, 8, meadows_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( minferno_io_map, AS_IO, 8, meadows_state )
+static ADDRESS_MAP_START( minferno_data_map, AS_DATA, 8, meadows_state )
 	AM_RANGE(S2650_DATA_PORT, S2650_DATA_PORT) AM_READ_PORT("DSW2")
 ADDRESS_MAP_END
 
@@ -637,8 +636,7 @@ static MACHINE_CONFIG_START( meadows )
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SOUND_ADD("samples", SAMPLES, 0)
 	MCFG_SAMPLES_CHANNELS(2)
@@ -652,7 +650,7 @@ static MACHINE_CONFIG_START( minferno )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", S2650, MASTER_CLOCK/24)     /* 5MHz / 8 / 3 = 208.33 kHz */
 	MCFG_CPU_PROGRAM_MAP(minferno_main_map)
-	MCFG_CPU_IO_MAP(minferno_io_map)
+	MCFG_CPU_DATA_MAP(minferno_data_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", meadows_state,  minferno_interrupt)
 
 	/* video hardware */
@@ -698,8 +696,7 @@ static MACHINE_CONFIG_START( bowl3d )
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SOUND_ADD("samples", SAMPLES, 0)
 	MCFG_SAMPLES_CHANNELS(2)

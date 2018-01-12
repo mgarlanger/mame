@@ -7,6 +7,7 @@
 #include "cpu/m6809/m6809.h"
 #include "audio/dcs.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "video/wpc_dmd.h"
 #include "machine/wpc_pic.h"
 #include "machine/wpc_shift.h"
@@ -2245,7 +2246,7 @@ INPUT_PORTS_END
 
 static MACHINE_CONFIG_START( wpc_95 )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_8MHz/4)
+	MCFG_CPU_ADD("maincpu", MC6809E, XTAL_8MHz/4) // 68B09E
 	MCFG_CPU_PROGRAM_MAP(wpc_95_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(wpc_95_state, irq0_line_assert, XTAL_8MHz/8192.0)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("zero_crossing", wpc_95_state, zc_timer, attotime::from_hz(120)) // Mains power zero crossing

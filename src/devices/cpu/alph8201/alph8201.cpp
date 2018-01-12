@@ -163,7 +163,7 @@ Timming
 #include "emu.h"
 #include "alph8201.h"
 #include "debugger.h"
-
+#include "8201dasm.h"
 
 DEFINE_DEVICE_TYPE(ALPHA8201L, alpha8201_cpu_device, "alpha8201l", "ALPHA-8201L")
 DEFINE_DEVICE_TYPE(ALPHA8301L, alpha8301_cpu_device, "alpha8301l", "ALPHA-8301L")
@@ -203,6 +203,13 @@ alpha8301_cpu_device::alpha8301_cpu_device(const machine_config &mconfig, const 
 {
 }
 
+device_memory_interface::space_config_vector alpha8201_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_IO,      &m_io_config)
+	};
+}
 
 /* Get next opcode argument and increment program counter */
 unsigned alpha8201_cpu_device::M_RDMEM_OPCODE()
@@ -387,7 +394,7 @@ const alpha8201_cpu_device::s_opcode alpha8201_cpu_device::opcode_8301[256]=
 void alpha8201_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	state_add( ALPHA8201_PC, "PC", m_pc.w.l ).callimport().mask(0x3ff).formatstr("%03X");
 	state_add( ALPHA8201_SP, "SP", m_sp ).callimport().callexport().formatstr("%02X");
@@ -683,9 +690,7 @@ void alpha8201_cpu_device::execute_set_input(int inputnum, int state)
 	}
 }
 
-
-offs_t alpha8201_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *alpha8201_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( alpha8201 );
-	return CPU_DISASSEMBLE_NAME(alpha8201)(this, stream, pc, oprom, opram, options);
+	return new alpha8201_disassembler;
 }

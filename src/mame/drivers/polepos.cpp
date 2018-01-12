@@ -225,6 +225,7 @@ Todo:
 #include "cpu/z80/z80.h"
 #include "cpu/z8000/z8000.h"
 #include "cpu/mb88xx/mb88xx.h"
+#include "machine/74259.h"
 #include "machine/namco06.h"
 #include "machine/namco51.h"
 #include "machine/namco53.h"
@@ -232,7 +233,6 @@ Todo:
 #include "machine/watchdog.h"
 #include "sound/dac.h"
 #include "sound/tms5220.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 #include "polepos.lh"
@@ -265,7 +265,7 @@ READ16_MEMBER(polepos_state::polepos2_ic25_r)
 		m_last_result = (int8_t)m_last_signed * (uint8_t)m_last_unsigned;
 	}
 
-//  logerror("%04X: read IC25 @ %04X = %02X\n", space.device().safe_pc(), offset, result);
+//  logerror("%s: read IC25 @ %04X = %02X\n", machine().describe_context(), offset, result);
 
 	return result | (result << 8);
 }
@@ -289,60 +289,43 @@ READ8_MEMBER(polepos_state::polepos_ready_r)
 }
 
 
-WRITE8_MEMBER(polepos_state::polepos_latch_w)
+WRITE_LINE_MEMBER(polepos_state::iosel_w)
 {
-	int bit = data & 1;
-
-	switch (offset)
-	{
-		case 0x00:  /* IRQON */
-			m_main_irq_mask = bit;
-			if (!bit)
-				m_maincpu->set_input_line(0, CLEAR_LINE);
-			break;
-
-		case 0x01:  /* IOSEL */
 //          polepos_mcu_enable_w(offset,data);
-			break;
+}
 
-		case 0x02:  /* CLSON */
-			m_namco_sound->polepos_sound_enable(bit);
-			if (!bit)
-			{
-				machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_lsb_w(space, 0, 0);
-				machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_msb_w(space, 0, 0);
-			}
-			break;
-
-		case 0x03:  /* GASEL */
-			m_adc_input = bit;
-			break;
-
-		case 0x04:  /* RESB */
-			m_subcpu->set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
-			break;
-
-		case 0x05:  /* RESA */
-			m_subcpu2->set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
-			break;
-
-		case 0x06:  /* SB0 */
-			m_auto_start_mask = !bit;
-			break;
-
-		case 0x07:  /* CHACL */
-			polepos_chacl_w(space,offset,data);
-			break;
+WRITE_LINE_MEMBER(polepos_state::clson_w)
+{
+	m_namco_sound->polepos_sound_enable(state);
+	if (!state)
+	{
+		machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_lsb_w(machine().dummy_space(), 0, 0);
+		machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_msb_w(machine().dummy_space(), 0, 0);
 	}
 }
 
-WRITE16_MEMBER(polepos_state::polepos_z8002_nvi_enable_w)
+WRITE_LINE_MEMBER(polepos_state::gasel_w)
+{
+	m_adc_input = state;
+}
+
+WRITE_LINE_MEMBER(polepos_state::sb0_w)
+{
+	m_auto_start_mask = !state;
+}
+
+WRITE_LINE_MEMBER(polepos_state::chacl_w)
+{
+	polepos_chacl_w(machine().dummy_space(), 0, state);
+}
+
+template<bool sub1> WRITE16_MEMBER(polepos_state::polepos_z8002_nvi_enable_w)
 {
 	data &= 1;
 
 	m_sub_irq_mask = data;
 	if (!data)
-		space.device().execute().set_input_line(0, CLEAR_LINE);
+		(sub1 ? m_subcpu : m_subcpu2)->set_input_line(0, CLEAR_LINE);
 }
 
 CUSTOM_INPUT_MEMBER(polepos_state::auto_start_r)
@@ -414,7 +397,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(polepos_state::polepos_scanline)
 {
 	int scanline = param;
 
-	if (((scanline == 64) || (scanline == 192)) && m_main_irq_mask) // 64V
+	if (((scanline == 64) || (scanline == 192)) && m_latch->q0_r()) // 64V
 		m_maincpu->set_input_line(0, ASSERT_LINE);
 
 	if (scanline == 240 && m_sub_irq_mask)  // VBLANK
@@ -427,13 +410,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(polepos_state::polepos_scanline)
 
 MACHINE_RESET_MEMBER(polepos_state,polepos)
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	int i;
-
-	/* Reset all latches */
-	for (i = 0; i < 8; i++)
-		polepos_latch_w(space, i, 0);
-
 	/* set the interrupt vectors (this shouldn't be needed) */
 	m_subcpu->set_input_line_vector(0, Z8000_NVI);
 	m_subcpu2->set_input_line_vector(0, Z8000_NVI);
@@ -459,7 +435,7 @@ static ADDRESS_MAP_START( z80_map, AS_PROGRAM, 8, polepos_state )
 	AM_RANGE(0x9000, 0x9000) AM_MIRROR(0x0eff) AM_DEVREADWRITE("06xx", namco_06xx_device, data_r, data_w)
 	AM_RANGE(0x9100, 0x9100) AM_MIRROR(0x0eff) AM_DEVREADWRITE("06xx", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0xa000, 0xa000) AM_MIRROR(0x0cff) AM_READ(polepos_ready_r)                 /* READY */
-	AM_RANGE(0xa000, 0xa007) AM_MIRROR(0x0cf8) AM_WRITE(polepos_latch_w)                /* misc latches */
+	AM_RANGE(0xa000, 0xa007) AM_MIRROR(0x0cf8) AM_DEVWRITE("latch", ls259_device, write_d0)
 	AM_RANGE(0xa100, 0xa100) AM_MIRROR(0x0cff) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
 	AM_RANGE(0xa200, 0xa200) AM_MIRROR(0x0cff) AM_DEVWRITE("polepos", polepos_sound_device, polepos_engine_sound_lsb_w)    /* Car Sound ( Lower Nibble ) */
 	AM_RANGE(0xa300, 0xa300) AM_MIRROR(0x0cff) AM_DEVWRITE("polepos", polepos_sound_device, polepos_engine_sound_msb_w)    /* Car Sound ( Upper Nibble ) */
@@ -474,7 +450,6 @@ ADDRESS_MAP_END
 /* the same memory map is used by both Z8002 CPUs; all RAM areas are shared */
 static ADDRESS_MAP_START( z8002_map, AS_PROGRAM, 16, polepos_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x6000, 0x6001) AM_MIRROR(0x0ffe) AM_WRITE(polepos_z8002_nvi_enable_w) /* NVI enable - *NOT* shared by the two CPUs */
 	AM_RANGE(0x8000, 0x8fff) AM_READWRITE(polepos_sprite16_r, polepos_sprite16_w) AM_SHARE("sprite16_memory")   /* Motion Object */
 	AM_RANGE(0x9000, 0x97ff) AM_READWRITE(polepos_road16_r, polepos_road16_w) AM_SHARE("road16_memory")     /* Road Memory */
 	AM_RANGE(0x9800, 0x9fff) AM_READWRITE(polepos_alpha16_r, polepos_alpha16_w) AM_SHARE("alpha16_memory")  /* Alphanumeric (char ram) */
@@ -483,6 +458,15 @@ static ADDRESS_MAP_START( z8002_map, AS_PROGRAM, 16, polepos_state )
 	AM_RANGE(0xc100, 0xc101) AM_MIRROR(0x38fe) AM_WRITE(polepos_road16_vscroll_w)                       /* Road vertical position */
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( z8002_map_1, AS_PROGRAM, 16, polepos_state )
+	AM_IMPORT_FROM(z8002_map)
+	AM_RANGE(0x6000, 0x6001) AM_MIRROR(0x0ffe) AM_WRITE(polepos_z8002_nvi_enable_w<true>) /* NVI enable - *NOT* shared by the two CPUs */
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( z8002_map_2, AS_PROGRAM, 16, polepos_state )
+	AM_IMPORT_FROM(z8002_map)
+	AM_RANGE(0x6000, 0x6001) AM_MIRROR(0x0ffe) AM_WRITE(polepos_z8002_nvi_enable_w<false>) /* NVI enable - *NOT* shared by the two CPUs */
+ADDRESS_MAP_END
 
 
 /*********************************************************************
@@ -871,10 +855,10 @@ static MACHINE_CONFIG_START( polepos )
 	MCFG_CPU_IO_MAP(z80_io)
 
 	MCFG_CPU_ADD("sub", Z8002, MASTER_CLOCK/8)  /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(z8002_map)
+	MCFG_CPU_PROGRAM_MAP(z8002_map_1)
 
 	MCFG_CPU_ADD("sub2", Z8002, MASTER_CLOCK/8) /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(z8002_map)
+	MCFG_CPU_PROGRAM_MAP(z8002_map_2)
 
 	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/8/2)      /* 1.536 MHz */
 	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0")) MCFG_DEVCB_MASK(0x0f)
@@ -920,6 +904,16 @@ static MACHINE_CONFIG_START( polepos )
 
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", polepos_state, polepos_scanline, "screen", 0, 1)
 
+	MCFG_DEVICE_ADD("latch", LS259, 0) // at 8E on polepos
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(CLEARLINE("maincpu", 0)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(polepos_state, iosel_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(polepos_state, clson_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(polepos_state, gasel_w))
+	MCFG_ADDRESSABLE_LATCH_Q4_OUT_CB(INPUTLINE("sub", INPUT_LINE_RESET)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q5_OUT_CB(INPUTLINE("sub2", INPUT_LINE_RESET)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q6_OUT_CB(WRITELINE(polepos_state, sb0_w))
+	MCFG_ADDRESSABLE_LATCH_Q7_OUT_CB(WRITELINE(polepos_state, chacl_w))
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/4, 384, 0, 256, 264, 16, 224+16)
@@ -962,12 +956,6 @@ WRITE8_MEMBER(polepos_state::bootleg_soundlatch_w)
 		m_soundlatch->write(space, 0, data | 0xfc);
 }
 
-READ8_MEMBER(polepos_state::sound_z80_nmi_ack_r)
-{
-	m_sound_z80->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return 0xff;
-}
-
 static ADDRESS_MAP_START( topracern_io, AS_IO, 8, polepos_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_IMPORT_FROM(z80_io)
@@ -982,7 +970,7 @@ static ADDRESS_MAP_START( sound_z80_bootleg_map, AS_PROGRAM, 8, polepos_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2700, 0x27ff) AM_RAM
 	AM_RANGE(0x4000, 0x4000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
-	AM_RANGE(0x6000, 0x6000) AM_READ(sound_z80_nmi_ack_r)
+	AM_RANGE(0x6000, 0x6000) AM_DEVREAD("soundlatch", generic_latch_8_device, acknowledge_r)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_z80_bootleg_iomap, AS_IO, 8, polepos_state )
@@ -998,10 +986,10 @@ static MACHINE_CONFIG_START( topracern )
 	MCFG_CPU_IO_MAP(topracern_io)
 
 	MCFG_CPU_ADD("sub", Z8002, MASTER_CLOCK/8)  /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(z8002_map)
+	MCFG_CPU_PROGRAM_MAP(z8002_map_1)
 
 	MCFG_CPU_ADD("sub2", Z8002, MASTER_CLOCK/8) /* 3.072 MHz */
-	MCFG_CPU_PROGRAM_MAP(z8002_map)
+	MCFG_CPU_PROGRAM_MAP(z8002_map_2)
 
 	/* todo, remove these devices too, this bootleg doesn't have them, but the emulation doesn't boot without them.. */
 	/* doesn't exist on the bootleg, but required for now or the game only boots in test mode!
@@ -1023,6 +1011,16 @@ static MACHINE_CONFIG_START( topracern )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", polepos_state, polepos_scanline, "screen", 0, 1)
+
+	MCFG_DEVICE_ADD("latch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(CLEARLINE("maincpu", 0)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(polepos_state, iosel_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(polepos_state, clson_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(polepos_state, gasel_w))
+	MCFG_ADDRESSABLE_LATCH_Q4_OUT_CB(INPUTLINE("sub", INPUT_LINE_RESET)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q5_OUT_CB(INPUTLINE("sub2", INPUT_LINE_RESET)) MCFG_DEVCB_INVERT
+	MCFG_ADDRESSABLE_LATCH_Q6_OUT_CB(WRITELINE(polepos_state, sb0_w))
+	MCFG_ADDRESSABLE_LATCH_Q7_OUT_CB(WRITELINE(polepos_state, chacl_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1055,8 +1053,7 @@ static MACHINE_CONFIG_START( topracern )
 	MCFG_SOUND_ADD("dac", DAC_4BIT_R2R, 0) // unknown resistor configuration
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.12)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( polepos2bi, topracern )
@@ -1066,7 +1063,8 @@ static MACHINE_CONFIG_DERIVED( polepos2bi, topracern )
 	MCFG_CPU_IO_MAP(sound_z80_bootleg_iomap)
 
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
-	MCFG_GENERIC_LATCH_DATA_PENDING_CB(ASSERTLINE("soundz80bl", INPUT_LINE_NMI))
+	MCFG_GENERIC_LATCH_DATA_PENDING_CB(INPUTLINE("soundz80bl", INPUT_LINE_NMI))
+	MCFG_GENERIC_LATCH_SEPARATE_ACKNOWLEDGE(true)
 
 	MCFG_SOUND_ADD("tms", TMS5220, 600000) /* ? Mhz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
@@ -1910,8 +1908,8 @@ ROM_START( polepos2 )
 
 	ROM_REGION( 0x8000, "52xx", 0 )
 	ROM_LOAD( "pp1_11.2e",    0x0000, 0x2000, CRC(45b9bfeb) SHA1(ff8c690471944d414931fb88666594ef608997f8) )    /* voice */
-	ROM_LOAD( "pp1_12.2f",    0x2000, 0x2000, CRC(a31b4be5) SHA1(38298093bb97ea8647fe187359cae05b65e1c616) )    /* voice */
-	ROM_LOAD( "pp1_13.1e",    0x4000, 0x2000, CRC(a4237466) SHA1(88a397276038cc2fc05f2c18472e6b7cef167f2e) )    /* voice */
+	ROM_LOAD( "pp1_13.1e",    0x2000, 0x2000, CRC(a4237466) SHA1(88a397276038cc2fc05f2c18472e6b7cef167f2e) )    /* voice */
+	ROM_LOAD( "pp1_12.2f",    0x4000, 0x2000, CRC(a31b4be5) SHA1(38298093bb97ea8647fe187359cae05b65e1c616) )    /* voice */
 	ROM_LOAD( "pp1_14.1f",    0x6000, 0x2000, CRC(944580f9) SHA1(c76f529cae718674ce97a1a599a3c6eaf6bf561a) )    /* voice */
 
 	/* unknown or unused (P)ROM data */

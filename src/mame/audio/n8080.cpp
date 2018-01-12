@@ -8,7 +8,6 @@
 
 #include "emu.h"
 #include "includes/n8080.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -129,10 +128,9 @@ void n8080_state::spacefev_sound_pins_changed()
 	{
 		start_mono_flop(2, attotime::from_usec(550 * 22 * 33));
 	}
-	if (changes & ((1 << 0x2) | (1 << 0x3) | (1 << 0x5)))
-	{
-		generic_pulse_irq_line(*m_audiocpu, 0, 2);
-	}
+
+	bool irq_active = (~m_curr_sound_pins & ((1 << 0x2) | (1 << 0x3) | (1 << 0x5))) != 0;
+	m_audiocpu->set_input_line(INPUT_LINE_IRQ0, irq_active ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -152,25 +150,22 @@ void n8080_state::sheriff_sound_pins_changed()
 	{
 		start_mono_flop(1, attotime::from_usec(550 * 33 * 33));
 	}
-	if (changes & ((1 << 0x2) | (1 << 0x3) | (1 << 0x5)))
-	{
-		generic_pulse_irq_line(*m_audiocpu, 0, 2);
-	}
+
+	bool irq_active = (~m_curr_sound_pins & ((1 << 0x2) | (1 << 0x3) | (1 << 0x5))) != 0;
+	m_audiocpu->set_input_line(INPUT_LINE_IRQ0, irq_active ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 void n8080_state::helifire_sound_pins_changed()
 {
-	uint16_t changes = ~m_curr_sound_pins & m_prev_sound_pins;
+	//uint16_t changes = ~m_curr_sound_pins & m_prev_sound_pins;
 
 	/* ((m_curr_sound_pins >> 0xa) & 1) not emulated */
 	/* ((m_curr_sound_pins >> 0xb) & 1) not emulated */
 	/* ((m_curr_sound_pins >> 0xc) & 1) not emulated */
 
-	if (changes & (1 << 6))
-	{
-		generic_pulse_irq_line(*m_audiocpu, 0, 2);
-	}
+	bool irq_active = (~m_curr_sound_pins & (1 << 6)) != 0;
+	m_audiocpu->set_input_line(INPUT_LINE_IRQ0, irq_active ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -475,7 +470,7 @@ static ADDRESS_MAP_START( helifire_sound_io_map, AS_IO, 8, n8080_state )
 ADDRESS_MAP_END
 
 
-MACHINE_CONFIG_FRAGMENT( spacefev_sound )
+MACHINE_CONFIG_START( spacefev_sound )
 
 	MCFG_SOUND_START_OVERRIDE(n8080_state,spacefev)
 	MCFG_SOUND_RESET_OVERRIDE(n8080_state,spacefev)
@@ -494,8 +489,7 @@ MACHINE_CONFIG_FRAGMENT( spacefev_sound )
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 
 	MCFG_SOUND_ADD("n8080_dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.15)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "n8080_dac", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
 	MCFG_SN76477_NOISE_PARAMS(RES_K(36), RES_K(150), CAP_N(1)) // noise + filter
@@ -515,7 +509,7 @@ MACHINE_CONFIG_FRAGMENT( spacefev_sound )
 MACHINE_CONFIG_END
 
 
-MACHINE_CONFIG_FRAGMENT( sheriff_sound )
+MACHINE_CONFIG_START( sheriff_sound )
 
 	MCFG_SOUND_START_OVERRIDE(n8080_state,sheriff)
 	MCFG_SOUND_RESET_OVERRIDE(n8080_state,sheriff)
@@ -532,8 +526,7 @@ MACHINE_CONFIG_FRAGMENT( sheriff_sound )
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 
 	MCFG_SOUND_ADD("n8080_dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.15)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "n8080_dac", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
 	MCFG_SN76477_NOISE_PARAMS(RES_K(36), RES_K(100), CAP_N(1)) // noise + filter
@@ -553,7 +546,7 @@ MACHINE_CONFIG_FRAGMENT( sheriff_sound )
 MACHINE_CONFIG_END
 
 
-MACHINE_CONFIG_FRAGMENT( helifire_sound )
+MACHINE_CONFIG_START( helifire_sound )
 
 	MCFG_SOUND_START_OVERRIDE(n8080_state,helifire)
 	MCFG_SOUND_RESET_OVERRIDE(n8080_state,helifire)
@@ -573,6 +566,5 @@ MACHINE_CONFIG_FRAGMENT( helifire_sound )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("helifire_dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.15) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "helifire_dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "helifire_dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END

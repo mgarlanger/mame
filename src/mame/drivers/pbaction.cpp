@@ -104,7 +104,7 @@ static ADDRESS_MAP_START( pbaction_map, AS_PROGRAM, 8, pbaction_state )
 	AM_RANGE(0xe800, 0xe800) AM_WRITE(pbaction_sh_command_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, pbaction_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, pbaction_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_SHARE("decrypted_opcodes")
 	AM_RANGE(0x8000, 0xbfff) AM_ROM AM_REGION("maincpu", 0x8000)
 ADDRESS_MAP_END
@@ -480,7 +480,7 @@ ROM_END
 READ8_MEMBER(pbaction_state::pbactio3_prot_kludge_r)
 {
 	/* on startup, the game expect this location to NOT act as RAM */
-	if (space.device().safe_pc() == 0xab80)
+	if (m_maincpu->pc() == 0xab80)
 		return 0;
 
 	return m_work_ram[0];
@@ -494,7 +494,7 @@ DRIVER_INIT_MEMBER(pbaction_state,pbactio3)
 	/* first of all, do a simple bitswap */
 	for (i = 0; i < 0xc000; i++)
 	{
-		rom[i] = BITSWAP8(rom[i], 7,6,5,4,1,2,3,0);
+		rom[i] = bitswap<8>(rom[i], 7,6,5,4,1,2,3,0);
 	}
 
 	/* install a protection (?) workaround */

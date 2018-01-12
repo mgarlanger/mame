@@ -76,6 +76,7 @@ Dip locations and factory settings verified with China Gate US manual.
 #include "cpu/m6809/m6809.h"
 #include "cpu/mcs48/mcs48.h"
 #include "cpu/z80/z80.h"
+#include "machine/timer.h"
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
 #include "sound/ym2151.h"
@@ -589,11 +590,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( saiyugoub1 )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, MAIN_CLOCK / 8)      /* 68B09EP 1.5 MHz (12MHz oscillator) */
+	MCFG_CPU_ADD("maincpu", MC6809E, MAIN_CLOCK / 8)      /* 68B09EP 1.5 MHz (12MHz oscillator) */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", chinagat_state, chinagat_scanline, "screen", 0, 1)
 
-	MCFG_CPU_ADD("sub", M6809, MAIN_CLOCK / 8)      /* 68B09EP 1.5 MHz (12MHz oscillator) */
+	MCFG_CPU_ADD("sub", MC6809E, MAIN_CLOCK / 8)      /* 68B09EP 1.5 MHz (12MHz oscillator) */
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 
 	MCFG_CPU_ADD("soundcpu", Z80, XTAL_3_579545MHz)     /* 3.579545 MHz oscillator */
@@ -645,11 +646,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( saiyugoub2 )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, MAIN_CLOCK / 8)      /* 1.5 MHz (12MHz oscillator) */
+	MCFG_CPU_ADD("maincpu", MC6809E, MAIN_CLOCK / 8)      /* 1.5 MHz (12MHz oscillator) */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", chinagat_state, chinagat_scanline, "screen", 0, 1)
 
-	MCFG_CPU_ADD("sub", M6809, MAIN_CLOCK / 8)      /* 1.5 MHz (12MHz oscillator) */
+	MCFG_CPU_ADD("sub", MC6809E, MAIN_CLOCK / 8)      /* 1.5 MHz (12MHz oscillator) */
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 
 	MCFG_CPU_ADD("soundcpu", Z80, XTAL_3_579545MHz)     /* 3.579545 MHz oscillator */

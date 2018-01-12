@@ -88,7 +88,7 @@
 
 #define MCFG_CDP1869_ADD(_tag, _pixclock, _map) \
 		MCFG_DEVICE_ADD(_tag, CDP1869, _pixclock) \
-		MCFG_DEVICE_ADDRESS_MAP(AS_0, _map)
+		MCFG_DEVICE_ADDRESS_MAP(0, _map)
 
 #define MCFG_CDP1869_SCREEN_PAL_ADD(_cdptag, _tag, _clock) \
 		MCFG_SCREEN_ADD(_tag, RASTER) \
@@ -195,8 +195,6 @@ public:
 	static void static_set_pcb_read(device_t &device, pcb_read_delegate &&cb) { downcast<cdp1869_device &>(device).m_in_pcb_func = std::move(cb); }
 	static void static_set_color_clock(device_t &device, int color_clock) { downcast<cdp1869_device &>(device).m_color_clock = color_clock; }
 
-	DECLARE_PALETTE_INIT(cdp1869);
-
 	virtual DECLARE_ADDRESS_MAP(io_map, 8);
 	virtual DECLARE_ADDRESS_MAP(char_map, 8);
 	virtual DECLARE_ADDRESS_MAP(page_map, 8);
@@ -220,13 +218,13 @@ public:
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_post_load() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_sound_interface callbacks
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
@@ -286,6 +284,8 @@ private:
 	uint8_t m_toneamp;                // tone output amplitude
 	uint8_t m_wnfreq;                 // white noise range select
 	uint8_t m_wnamp;                  // white noise output amplitude
+
+	DECLARE_PALETTE_INIT(cdp1869);
 };
 
 

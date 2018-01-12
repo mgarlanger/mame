@@ -185,7 +185,7 @@ void tc0080vco_device::device_start()
 	m_scroll_ram    = m_ram.get() + 0x20800 / 2;
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	m_gfxdecode->set_gfx(m_txnum, std::make_unique<gfx_element>(m_gfxdecode->palette(), charlayout, (uint8_t *)m_char_ram, 0, 1, 512));
+	m_gfxdecode->set_gfx(m_txnum, std::make_unique<gfx_element>(&m_gfxdecode->palette(), charlayout, (uint8_t *)m_char_ram, 0, 1, 512));
 
 	save_pointer(NAME(m_ram.get()), TC0080VCO_RAM_SIZE / 2);
 	machine().save().register_postload(save_prepost_delegate(FUNC(tc0080vco_device::postload), this));
@@ -665,22 +665,22 @@ void tc0080vco_device::tilemap_draw( screen_device &screen, bitmap_ind16 &bitmap
 
 /* FIXME: maybe it would be better to provide pointers to these RAM regions
 which can be accessed directly by the drivers... */
-READ16_MEMBER( tc0080vco_device::cram_0_r )
+uint16_t tc0080vco_device::cram_0_r(int offset)
 {
 	return m_chain_ram_0[offset];
 }
 
-READ16_MEMBER( tc0080vco_device::cram_1_r )
+uint16_t tc0080vco_device::cram_1_r(int offset)
 {
 	return m_chain_ram_1[offset];
 }
 
-READ16_MEMBER( tc0080vco_device::sprram_r )
+uint16_t tc0080vco_device::sprram_r(int offset)
 {
 	return m_spriteram[offset];
 }
 
-READ16_MEMBER( tc0080vco_device::scrram_r )
+uint16_t tc0080vco_device::scrram_r(int offset)
 {
 	return m_scroll_ram[offset];
 }

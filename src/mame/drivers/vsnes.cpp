@@ -85,7 +85,6 @@ Needed roms:
 - Head to Head Baseball      (ever finished/released?, by Nintendo, 1986)
 - Lionex                     (prototype by Sunsoft, 1987)
 - Madura no Tsubasa          (prototype by Sunsoft, 1987)
-- Predators                  (prototype by Williams, 1984)
 - Pro Yakyuu Family Stadium  (by Namco, 1986; Japan version of RBI Baseball)
 - Quest of Ki                (by Namco/Game Studio, 1988)
 - Super Chinese              (by Namco/Culture Brain, 1988)
@@ -173,7 +172,7 @@ WRITE8_MEMBER(vsnes_state::vsnes_coin_counter_w)
 		//"bnglngby" and "cluclu"
 	if( data & 0xfe )
 	{
-		logerror("vsnes_coin_counter_w: pc = 0x%04x - data = 0x%02x\n", space.device().safe_pc(), data);
+		logerror("vsnes_coin_counter_w: pc = 0x%04x - data = 0x%02x\n", m_maincpu->pc(), data);
 	}
 }
 
@@ -189,7 +188,7 @@ WRITE8_MEMBER(vsnes_state::vsnes_coin_counter_1_w)
 	if( data & 0xfe ) //vsbball service mode
 	{
 	//do something?
-		logerror("vsnes_coin_counter_1_w: pc = 0x%04x - data = 0x%02x\n", space.device().safe_pc(), data);
+		logerror("vsnes_coin_counter_1_w: pc = 0x%04x - data = 0x%02x\n", m_subcpu->pc(), data);
 	}
 
 }

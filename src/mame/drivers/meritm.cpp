@@ -157,6 +157,7 @@ xx = game/version code:
  60 - Megatouch 5
  70 - Megatouch 5 Tournament
  80 - Megatouch 6
+ 90 - Megatouch 7 Encore
 
 Not all regional versions are available for each Megatouch series
  For Megatouch 4,       set 9255-40-62 is Croatia
@@ -180,6 +181,7 @@ Not all regional versions are available for each Megatouch series
 #include "machine/ins8250.h"
 #include "machine/microtch.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "machine/watchdog.h"
 #include "machine/z80pio.h"
 #include "sound/ay8910.h"
@@ -256,7 +258,7 @@ public:
 	DECLARE_MACHINE_START(meritm_crt250_crt252_crt258);
 	DECLARE_MACHINE_START(meritm_crt260);
 	DECLARE_MACHINE_START(merit_common);
-	uint32_t screen_update_meritm(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	uint32_t screen_update_meritm(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(vblank_start_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(vblank_end_tick);
 	void meritm_crt250_switch_banks(  );
@@ -332,7 +334,7 @@ void meritm_state::video_start()
 	save_item(NAME(m_interrupt_vdp1_state));
 }
 
-uint32_t meritm_state::screen_update_meritm(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+uint32_t meritm_state::screen_update_meritm(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	if(machine().input().code_pressed_once(KEYCODE_Q))
 	{
@@ -345,7 +347,7 @@ uint32_t meritm_state::screen_update_meritm(screen_device &screen, bitmap_ind16 
 		popmessage("Layer 1 %sabled",m_layer1_enabled ? "en" : "dis");
 	}
 
-	bitmap.fill(m_v9938_0->black_pen(), cliprect);
+	bitmap.fill(rgb_t::black(), cliprect);
 
 	if ( m_layer0_enabled )
 	{
@@ -354,7 +356,7 @@ uint32_t meritm_state::screen_update_meritm(screen_device &screen, bitmap_ind16 
 
 	if ( m_layer1_enabled )
 	{
-		copybitmap_trans(bitmap, m_v9938_1->get_bitmap(), 0, 0, -6, -12, cliprect, m_v9938_1->get_transpen());
+		copybitmap_transalpha(bitmap, m_v9938_1->get_bitmap(), 0, 0, -6, -12, cliprect);
 	}
 	return 0;
 }
@@ -396,7 +398,7 @@ void meritm_state::meritm_switch_banks(  )
 WRITE8_MEMBER(meritm_state::meritm_psd_a15_w)
 {
 	m_psd_a15 = data;
-	//logerror( "Writing PSD_A15 with %02x at PC=%04X\n", data, space.device().safe_pc() );
+	//logerror( "Writing PSD_A15 with %02x at PC=%04X\n", data, m_maincpu->pc() );
 	meritm_switch_banks();
 }
 

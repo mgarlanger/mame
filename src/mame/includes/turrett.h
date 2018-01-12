@@ -113,12 +113,12 @@ protected:
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override;
+	virtual space_config_vector memory_space_config() const override;
 
 	const address_space_config  m_space_config;
 
 private:
-	direct_read_data *m_direct;
+	direct_read_data<0> *m_direct;
 	sound_stream *m_stream;
 
 	struct

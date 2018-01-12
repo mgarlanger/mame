@@ -184,6 +184,9 @@
 #include "emu.h"
 #include "includes/slapstic.h"
 
+#include "cpu/m6800/m6800.h"
+#include "cpu/m68000/m68000.h"
+
 
 /*************************************
  *
@@ -832,7 +835,7 @@ int atari_slapstic_device::alt2_kludge(address_space &space, offs_t offset)
 		if (MATCHES_MASK_VALUE(space.device().safe_pc() >> 1, slapstic.alt1))
 		{
 			/* now look for a move.w (An),(An) or cmpm.w (An)+,(An)+ */
-			uint16_t opcode = space.direct().read_word(space.device().safe_pcbase() & 0xffffff);
+			uint16_t opcode = space.read_word(space.device().safe_pcbase() & 0xffffff);
 			if ((opcode & 0xf1f8) == 0x3090 || (opcode & 0xf1f8) == 0xb148)
 			{
 				/* fetch the value of the register for the second operand, and see */
@@ -1074,7 +1077,7 @@ int atari_slapstic_device::slapstic_tweak(address_space &space, offs_t offset)
 
 	/* log this access */
 	if (LOG_SLAPSTIC)
-		slapstic_log(space.machine(), offset);
+		slapstic_log(machine(), offset);
 
 	/* return the active bank */
 	return current_bank;
@@ -1102,7 +1105,7 @@ void atari_slapstic_device::slapstic_log(running_machine &machine, offs_t offset
 			fprintf(slapsticlog, "------------------------------------\n");
 		last_time = time;
 
-		fprintf(slapsticlog, "%s: %04X B=%d ", machine.describe_context(), offset, current_bank);
+		fprintf(slapsticlog, "%s: %04X B=%d ", machine.describe_context().c_str(), offset, current_bank);
 		switch (state)
 		{
 			case DISABLED:

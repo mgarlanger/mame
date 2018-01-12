@@ -20,6 +20,7 @@
 
 #include "emu.h"
 #include "amis2000.h"
+#include "amis2000d.h"
 #include "debugger.h"
 
 
@@ -68,6 +69,14 @@ amis2152_cpu_device::amis2152_cpu_device(const machine_config &mconfig, const ch
 	: amis2000_base_device(mconfig, AMI_S2152, tag, owner, clock, 3, 11, 3, 13, ADDRESS_MAP_NAME(program_1_5k), 7, ADDRESS_MAP_NAME(data_80x4))
 { }
 
+device_memory_interface::space_config_vector amis2000_base_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config)
+	};
+}
+
 
 //-------------------------------------------------
 //  state_string_export - export state as a string
@@ -90,10 +99,9 @@ void amis2000_base_device::state_string_export(const device_state_entry &entry, 
 	}
 }
 
-offs_t amis2000_base_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *amis2000_base_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE(amis2000);
-	return CPU_DISASSEMBLE_NAME(amis2000)(this, stream, pc, oprom, opram, options);
+	return new amis2000_disassembler;
 }
 
 

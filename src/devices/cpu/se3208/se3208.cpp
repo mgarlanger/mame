@@ -2,6 +2,7 @@
 // copyright-holders:ElSemi
 #include "emu.h"
 #include "se3208.h"
+#include "se3208dis.h"
 
 #include "debugger.h"
 
@@ -52,6 +53,12 @@ se3208_device::se3208_device(const machine_config &mconfig, const char *tag, dev
 	, m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0)
 	, m_PC(0), m_SR(0), m_SP(0), m_ER(0), m_PPC(0), m_program(nullptr), m_direct(nullptr), m_IRQ(0), m_NMI(0), m_icount(0)
 {
+}
+device_memory_interface::space_config_vector se3208_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -1714,7 +1721,7 @@ void se3208_device::device_reset()
 	m_ER = 0;
 	m_PPC = 0;
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 	m_PC=SE3208_Read32(0);
 	m_SR=0;
 	m_IRQ=CLEAR_LINE;
@@ -1779,7 +1786,7 @@ void se3208_device::device_start()
 	BuildTable();
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	save_item(NAME(m_R));
 	save_item(NAME(m_PC));
@@ -1841,8 +1848,7 @@ void se3208_device::execute_set_input( int line, int state )
 		m_IRQ=state;
 }
 
-offs_t se3208_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *se3208_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( se3208 );
-	return CPU_DISASSEMBLE_NAME(se3208)(this, stream, pc, oprom, opram, options);
+	return new se3208_disassembler;
 }

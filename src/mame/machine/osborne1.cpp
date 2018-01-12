@@ -42,19 +42,18 @@ READ8_MEMBER( osborne1_state::bank_2xxx_3xxx_r )
 		data &= m_pia0->read(space, offset & 0x03);
 	if ((offset & 0xA00) == 0x200) // Keyboard
 	{
-		if (offset & 0x01) data &= m_keyb_row0->read();
-		if (offset & 0x02) data &= m_keyb_row1->read();
-		if (offset & 0x04) data &= m_keyb_row3->read();
-		if (offset & 0x08) data &= m_keyb_row4->read();
-		if (offset & 0x10) data &= m_keyb_row5->read();
-		if (offset & 0x20) data &= m_keyb_row2->read();
-		if (offset & 0x40) data &= m_keyb_row6->read();
-		if (offset & 0x80) data &= m_keyb_row7->read();
+		if (offset & 0x01) data &= m_keyb_row[0]->read();
+		if (offset & 0x02) data &= m_keyb_row[1]->read();
+		if (offset & 0x04) data &= m_keyb_row[3]->read();
+		if (offset & 0x08) data &= m_keyb_row[4]->read();
+		if (offset & 0x10) data &= m_keyb_row[5]->read();
+		if (offset & 0x20) data &= m_keyb_row[2]->read();
+		if (offset & 0x40) data &= m_keyb_row[6]->read();
+		if (offset & 0x80) data &= m_keyb_row[7]->read();
 	}
 	if ((offset & 0xA00) == 0xA00) // Serial
 	{
-		if (offset & 0x01) data &= m_acia->data_r(space, 0);
-		else data &= m_acia->status_r(space, 0);
+		data &= m_acia->read(space, offset & 0x01);
 	}
 	if ((offset & 0xC00) == 0x400) // SCREEN-PAC
 	{
@@ -80,8 +79,7 @@ WRITE8_MEMBER( osborne1_state::bank_2xxx_3xxx_w )
 			m_pia0->write(space, offset & 0x03, data);
 		if ((offset & 0xA00) == 0xA00) // Serial
 		{
-			if (offset & 0x01) m_acia->data_w(space, 0, data);
-			else m_acia->control_w(space, 0, data);
+			m_acia->write(space, offset & 0x01, data);
 		}
 		if ((offset & 0xC00) == 0x400) // SCREEN-PAC
 		{
@@ -267,13 +265,13 @@ DRIVER_INIT_MEMBER( osborne1_state, osborne1 )
 	m_bank_fxxx->configure_entries(0, 1, m_ram->pointer() + 0xF000, 0);
 	m_bank_fxxx->configure_entries(1, 1, m_ram->pointer() + 0x10000, 0);
 
-	m_video_timer = timer_alloc(TIMER_VIDEO);
+	m_video_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(osborne1_state::video_callback), this));
 	m_tilemap = &machine().tilemap().create(
 			*m_gfxdecode,
 			tilemap_get_info_delegate(FUNC(osborne1_state::get_tile_info), this), TILEMAP_SCAN_ROWS,
 			8, 10, 128, 32);
 
-	m_acia_rxc_txc_timer = timer_alloc(TIMER_ACIA_RXC_TXC);
+	m_acia_rxc_txc_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(osborne1_state::acia_rxc_txc_callback), this));
 
 	save_item(NAME(m_screen_pac));
 	save_item(NAME(m_acia_rxc_txc_div));
@@ -357,22 +355,6 @@ uint32_t osborne1_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
 }
 
 
-void osborne1_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	switch (id)
-	{
-	case TIMER_VIDEO:
-		video_callback(ptr, param);
-		break;
-	case TIMER_ACIA_RXC_TXC:
-		m_acia_rxc_txc_state = m_acia_rxc_txc_state ? 0 : 1;
-		update_acia_rxc_txc();
-		break;
-	default:
-		assert_always(false, "Unknown id in osborne1_state::device_timer");
-	}
-}
-
 TIMER_CALLBACK_MEMBER(osborne1_state::video_callback)
 {
 	int const y = machine().first_screen()->vpos();
@@ -449,6 +431,12 @@ TIMER_CALLBACK_MEMBER(osborne1_state::video_callback)
 	m_speaker->level_w((BIT(port_b, 5) && m_beep_state) ? 1 : 0);
 
 	m_video_timer->adjust(machine().first_screen()->time_until_pos(y + 1, 0));
+}
+
+TIMER_CALLBACK_MEMBER(osborne1_state::acia_rxc_txc_callback)
+{
+	m_acia_rxc_txc_state = m_acia_rxc_txc_state ? 0 : 1;
+	update_acia_rxc_txc();
 }
 
 

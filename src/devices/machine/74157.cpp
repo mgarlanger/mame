@@ -20,25 +20,39 @@
 //  74LS157 DEVICE
 //**************************************************************************
 
-DEFINE_DEVICE_TYPE(LS157, ls157_device, "74ls157", "74LS157 Quad 2-to-1 Multiplexer")
+DEFINE_DEVICE_TYPE(LS157, ls157_device, "ls157", "74LS157 Quad 2-to-1 Multiplexer")
+DEFINE_DEVICE_TYPE(LS157_X2, ls157_x2_device, "ls157_x2", "74LS157 Quad 2-to-1 Multiplexer (x2)")
 
 //-------------------------------------------------
 //  ls157_device - constructor
 //-------------------------------------------------
 
 ls157_device::ls157_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ls157_device(mconfig, LS157, tag, owner, clock)
+	: ls157_device(mconfig, LS157, tag, owner, clock, 0x0f)
 {
 }
 
-ls157_device::ls157_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock)
+ls157_device::ls157_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u8 mask)
 	: device_t(mconfig, type, tag, owner, clock)
+	, m_a_in_cb(*this)
+	, m_b_in_cb(*this)
 	, m_out_cb(*this)
+	, m_data_mask(mask)
 {
 	m_a = 0;
 	m_b = 0;
 	m_select = false;
 	m_strobe = false;
+}
+
+
+//-------------------------------------------------
+//  ls157_x2_device - constructor
+//-------------------------------------------------
+
+ls157_x2_device::ls157_x2_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: ls157_device(mconfig, LS157_X2, tag, owner, clock, 0xff)
+{
 }
 
 
@@ -50,7 +64,9 @@ ls157_device::ls157_device(const machine_config &mconfig, device_type type, cons
 void ls157_device::device_start()
 {
 	// resolve callbacks
-	m_out_cb.resolve_safe();
+	m_a_in_cb.resolve();
+	m_b_in_cb.resolve();
+	m_out_cb.resolve();
 
 	// register items for save state
 	save_item(NAME(m_a));
@@ -75,7 +91,7 @@ WRITE8_MEMBER(ls157_device::a_w)
 
 void ls157_device::a_w(u8 data)
 {
-	m_a = data & 0xf;
+	m_a = data & m_data_mask;
 	update_output();
 }
 
@@ -91,7 +107,7 @@ WRITE8_MEMBER(ls157_device::b_w)
 
 void ls157_device::b_w(u8 data)
 {
-	m_b = data & 0xf;
+	m_b = data & m_data_mask;
 	update_output();
 }
 
@@ -108,6 +124,7 @@ WRITE8_MEMBER(ls157_device::ab_w)
 
 void ls157_device::ab_w(u8 data)
 {
+	assert(m_data_mask == 0x0f);
 	m_a = data >> 4;
 	m_b = data & 0xf;
 	update_output();
@@ -126,6 +143,7 @@ WRITE8_MEMBER(ls157_device::ba_w)
 
 void ls157_device::ba_w(u8 data)
 {
+	assert(m_data_mask == 0x0f);
 	m_b = data >> 4;
 	m_a = data & 0xf;
 	update_output();
@@ -144,15 +162,58 @@ WRITE8_MEMBER(ls157_device::interleave_w)
 
 void ls157_device::interleave_w(u8 data)
 {
-	m_b = ((data >> 4) & 8)
-		| ((data >> 3) & 4)
-		| ((data >> 2) & 2)
-		| ((data >> 1) & 1);
-	m_a = ((data >> 3) & 8)
-		| ((data >> 2) & 4)
-		| ((data >> 1) & 2)
-		| ((data >> 0) & 1);
+	assert(m_data_mask == 0x0f);
+	m_b = bitswap<4>(data, 7, 5, 3, 1);
+	m_a = bitswap<4>(data, 6, 4, 2, 0);
 	update_output();
+}
+
+
+//-------------------------------------------------
+//  aN_w -- update one bit of first data input
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(ls157_device::a0_w) { write_a_bit(0, state); }
+WRITE_LINE_MEMBER(ls157_device::a1_w) { write_a_bit(1, state); }
+WRITE_LINE_MEMBER(ls157_device::a2_w) { write_a_bit(2, state); }
+WRITE_LINE_MEMBER(ls157_device::a3_w) { write_a_bit(3, state); }
+
+void ls157_device::write_a_bit(int bit, bool state)
+{
+	if (BIT(m_a, bit) != state)
+	{
+		if (state)
+			m_a |= (1 << bit);
+		else
+			m_a &= ~(1 << bit);
+
+		if (!m_strobe && !m_select && !m_out_cb.isnull())
+			m_out_cb(m_a);
+	}
+}
+
+
+//-------------------------------------------------
+//  bN_w -- update one bit of second data input
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(ls157_device::b0_w) { write_b_bit(0, state); }
+WRITE_LINE_MEMBER(ls157_device::b1_w) { write_b_bit(1, state); }
+WRITE_LINE_MEMBER(ls157_device::b2_w) { write_b_bit(2, state); }
+WRITE_LINE_MEMBER(ls157_device::b3_w) { write_b_bit(3, state); }
+
+void ls157_device::write_b_bit(int bit, bool state)
+{
+	if (BIT(m_b, bit) != state)
+	{
+		if (state)
+			m_b |= (1 << bit);
+		else
+			m_b &= ~(1 << bit);
+
+		if (!m_strobe && m_select && !m_out_cb.isnull())
+			m_out_cb(m_b);
+	}
 }
 
 
@@ -185,10 +246,10 @@ WRITE_LINE_MEMBER(ls157_device::strobe_w)
 		m_strobe = bool(state);
 
 		// Clear output when strobe goes high
-		if (m_strobe)
+		if (m_strobe && !m_out_cb.isnull())
 			m_out_cb(0);
 		else
-			m_out_cb(m_select ? m_b : m_a);
+			update_output();
 	}
 }
 
@@ -202,8 +263,40 @@ void ls157_device::update_output()
 {
 	// S high, strobe low: Y1-Y4 = B1-B4
 	// S low, strobe low:  Y1-Y4 = A1-A4
-	if (!m_strobe)
-		m_out_cb(m_select ? m_b : m_a);
+	if (!m_strobe && !m_out_cb.isnull())
+	{
+		if (m_select)
+			m_out_cb(m_b_in_cb.isnull() ? m_b : (m_b_in_cb() & m_data_mask));
+		else
+			m_out_cb(m_a_in_cb.isnull() ? m_a : (m_a_in_cb() & m_data_mask));
+	}
+}
+
+
+//**************************************************************************
+//  DATA OUTPUTS
+//**************************************************************************
+
+READ8_MEMBER(ls157_device::output_r)
+{
+	if (m_strobe)
+		return 0;
+	else if (m_select)
+		return m_b_in_cb.isnull() ? m_b : (m_b_in_cb() & m_data_mask);
+	else
+		return m_a_in_cb.isnull() ? m_a : (m_a_in_cb() & m_data_mask);
+}
+
+
+//**************************************************************************
+//  74HC157 DEVICE
+//**************************************************************************
+
+DEFINE_DEVICE_TYPE(HC157, hc157_device, "hc157", "74HC157 Quad 2-to-1 Multiplexer")
+
+hc157_device::hc157_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
+	: ls157_device(mconfig, HC157, tag, owner, clock, 0x0f)
+{
 }
 
 
@@ -211,9 +304,9 @@ void ls157_device::update_output()
 //  74HCT157 DEVICE
 //**************************************************************************
 
-DEFINE_DEVICE_TYPE(HCT157, hct157_device, "74hct157", "74HCT157 Quad 2-to-1 Multiplexer")
+DEFINE_DEVICE_TYPE(HCT157, hct157_device, "hct157", "74HCT157 Quad 2-to-1 Multiplexer")
 
 hct157_device::hct157_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
-	: ls157_device(mconfig, HCT157, tag, owner, clock)
+	: ls157_device(mconfig, HCT157, tag, owner, clock, 0x0f)
 {
 }

@@ -98,13 +98,13 @@
 
 WRITE16_MEMBER(bionicc_state::hacked_controls_w)
 {
-	logerror("%06x: hacked_controls_w %04x %02x\n", space.device().safe_pc(), offset, data);
+	logerror("%06x: hacked_controls_w %04x %02x\n", m_maincpu->pc(), offset, data);
 	COMBINE_DATA(&m_inp[offset]);
 }
 
 READ16_MEMBER(bionicc_state::hacked_controls_r)
 {
-	logerror("%06x: hacked_controls_r %04x %04x\n", space.device().safe_pc(), offset, m_inp[offset]);
+	logerror("%06x: hacked_controls_r %04x %04x\n", m_maincpu->pc(), offset, m_inp[offset]);
 	return m_inp[offset];
 }
 
@@ -171,6 +171,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, bionicc_state )
 	AM_RANGE(0xfe4000, 0xfe4001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0xfe4002, 0xfe4003) AM_READ_PORT("DSW")
 	AM_RANGE(0xfe8010, 0xfe8017) AM_WRITE(scroll_w)
+	AM_RANGE(0xfe8018, 0xfe8019) AM_WRITENOP // vblank irq ack?
 	AM_RANGE(0xfe801a, 0xfe801b) AM_WRITE(mpu_trigger_w)    /* ??? not sure, but looks like it */
 	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_WRITE(txvideoram_w) AM_SHARE("txvideoram")
 	AM_RANGE(0xff0000, 0xff3fff) AM_RAM_WRITE(fgvideoram_w) AM_SHARE("fgvideoram")
@@ -389,7 +390,7 @@ static MACHINE_CONFIG_START( bionicc )
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* FIXME: should be 257 visible horizontal pixels, first visible pixel should be repeated, back porch/front porch should be separated */
-	MCFG_SCREEN_RAW_PARAMS(XTAL_24MHz / 4, 386, 0, 256, 260, 0, 224)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_24MHz / 4, 386, 0, 256, 260, 16, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(bionicc_state, screen_update)
 	MCFG_SCREEN_VBLANK_CALLBACK(DEVWRITELINE("spriteram", buffered_spriteram16_device, vblank_copy_rising))
 	MCFG_SCREEN_PALETTE("palette")

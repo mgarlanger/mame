@@ -173,7 +173,7 @@ TIMER_CALLBACK_MEMBER( speech_sound_device::delayed_speech_w )
 
 WRITE8_MEMBER( speech_sound_device::data_w )
 {
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(speech_sound_device::delayed_speech_w), this), data);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(speech_sound_device::delayed_speech_w), this), data);
 }
 
 
@@ -215,7 +215,7 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-MACHINE_CONFIG_FRAGMENT( sega_speech_board )
+MACHINE_CONFIG_START( sega_speech_board )
 
 	/* CPU for the speech board */
 	MCFG_CPU_ADD("audiocpu", I8035, SPEECH_MASTER_CLOCK)        /* divide by 15 in CPU */
@@ -418,10 +418,10 @@ TIMER_CALLBACK_MEMBER( usb_sound_device::delayed_usb_data_w )
 WRITE8_MEMBER( usb_sound_device::data_w )
 {
 	LOG("%04X:usb_data_w = %02X\n", m_maincpu->safe_pc(), data);
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(usb_sound_device::delayed_usb_data_w), this), data);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(usb_sound_device::delayed_usb_data_w), this), data);
 
 	/* boost the interleave so that sequences can be sent */
-	space.machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
+	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
 }
 
 
@@ -853,13 +853,11 @@ static ADDRESS_MAP_START( usb_portmap, AS_IO, 8, usb_sound_device )
 ADDRESS_MAP_END
 
 
-/*************************************
- *
- *  USB machine drivers
- *
- *************************************/
+//-------------------------------------------------
+// device_add_mconfig - add device configuration
+//-------------------------------------------------
 
-MACHINE_CONFIG_FRAGMENT( segausb )
+MACHINE_CONFIG_MEMBER( usb_sound_device::device_add_mconfig )
 
 	/* CPU for the usb board */
 	MCFG_CPU_ADD("ourcpu", I8035, USB_MASTER_CLOCK)     /* divide by 15 in CPU */
@@ -873,10 +871,6 @@ MACHINE_CONFIG_FRAGMENT( segausb )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("usb_timer", usb_sound_device, increment_t1_clock_timer_cb, attotime::from_hz(USB_2MHZ_CLOCK / 256))
 MACHINE_CONFIG_END
 
-machine_config_constructor usb_sound_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( segausb );
-}
 
 DEFINE_DEVICE_TYPE(SEGAUSBROM, usb_rom_sound_device, "segausbrom", "Sega Universal Sound Board with ROM")
 
@@ -889,17 +883,10 @@ static ADDRESS_MAP_START( usb_map_rom, AS_PROGRAM, 8, usb_sound_device )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM AM_REGION(":usbcpu", 0)
 ADDRESS_MAP_END
 
-MACHINE_CONFIG_FRAGMENT( segausb_rom )
+MACHINE_CONFIG_MEMBER( usb_rom_sound_device::device_add_mconfig )
+	usb_sound_device::device_add_mconfig(config);
 
 	/* CPU for the usb board */
-	MCFG_CPU_ADD("ourcpu", I8035, USB_MASTER_CLOCK)     /* divide by 15 in CPU */
+	MCFG_CPU_MODIFY("ourcpu")
 	MCFG_CPU_PROGRAM_MAP(usb_map_rom)
-	MCFG_CPU_IO_MAP(usb_portmap)
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("usb_timer", usb_sound_device, increment_t1_clock_timer_cb, attotime::from_hz(USB_2MHZ_CLOCK / 256))
 MACHINE_CONFIG_END
-
-machine_config_constructor usb_rom_sound_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( segausb_rom );
-}

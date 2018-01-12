@@ -49,6 +49,7 @@ To do:
 #include "machine/ticket.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
+#include "video/ramdac.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -92,9 +93,9 @@ public:
 		m_oki(*this, "oki"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_screen(*this, "screen"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_hopper(*this, "hopper") { }
 
-	std::unique_ptr<uint8_t[]> m_hm86171_colorram;
 	layer_t m_layers[2];
 	uint8_t m_ss9601_byte_lo;
 	uint8_t m_ss9601_byte_lo2;
@@ -103,7 +104,6 @@ public:
 	uint8_t m_ss9601_scrollctrl;
 	uint8_t m_ss9601_tilesize;
 	uint8_t m_ss9601_disable;
-	int m_hm86171_offs;
 	uint8_t m_dsw_mask;
 	optional_shared_ptr<uint16_t> m_outputs16;
 	optional_shared_ptr<uint8_t> m_outputs;
@@ -140,7 +140,6 @@ public:
 	DECLARE_READ8_MEMBER(ss9601_scrollram_1_hi_r);
 	DECLARE_READ8_MEMBER(ss9601_scrollram_1_lo_r);
 	DECLARE_WRITE8_MEMBER(ss9601_disable_w);
-	DECLARE_WRITE8_MEMBER(hm86171_colorram_w);
 	DECLARE_WRITE8_MEMBER(dsw_mask_w);
 	DECLARE_READ8_MEMBER(dsw_r);
 	DECLARE_READ8_MEMBER(vblank_bit2_r);
@@ -182,6 +181,7 @@ public:
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
+	optional_device<ticket_dispenser_device> m_hopper;
 
 private:
 	inline void ss9601_get_tile_info(layer_t *l, tile_data &tileinfo, tilemap_memory_index tile_index);
@@ -605,8 +605,6 @@ WRITE8_MEMBER(subsino2_state::ss9601_disable_w)
 
 VIDEO_START_MEMBER(subsino2_state,subsino2)
 {
-	m_hm86171_colorram = std::make_unique<uint8_t[]>(256*3);
-
 	// SS9601 Regs:
 
 	m_ss9601_tilesize       =   TILE_8x8;
@@ -786,39 +784,6 @@ uint32_t subsino2_state::screen_update_subsino2(screen_device &screen, bitmap_in
 }
 
 /***************************************************************************
-                Palette: HMC HM86171 VGA 256 colour RAMDAC
-***************************************************************************/
-
-
-WRITE8_MEMBER(subsino2_state::hm86171_colorram_w)
-{
-	switch (offset)
-	{
-		case 0:
-			m_hm86171_offs = data * 3;
-			break;
-
-		case 1:
-			m_hm86171_colorram[m_hm86171_offs] = data;
-			m_palette->set_pen_color(m_hm86171_offs/3,
-				pal6bit(m_hm86171_colorram[(m_hm86171_offs/3)*3+0]),
-				pal6bit(m_hm86171_colorram[(m_hm86171_offs/3)*3+1]),
-				pal6bit(m_hm86171_colorram[(m_hm86171_offs/3)*3+2])
-			);
-			m_hm86171_offs = (m_hm86171_offs+1) % (256*3);
-			break;
-
-		case 2:
-			// ff?
-			break;
-
-		case 3:
-			break;
-	}
-}
-
-
-/***************************************************************************
                                 Input / Output
 ***************************************************************************/
 
@@ -910,7 +875,7 @@ READ16_MEMBER(subsino2_state::bishjan_input_r)
 
 	return  (res << 8) |                    // high byte
 			ioport("SYSTEM")->read() |      // low byte
-			(machine().device<ticket_dispenser_device>("hopper")->read(space, 0) ? 0x00 : 0x04) // bit 2: hopper sensor
+			(machine().device<ticket_dispenser_device>("hopper")->line_r() ? 0x00 : 0x04) // bit 2: hopper sensor
 	;
 }
 
@@ -923,9 +888,9 @@ WRITE16_MEMBER(subsino2_state::bishjan_outputs_w)
 		case 0:
 			if (ACCESSING_BITS_0_7)
 			{
-				// coin out         data & 0x01;
-				machine().device<ticket_dispenser_device>("hopper")->write(space, 0, (data & 0x0002) ? 0x80 : 0);   // hopper
-				machine().bookkeeping().coin_counter_w(0,    data & 0x0010 );
+				// coin out         BIT(data, 0)
+				m_hopper->motor_w(BIT(data, 1));   // hopper
+				machine().bookkeeping().coin_counter_w(0, BIT(data, 4));
 			}
 			break;
 	}
@@ -967,7 +932,9 @@ static ADDRESS_MAP_START( bishjan_map, AS_PROGRAM, 16, subsino2_state )
 
 	AM_RANGE( 0x600000, 0x600001 ) AM_READNOP AM_WRITE(bishjan_sound_w )
 	AM_RANGE( 0x600040, 0x600041 ) AM_WRITE8(ss9601_scrollctrl_w, 0xff00 )
-	AM_RANGE( 0x600060, 0x600063 ) AM_WRITE8(hm86171_colorram_w, 0xffff )
+	AM_RANGE( 0x600060, 0x600061 ) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0xff00)
+	AM_RANGE( 0x600060, 0x600061 ) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE( 0x600062, 0x600063 ) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0xff00)
 	AM_RANGE( 0x600080, 0x600081 ) AM_WRITE8(ss9601_tilesize_w, 0xff00 )
 	AM_RANGE( 0x6000a0, 0x6000a1 ) AM_WRITE8(ss9601_byte_lo_w, 0xff00 )
 
@@ -979,6 +946,10 @@ static ADDRESS_MAP_START( bishjan_map, AS_PROGRAM, 16, subsino2_state )
 	AM_RANGE( 0xc00004, 0xc00005 ) AM_READ(bishjan_input_r )                        // IN A & B
 	AM_RANGE( 0xc00006, 0xc00007 ) AM_READ(bishjan_serial_r )                       // IN D
 	AM_RANGE( 0xc00008, 0xc00009 ) AM_READ_PORT("RESET") AM_WRITE(bishjan_outputs_w ) AM_SHARE("outputs16")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( ramdac_map, 0, 8, subsino2_state )
+	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac", ramdac_device, ramdac_pal_r, ramdac_rgb666_w)
 ADDRESS_MAP_END
 
 /***************************************************************************
@@ -1054,7 +1025,9 @@ static ADDRESS_MAP_START( new2001_base_map, AS_PROGRAM, 16, subsino2_state )
 	AM_RANGE( 0x600000, 0x600001 ) AM_READNOP AM_WRITE(bishjan_sound_w )
 	AM_RANGE( 0x600020, 0x600021 ) AM_WRITE8(ss9601_byte_lo2_w, 0xff00 )
 	AM_RANGE( 0x600040, 0x600041 ) AM_WRITE8(ss9601_scrollctrl_w, 0xff00 )
-	AM_RANGE( 0x600060, 0x600063 ) AM_WRITE8(hm86171_colorram_w, 0xffff )
+	AM_RANGE( 0x600060, 0x600061 ) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0xff00)
+	AM_RANGE( 0x600060, 0x600061 ) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE( 0x600062, 0x600063 ) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0xff00)
 	AM_RANGE( 0x600080, 0x600081 ) AM_WRITE8(ss9601_tilesize_w, 0xff00 )
 	AM_RANGE( 0x6000a0, 0x6000a1 ) AM_WRITE8(ss9601_byte_lo_w, 0xff00 )
 
@@ -1261,7 +1234,9 @@ static ADDRESS_MAP_START( mtrain_map, AS_PROGRAM, 8, subsino2_state )
 
 	AM_RANGE( 0x09158, 0x0915e ) AM_READ(mtrain_prot_r )
 
-	AM_RANGE( 0x09160, 0x09163 ) AM_WRITE(hm86171_colorram_w )
+	AM_RANGE( 0x09160, 0x09160 ) AM_DEVWRITE("ramdac", ramdac_device, index_w)
+	AM_RANGE( 0x09161, 0x09161 ) AM_DEVWRITE("ramdac", ramdac_device, pal_w)
+	AM_RANGE( 0x09162, 0x09162 ) AM_DEVWRITE("ramdac", ramdac_device, mask_w)
 	AM_RANGE( 0x09164, 0x09164 ) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE( 0x09168, 0x09168 ) AM_WRITE(mtrain_tilesize_w )
 
@@ -1334,7 +1309,9 @@ static ADDRESS_MAP_START( saklove_io, AS_IO, 8, subsino2_state )
 	AM_RANGE(0x0020, 0x0020) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x0040, 0x0041) AM_DEVWRITE("ymsnd", ym3812_device, write)
 
-	AM_RANGE(0x0060, 0x0063) AM_WRITE(hm86171_colorram_w )
+	AM_RANGE(0x0060, 0x0060) AM_DEVWRITE("ramdac", ramdac_device, index_w)
+	AM_RANGE(0x0061, 0x0061) AM_DEVWRITE("ramdac", ramdac_device, pal_w)
+	AM_RANGE(0x0062, 0x0062) AM_DEVWRITE("ramdac", ramdac_device, mask_w)
 
 	AM_RANGE(0x0080, 0x0080) AM_WRITE(ss9601_tilesize_w )
 	AM_RANGE(0x00a0, 0x00a0) AM_WRITE(ss9601_byte_lo_w )
@@ -1432,7 +1409,10 @@ static ADDRESS_MAP_START( xplan_io, AS_IO, 8, subsino2_state )
 
 	AM_RANGE(0x0040, 0x0040) AM_WRITE(ss9601_scrollctrl_w )
 
-	AM_RANGE(0x0060, 0x0063) AM_WRITE(hm86171_colorram_w )
+	AM_RANGE(0x0060, 0x0060) AM_DEVWRITE("ramdac", ramdac_device, index_w)
+	AM_RANGE(0x0061, 0x0061) AM_DEVWRITE("ramdac", ramdac_device, pal_w)
+	AM_RANGE(0x0062, 0x0062) AM_DEVWRITE("ramdac", ramdac_device, mask_w)
+
 	AM_RANGE(0x0080, 0x0080) AM_WRITE(ss9601_tilesize_w )
 	AM_RANGE(0x00a0, 0x00a0) AM_WRITE(ss9601_byte_lo_w )
 
@@ -2371,6 +2351,8 @@ static MACHINE_CONFIG_START( bishjan )
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ss9601 )
 	MCFG_PALETTE_ADD( "palette", 256 )
 
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette") // HMC HM86171 VGA 256 colour RAMDAC
+
 	MCFG_VIDEO_START_OVERRIDE(subsino2_state, subsino2 )
 
 	// sound hardware
@@ -2418,6 +2400,8 @@ static MACHINE_CONFIG_START( mtrain )
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ss9601 )
 	MCFG_PALETTE_ADD( "palette", 256 )
 
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette") // HMC HM86171 VGA 256 colour RAMDAC
+
 	MCFG_VIDEO_START_OVERRIDE(subsino2_state, subsino2 )
 
 	// sound hardware
@@ -2449,6 +2433,8 @@ static MACHINE_CONFIG_START( saklove )
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ss9601 )
 	MCFG_PALETTE_ADD( "palette", 256 )
+
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette") // HMC HM86171 VGA 256 colour RAMDAC
 
 	MCFG_VIDEO_START_OVERRIDE(subsino2_state, subsino2 )
 
@@ -2485,6 +2471,8 @@ static MACHINE_CONFIG_START( xplan )
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ss9601 )
 	MCFG_PALETTE_ADD( "palette", 256 )
+
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette") // HMC HM86171 VGA 256 colour RAMDAC
 
 	MCFG_VIDEO_START_OVERRIDE(subsino2_state, subsino2 )
 

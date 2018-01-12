@@ -68,10 +68,6 @@ DEFINE_DEVICE_TYPE(A2BUS_VULCANGOLD, a2bus_vulcangold_device, "a2vulgld", "Appli
 #define VULCAN_ROM_REGION  "vulcan_rom"
 #define VULCAN_ATA_TAG     "vulcan_ata"
 
-static MACHINE_CONFIG_FRAGMENT( vulcan )
-	MCFG_ATA_INTERFACE_ADD(VULCAN_ATA_TAG, ata_devices, "hdd", nullptr, false)
-MACHINE_CONFIG_END
-
 ROM_START( vulcan )
 	ROM_REGION(0x4000, VULCAN_ROM_REGION, 0)
 	ROM_LOAD( "ae vulcan rom v1.4.bin", 0x000000, 0x004000, CRC(798d5825) SHA1(1d668e856e33c6eeb10fe26975341afa8acb81f5) )
@@ -87,14 +83,12 @@ ROM_END
 ***************************************************************************/
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor a2bus_vulcanbase_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( vulcan );
-}
+MACHINE_CONFIG_MEMBER( a2bus_vulcanbase_device::device_add_mconfig )
+	MCFG_ATA_INTERFACE_ADD(VULCAN_ATA_TAG, ata_devices, "hdd", nullptr, false)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -169,12 +163,12 @@ void a2bus_vulcanbase_device::device_reset()
     read_c0nx - called for reads from this card's c0nx space
 -------------------------------------------------*/
 
-uint8_t a2bus_vulcanbase_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_vulcanbase_device::read_c0nx(uint8_t offset)
 {
 	switch (offset)
 	{
 		case 0:
-			m_lastdata = m_ata->read_cs0(space, offset, 0xffff);
+			m_lastdata = m_ata->read_cs0(offset);
 //          printf("IDE: read %04x\n", m_lastdata);
 			m_last_read_was_0 = true;
 			return m_lastdata&0xff;
@@ -187,7 +181,7 @@ uint8_t a2bus_vulcanbase_device::read_c0nx(address_space &space, uint8_t offset)
 			}
 			else
 			{
-				return m_ata->read_cs0(space, offset, 0xff);
+				return m_ata->read_cs0(offset, 0xff);
 			}
 
 		case 2:
@@ -196,7 +190,7 @@ uint8_t a2bus_vulcanbase_device::read_c0nx(address_space &space, uint8_t offset)
 		case 5:
 		case 6:
 		case 7:
-			return m_ata->read_cs0(space, offset, 0xff);
+			return m_ata->read_cs0(offset, 0xff);
 
 		default:
 			logerror("a2vulcan: unknown read @ C0n%x\n", offset);
@@ -212,7 +206,7 @@ uint8_t a2bus_vulcanbase_device::read_c0nx(address_space &space, uint8_t offset)
     write_c0nx - called for writes to this card's c0nx space
 -------------------------------------------------*/
 
-void a2bus_vulcanbase_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_vulcanbase_device::write_c0nx(uint8_t offset, uint8_t data)
 {
 	switch (offset)
 	{
@@ -228,11 +222,11 @@ void a2bus_vulcanbase_device::write_c0nx(address_space &space, uint8_t offset, u
 				m_lastdata &= 0x00ff;
 				m_lastdata |= (data << 8);
 //              printf("IDE: write %04x\n", m_lastdata);
-				m_ata->write_cs0(space, 0, m_lastdata, 0xffff);
+				m_ata->write_cs0(0, m_lastdata);
 			}
 			else
 			{
-				m_ata->write_cs0(space, offset, data, 0xff);
+				m_ata->write_cs0(offset, data, 0xff);
 			}
 			break;
 
@@ -243,7 +237,7 @@ void a2bus_vulcanbase_device::write_c0nx(address_space &space, uint8_t offset, u
 		case 6:
 		case 7:
 //          printf("%02x to IDE controller @ %x\n", data, offset);
-			m_ata->write_cs0(space, offset, data, 0xff);
+			m_ata->write_cs0(offset, data, 0xff);
 			break;
 
 		case 9: // ROM bank
@@ -266,7 +260,7 @@ void a2bus_vulcanbase_device::write_c0nx(address_space &space, uint8_t offset, u
     read_cnxx - called for reads from this card's cnxx space
 -------------------------------------------------*/
 
-uint8_t a2bus_vulcanbase_device::read_cnxx(address_space &space, uint8_t offset)
+uint8_t a2bus_vulcanbase_device::read_cnxx(uint8_t offset)
 {
 	int slotimg = m_slot * 0x100;
 
@@ -278,7 +272,7 @@ uint8_t a2bus_vulcanbase_device::read_cnxx(address_space &space, uint8_t offset)
     read_c800 - called for reads from this card's c800 space
 -------------------------------------------------*/
 
-uint8_t a2bus_vulcanbase_device::read_c800(address_space &space, uint16_t offset)
+uint8_t a2bus_vulcanbase_device::read_c800(uint16_t offset)
 {
 	offset &= 0x7ff;
 	if (offset < 0x400) // c800-cbff is banked RAM window, cc00-cfff is banked ROM window
@@ -291,7 +285,7 @@ uint8_t a2bus_vulcanbase_device::read_c800(address_space &space, uint16_t offset
 	return m_rom[offset+m_rombank];
 }
 
-void a2bus_vulcanbase_device::write_c800(address_space &space, uint16_t offset, uint8_t data)
+void a2bus_vulcanbase_device::write_c800(uint16_t offset, uint8_t data)
 {
 	offset &= 0x7ff;
 	if (offset < 0x400)

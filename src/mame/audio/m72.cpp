@@ -125,24 +125,15 @@ WRITE_LINE_MEMBER(m72_audio_device::ym2151_irq_handler)
 	machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), state ? YM2151_ASSERT : YM2151_CLEAR);
 }
 
-WRITE16_MEMBER( m72_audio_device::sound_command_w )
-{
-	if (ACCESSING_BITS_0_7)
-	{
-		m_soundlatch->write(*m_space, offset, data);
-		space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), Z80_ASSERT);
-	}
-}
-
-WRITE8_MEMBER( m72_audio_device::sound_command_byte_w )
+WRITE8_MEMBER( m72_audio_device::sound_command_w )
 {
 	m_soundlatch->write(*m_space, offset, data);
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), Z80_ASSERT);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), Z80_ASSERT);
 }
 
 WRITE8_MEMBER( m72_audio_device::sound_irq_ack_w )
 {
-	space.machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), Z80_CLEAR);
+	machine().scheduler().synchronize(timer_expired_delegate(FUNC(m72_audio_device::setvector_callback), this), Z80_CLEAR);
 }
 
 

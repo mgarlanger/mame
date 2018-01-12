@@ -56,7 +56,6 @@
 #include "machine/z80scc.h"
 #include "sound/cdda.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "video/newport.h"
 #include "screen.h"
 #include "speaker.h"
@@ -100,7 +99,7 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
 	required_device<mips3_device> m_maincpu;
@@ -182,7 +181,7 @@ ioport_constructor ioc2_device::device_input_ports() const
 	return INPUT_PORTS_NAME(front_panel);
 }
 
-MACHINE_CONFIG_FRAGMENT( ioc2_device )
+MACHINE_CONFIG_MEMBER( ioc2_device::device_add_mconfig )
 	MCFG_SCC85230_ADD(SCC_TAG, SCC_PCLK, SCC_RXA_CLK, SCC_TXA_CLK, SCC_RXB_CLK, SCC_TXB_CLK)
 	MCFG_Z80SCC_OUT_TXDA_CB(DEVWRITELINE(RS232A_TAG, rs232_port_device, write_txd))
 	MCFG_Z80SCC_OUT_DTRA_CB(DEVWRITELINE(RS232A_TAG, rs232_port_device, write_dtr))
@@ -214,10 +213,6 @@ MACHINE_CONFIG_FRAGMENT( ioc2_device )
 	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE(KBDC_TAG, kbdc8042_device, write_out2))
 MACHINE_CONFIG_END
 
-machine_config_constructor ioc2_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(ioc2_device);
-}
 
 ioc2_device::ioc2_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, uint8_t id)
 	: device_t(mconfig, type, tag, owner, clock)
@@ -783,7 +778,7 @@ READ32_MEMBER(ip22_state::hpc3_hd0_r)
 			return 0;
 		}
 	default:
-		//verboselog((machine, 0, "Unknown HPC3 HD0 Read: %08x (%08x) [%x] PC=%x\n", 0x1fbc0000 + ( offset << 2 ), mem_mask, offset, space.device().safe_pc() );
+		//verboselog((machine, 0, "Unknown HPC3 HD0 Read: %08x (%08x) [%x] PC=%x\n", 0x1fbc0000 + ( offset << 2 ), mem_mask, offset, m_maincpu->pc() );
 		return 0;
 	}
 }
@@ -1475,7 +1470,7 @@ static INPUT_PORTS_START( ip225015 )
 	PORT_INCLUDE( at_keyboard )     /* IN4 - IN11 */
 INPUT_PORTS_END
 
-static MACHINE_CONFIG_FRAGMENT( cdrom_config )
+static MACHINE_CONFIG_START( cdrom_config )
 	MCFG_DEVICE_MODIFY( "cdda" )
 	MCFG_SOUND_ROUTE( 0, "^^^^lspeaker", 1.0 )
 	MCFG_SOUND_ROUTE( 1, "^^^^rspeaker", 1.0 )
@@ -1504,8 +1499,7 @@ static MACHINE_CONFIG_START( ip225015 )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("dac", DAC_16BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.25) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.25) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
 	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "harddisk", SCSIHD, SCSI_ID_1)

@@ -158,7 +158,7 @@ WRITE8_MEMBER(mjsenpu_state::control_w)
 	// bits 0x08 is used in the alt payout / hopper mode (see dipswitches)
 
 	// 0x04 seem to be hopper/ticket related? different ones get used depending on the dips
-	m_hopper->write(space, 0, data & 0x04);
+	m_hopper->motor_w(data & 0x04);
 
 	// bit 0x02 could be coin counter?
 	machine().bookkeeping().coin_counter_w(0, data & 0x02 );
@@ -504,7 +504,7 @@ READ32_MEMBER(mjsenpu_state::mjsenpu_speedup_r)
 
 	if (pc == 0xadb8)
 	{
-		space.device().execute().spin_until_interrupt();
+		m_maincpu->spin_until_interrupt();
 	}
 	else
 	{

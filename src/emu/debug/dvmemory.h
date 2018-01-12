@@ -11,8 +11,13 @@
 #ifndef MAME_EMU_DEBUG_DVMEMORY_H
 #define MAME_EMU_DEBUG_DVMEMORY_H
 
+#pragma once
+
+#include "debugvw.h"
+
 #include "softfloat/mamesf.h"
 #include "softfloat/softfloat.h"
+
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -60,7 +65,7 @@ public:
 	offs_t addressAtCursorPosition(const debug_view_xy& pos) { return get_cursor_pos(pos).m_address; }
 
 	// setters
-	void set_expression(const char *expression);
+	void set_expression(const std::string &expression);
 	void set_chunks_per_row(u32 rowchunks);
 	void set_data_format(int format); // 1-8 current values 9 32bit floating point
 	void set_reverse(bool reverse);
@@ -102,6 +107,7 @@ private:
 	debug_view_expression m_expression;         // expression describing the start address
 	u32                 m_chunks_per_row;       // number of chunks displayed per line
 	u8                  m_bytes_per_chunk;      // bytes per chunk
+	u8                  m_steps_per_chunk;      // bytes per chunk
 	int                 m_data_format;          // 1-8 current values 9 32bit floating point
 	bool                m_reverse_view;         // reverse-endian view?
 	bool                m_ascii_view;           // display ASCII characters?
@@ -128,8 +134,7 @@ private:
 	static const memory_view_pos s_memory_pos_table[12]; // table for rendering at different data formats
 
 	// constants
-	static const int MEM_MAX_LINE_WIDTH = 1024;
+	static constexpr int MEM_MAX_LINE_WIDTH = 1024;
 };
-
 
 #endif // MAME_EMU_DEBUG_DVMEMORY_H

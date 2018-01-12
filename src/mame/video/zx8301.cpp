@@ -56,7 +56,7 @@ DEFINE_DEVICE_TYPE(ZX8301, zx8301_device, "zx8301", "Sinclair ZX8301")
 
 
 // default address map
-static ADDRESS_MAP_START( zx8301, AS_0, 8, zx8301_device )
+static ADDRESS_MAP_START( zx8301, 0, 8, zx8301_device )
 	AM_RANGE(0x00000, 0x1ffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -66,9 +66,11 @@ ADDRESS_MAP_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *zx8301_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector zx8301_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -214,7 +216,7 @@ READ8_MEMBER( zx8301_device::data_r )
 
 	if (m_vda)
 	{
-		m_cpu->spin_until_time(m_screen->time_until_pos(256, 0));
+		m_cpu->spin_until_time(screen().time_until_pos(256, 0));
 	}
 
 	return readbyte(offset);
@@ -231,7 +233,7 @@ WRITE8_MEMBER( zx8301_device::data_w )
 
 	if (m_vda)
 	{
-		m_cpu->spin_until_time(m_screen->time_until_pos(256, 0));
+		m_cpu->spin_until_time(screen().time_until_pos(256, 0));
 	}
 
 	writebyte(offset, data);

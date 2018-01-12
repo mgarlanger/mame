@@ -11,6 +11,7 @@
 #pragma once
 
 #include "cpu/mcs48/mcs48.h"
+#include "machine/timer.h"
 
 
 class speech_sound_device : public device_t, public device_sound_interface
@@ -64,11 +65,6 @@ public:
 	DECLARE_READ8_MEMBER( ram_r );
 	DECLARE_WRITE8_MEMBER( ram_w );
 
-	DECLARE_READ8_MEMBER( p1_r );
-	DECLARE_WRITE8_MEMBER( p1_w );
-	DECLARE_WRITE8_MEMBER( p2_w );
-	DECLARE_READ_LINE_MEMBER( t1_r );
-
 	DECLARE_READ8_MEMBER( workram_r );
 	DECLARE_WRITE8_MEMBER( workram_w );
 
@@ -78,7 +74,7 @@ protected:
 	usb_sound_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock);
 
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -136,7 +132,7 @@ private:
 	device_t                *m_maincpu;
 	u8                      m_in_latch;             // input latch
 	u8                      m_out_latch;            // output latch
-	u8				        m_last_p2_value;        // current P2 output value
+	u8                      m_last_p2_value;        // current P2 output value
 	optional_shared_ptr<u8> m_program_ram;          // pointer to program RAM
 	required_shared_ptr<u8> m_work_ram;             // pointer to work RAM
 	u8                      m_work_ram_bank;        // currently selected work RAM bank
@@ -155,6 +151,11 @@ private:
 	TIMER_CALLBACK_MEMBER( delayed_usb_data_w );
 	void timer_w(int which, u8 offset, u8 data);
 	void env_w(int which, u8 offset, u8 data);
+
+	DECLARE_READ8_MEMBER( p1_r );
+	DECLARE_WRITE8_MEMBER( p1_w );
+	DECLARE_WRITE8_MEMBER( p2_w );
+	DECLARE_READ_LINE_MEMBER( t1_r );
 };
 
 DECLARE_DEVICE_TYPE(SEGAUSB, usb_sound_device)
@@ -167,7 +168,7 @@ public:
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 };
 
 DECLARE_DEVICE_TYPE(SEGAUSBROM, usb_rom_sound_device)

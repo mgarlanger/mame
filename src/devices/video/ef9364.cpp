@@ -33,7 +33,7 @@ DEFINE_DEVICE_TYPE(EF9364, ef9364_device, "ef9364", "Thomson EF9364")
 //-------------------------------------------------
 // default address map
 //-------------------------------------------------
-static ADDRESS_MAP_START( ef9364, AS_0, 8, ef9364_device )
+static ADDRESS_MAP_START( ef9364, 0, 8, ef9364_device )
 	AM_RANGE(0x00000, ( ( ef9364_device::TXTPLANE_MAX_SIZE * ef9364_device::MAX_TXTPLANES ) - 1 ) ) AM_RAM
 ADDRESS_MAP_END
 
@@ -42,9 +42,11 @@ ADDRESS_MAP_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *ef9364_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector ef9364_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 //**************************************************************************
@@ -126,7 +128,7 @@ void ef9364_device::device_start()
 	palette[0] = rgb_t(0, 0, 0);
 	palette[1] = rgb_t(255, 255, 255);
 
-	m_screen_out.allocate( bitplane_xres, m_screen->height() );
+	m_screen_out.allocate( bitplane_xres, screen().height() );
 
 	cursor_cnt = 0;
 	cursor_state = 0;
@@ -169,12 +171,12 @@ void ef9364_device::set_video_mode(void)
 {
 	uint16_t new_width = bitplane_xres;
 
-	if (m_screen->width() != new_width)
+	if (screen().width() != new_width)
 	{
-		rectangle visarea = m_screen->visible_area();
+		rectangle visarea = screen().visible_area();
 		visarea.max_x = new_width - 1;
 
-		m_screen->configure(new_width, m_screen->height(), visarea, m_screen->frame_period().attoseconds());
+		screen().configure(new_width, screen().height(), visarea, screen().frame_period().attoseconds());
 	}
 
 	//border color

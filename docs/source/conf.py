@@ -54,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'MAME Documentation'
-copyright = u'2017, MAMEdev Team'
+copyright = u'2018, MAMEdev Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -244,7 +244,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'MAME', u'MAME Documentation',
-   u'MAMEdev Team', 'MAME', 'Multiple Arcade Machine Emulator',
+   u'MAMEdev Team', 'MAME', 'Multi-purpose emulation framework',
    'Emulation'),
 ]
 

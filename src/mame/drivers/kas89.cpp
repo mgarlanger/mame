@@ -193,6 +193,7 @@
 #include "cpu/z80/z80.h"
 #include "machine/gen_latch.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "sound/ay8910.h"
 #include "video/v9938.h"
 #include "speaker.h"
@@ -840,7 +841,7 @@ DRIVER_INIT_MEMBER(kas89_state,kas89)
 	/* Unscrambling data lines */
 	for ( i = 0; i < memsize; i++ )
 	{
-		mem[i] = BITSWAP8(mem[i], 3, 1, 0, 5, 6, 4, 7, 2);
+		mem[i] = bitswap<8>(mem[i], 3, 1, 0, 5, 6, 4, 7, 2);
 	}
 
 	/* Unscrambling address lines */
@@ -848,7 +849,7 @@ DRIVER_INIT_MEMBER(kas89_state,kas89)
 	memcpy(&buf[0], mem, memsize);
 	for ( i = 0; i < memsize; i++ )
 	{
-		mem[BITSWAP16(i, 15, 14, 5, 6, 3, 0, 12, 1, 9, 13, 4, 7, 10, 8, 2, 11)] = buf[i];
+		mem[bitswap<16>(i, 15, 14, 5, 6, 3, 0, 12, 1, 9, 13, 4, 7, 10, 8, 2, 11)] = buf[i];
 	}
 }
 

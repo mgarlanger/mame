@@ -12,6 +12,7 @@
 #include "debugger.h"
 #include "mips3.h"
 #include "mips3com.h"
+#include "mips3dsm.h"
 
 
 #define ENABLE_OVERFLOWS    0
@@ -192,7 +193,17 @@ mips3_device::mips3_device(const machine_config &mconfig, device_type type, cons
 	memset(m_hotspot, 0, sizeof(m_hotspot));
 
 	// configure the virtual TLB
-	set_vtlb_fixed_entries(2 * m_tlbentries + 2);
+	if (m_flavor == MIPS3_TYPE_TX4925)
+		set_vtlb_fixed_entries(2 * m_tlbentries + 3);
+	else
+		set_vtlb_fixed_entries(2 * m_tlbentries + 2);
+}
+
+device_memory_interface::space_config_vector mips3_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -326,7 +337,7 @@ void mips3_device::device_start()
 
 	m_cpu_clock = clock();
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	/* set up the endianness */
 	m_program->accessors(m_memory);
@@ -933,11 +944,16 @@ void mips3_device::device_reset()
 		entry->entry_lo[1] = 0xfffffff8;
 		vtlb_load(2 * tlbindex + 0, 0, 0, 0);
 		vtlb_load(2 * tlbindex + 1, 0, 0, 0);
+		if (m_flavor == MIPS3_TYPE_TX4925)
+			vtlb_load(2 * tlbindex + 2, 0, 0, 0);
 	}
 
 	/* load the fixed TLB range */
 	vtlb_load(2 * m_tlbentries + 0, (0xa0000000 - 0x80000000) >> MIPS3_MIN_PAGE_SHIFT, 0x80000000, 0x00000000 | VTLB_READ_ALLOWED | VTLB_WRITE_ALLOWED | VTLB_FETCH_ALLOWED | VTLB_FLAG_VALID);
 	vtlb_load(2 * m_tlbentries + 1, (0xc0000000 - 0xa0000000) >> MIPS3_MIN_PAGE_SHIFT, 0xa0000000, 0x00000000 | VTLB_READ_ALLOWED | VTLB_WRITE_ALLOWED | VTLB_FETCH_ALLOWED | VTLB_FLAG_VALID);
+	// TX4925 on-board peripherals pass-through
+	if (m_flavor == MIPS3_TYPE_TX4925)
+		vtlb_load(2 * m_tlbentries + 2, (0xff200000 - 0xff1f0000) >> MIPS3_MIN_PAGE_SHIFT, 0xff1f0000, 0xff1f0000 | VTLB_READ_ALLOWED | VTLB_WRITE_ALLOWED | VTLB_FETCH_ALLOWED | VTLB_FLAG_VALID);
 
 	m_core->mode = (MODE_KERNEL << 1) | 0;
 	m_cache_dirty = true;
@@ -945,7 +961,7 @@ void mips3_device::device_reset()
 }
 
 
-bool mips3_device::memory_translate(address_spacenum spacenum, int intention, offs_t &address)
+bool mips3_device::memory_translate(int spacenum, int intention, offs_t &address)
 {
 	/* only applies to the program address space */
 	if (spacenum == AS_PROGRAM)
@@ -960,14 +976,9 @@ bool mips3_device::memory_translate(address_spacenum spacenum, int intention, of
 }
 
 
-offs_t mips3_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *mips3_device::create_disassembler()
 {
-	uint32_t op = *(uint32_t *)oprom;
-	if (m_bigendian)
-		op = big_endianize_int32(op);
-	else
-		op = little_endianize_int32(op);
-	return dasmmips3(stream, pc, op);
+	return new mips3_disassembler;
 }
 
 
@@ -978,12 +989,6 @@ offs_t mips3_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u
 
 inline bool mips3_device::RBYTE(offs_t address, uint32_t *result)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_byte)(*m_program, address);
-		return true;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1017,12 +1022,6 @@ inline bool mips3_device::RBYTE(offs_t address, uint32_t *result)
 
 inline bool mips3_device::RHALF(offs_t address, uint32_t *result)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_word)(*m_program, address);
-		return true;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1056,12 +1055,6 @@ inline bool mips3_device::RHALF(offs_t address, uint32_t *result)
 
 inline bool mips3_device::RWORD(offs_t address, uint32_t *result)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_dword)(*m_program, address);
-		return true;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1095,12 +1088,6 @@ inline bool mips3_device::RWORD(offs_t address, uint32_t *result)
 
 inline bool mips3_device::RWORD_MASKED(offs_t address, uint32_t *result, uint32_t mem_mask)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_dword_masked)(*m_program, address, mem_mask);
-		return true;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1124,11 +1111,6 @@ inline bool mips3_device::RWORD_MASKED(offs_t address, uint32_t *result, uint32_
 
 inline bool mips3_device::RDOUBLE(offs_t address, uint64_t *result)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_qword)(*m_program, address);
-		return true;
-	}
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1152,12 +1134,6 @@ inline bool mips3_device::RDOUBLE(offs_t address, uint64_t *result)
 
 inline bool mips3_device::RDOUBLE_MASKED(offs_t address, uint64_t *result, uint64_t mem_mask)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		*result = (*m_memory.read_qword_masked)(*m_program, address, mem_mask);
-		return true;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_READ_ALLOWED)
 	{
@@ -1181,12 +1157,6 @@ inline bool mips3_device::RDOUBLE_MASKED(offs_t address, uint64_t *result, uint6
 
 inline void mips3_device::WBYTE(offs_t address, uint8_t data)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_byte)(*m_program, address, data);
-		return;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{
@@ -1221,11 +1191,6 @@ inline void mips3_device::WBYTE(offs_t address, uint8_t data)
 
 inline void mips3_device::WHALF(offs_t address, uint16_t data)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_word)(*m_program, address, data);
-		return;
-	}
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{
@@ -1260,12 +1225,6 @@ inline void mips3_device::WHALF(offs_t address, uint16_t data)
 
 inline void mips3_device::WWORD(offs_t address, uint32_t data)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_dword)(*m_program, address, data);
-		return;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{
@@ -1300,12 +1259,6 @@ inline void mips3_device::WWORD(offs_t address, uint32_t data)
 
 inline void mips3_device::WWORD_MASKED(offs_t address, uint32_t data, uint32_t mem_mask)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_dword_masked)(*m_program, address, data, mem_mask);
-		return;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{
@@ -1330,12 +1283,6 @@ inline void mips3_device::WWORD_MASKED(offs_t address, uint32_t data, uint32_t m
 
 inline void mips3_device::WDOUBLE(offs_t address, uint64_t data)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_qword)(*m_program, address, data);
-		return;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{
@@ -1360,12 +1307,6 @@ inline void mips3_device::WDOUBLE(offs_t address, uint64_t data)
 
 inline void mips3_device::WDOUBLE_MASKED(offs_t address, uint64_t data, uint64_t mem_mask)
 {
-	if ((m_flavor == MIPS3_TYPE_TX4925) && ((address & 0xffff0000) == 0xff1f0000))
-	{
-		(*m_memory.write_qword_masked)(*m_program, address, data, mem_mask);
-		return;
-	}
-
 	const uint32_t tlbval = vtlb_table()[address >> 12];
 	if (tlbval & VTLB_WRITE_ALLOWED)
 	{

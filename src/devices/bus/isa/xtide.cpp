@@ -63,13 +63,13 @@ READ8_MEMBER( xtide_device::read )
 
 	if (offset == 0)
 	{
-		uint16_t data16 = m_ata->read_cs0(space, offset & 7, 0xffff);
+		uint16_t data16 = m_ata->read_cs0(offset & 7);
 		result = data16 & 0xff;
 		m_d8_d15_latch = data16 >> 8;
 	}
 	else if (offset < 8)
 	{
-		result = m_ata->read_cs0(space, offset & 7, 0xff);
+		result = m_ata->read_cs0(offset & 7, 0xff);
 	}
 	else if (offset == 8)
 	{
@@ -77,7 +77,7 @@ READ8_MEMBER( xtide_device::read )
 	}
 	else
 	{
-		result = m_ata->read_cs1(space, offset & 7, 0xff);
+		result = m_ata->read_cs1(offset & 7, 0xff);
 	}
 
 //  logerror("%s xtide_device::read: offset=%d, result=%2X\n",device->machine().describe_context(),offset,result);
@@ -93,11 +93,11 @@ WRITE8_MEMBER( xtide_device::write )
 	{
 		// Data register transfer low byte and latched high
 		uint16_t data16 = (m_d8_d15_latch << 8) | data;
-		m_ata->write_cs0(space, offset & 7, data16, 0xffff);
+		m_ata->write_cs0(offset & 7, data16);
 	}
 	else if (offset < 8)
 	{
-		m_ata->write_cs0(space, offset & 7, data, 0xff);
+		m_ata->write_cs0(offset & 7, data, 0xff);
 	}
 	else if (offset == 8)
 	{
@@ -105,7 +105,7 @@ WRITE8_MEMBER( xtide_device::write )
 	}
 	else
 	{
-		m_ata->write_cs1(space, offset & 7, data, 0xff);
+		m_ata->write_cs1(offset & 7, data, 0xff);
 	}
 }
 
@@ -122,12 +122,6 @@ WRITE_LINE_MEMBER(xtide_device::ide_interrupt)
 	}
 }
 
-static MACHINE_CONFIG_FRAGMENT( xtide_config )
-	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", nullptr, false)
-	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(xtide_device, ide_interrupt))
-
-	MCFG_EEPROM_2864_ADD("eeprom")
-MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( xtide_port )
 	PORT_START("BIOS_BASE")
@@ -224,7 +218,7 @@ ROM_START( xtide )
 	ROM_SYSTEM_BIOS( 13, "xub115xt", "XTIDE_Universal_BIOS_v1.1.5 (XT)" )
 	ROMX_LOAD( "ide_xt.bin(v1.1.5)", 0x000000, 0x002000, CRC(33a7e0ee) SHA1(b610fd8ea31f5b0568b8b3f2c3ef682be4897a3d), ROM_BIOS(14) )
 
-	ROM_SYSTEM_BIOS( 14, "xub115xtp", "XTIDE_Universal_BIOS_v1.1.3 (XT 80186+)" )
+	ROM_SYSTEM_BIOS( 14, "xub115xtp", "XTIDE_Universal_BIOS_v1.1.5 (XT 80186+)" )
 	ROMX_LOAD( "ide_xtp.bin(v1.1.5)", 0x000000, 0x002000, CRC(44ad9ee9) SHA1(9cd275469703cadb85b6654c56e421a151324ac0), ROM_BIOS(15) )
 
 	ROM_SYSTEM_BIOS( 15, "xub115at", "XTIDE_Universal_BIOS_v1.1.5 (AT)" )
@@ -265,14 +259,15 @@ ROM_END
 DEFINE_DEVICE_TYPE(ISA8_XTIDE, xtide_device, "xtide", "XT-IDE Fixed Drive Adapter")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor xtide_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( xtide_config );
-}
+MACHINE_CONFIG_MEMBER( xtide_device::device_add_mconfig )
+	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", nullptr, false)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(xtide_device, ide_interrupt))
+
+	MCFG_EEPROM_2864_ADD("eeprom")
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports

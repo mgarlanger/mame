@@ -19,9 +19,8 @@ class m4510_device : public m65ce02_device {
 public:
 	m4510_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	static const disasm_entry disasm_entries[0x100];
+	virtual util::disasm_interface *create_disassembler() override;
 
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
 	virtual void do_exec_full() override;
 	virtual void do_exec_partial() override;
 
@@ -54,7 +53,7 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual bool memory_translate(address_spacenum spacenum, int intention, offs_t &address) override;
+	virtual bool memory_translate(int spacenum, int intention, offs_t &address) override;
 
 	inline uint32_t map(uint16_t adr) {
 		if(map_enable & (1 << (adr >> 13))) {

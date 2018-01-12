@@ -158,7 +158,7 @@ void gba_rom_device::device_reset()
 	m_gpio_regs[1] = 0;
 	m_gpio_regs[2] = 0;
 	m_gpio_regs[3] = 0;
-	m_gpio_write_only = 0;
+	m_gpio_write_only = 1;
 	m_gpio_dirs = 0;
 }
 
@@ -273,7 +273,6 @@ void gba_rom_3dmatrix_device::device_reset()
 
 READ32_MEMBER(gba_rom_device::read_gpio)
 {
-	logerror("read GPIO offs %X\n", offset);
 	if (!m_gpio_write_only)
 	{
 		switch (offset)
@@ -301,7 +300,6 @@ READ32_MEMBER(gba_rom_device::read_gpio)
 
 WRITE32_MEMBER(gba_rom_device::write_gpio)
 {
-	logerror("write GPIO offs %X data %X\n", offset, data);
 	switch (offset)
 	{
 		case 0:
@@ -406,14 +404,9 @@ void gba_rom_wariotws_device::gpio_dev_write(uint16_t data, int gpio_dirs)
  Carts with Flash RAM
  -------------------------------------------------*/
 
-static MACHINE_CONFIG_FRAGMENT( panasonic_flash )
+MACHINE_CONFIG_MEMBER( gba_rom_flash_device::device_add_mconfig )
 	MCFG_PANASONIC_MN63F805MNP_ADD("flash")
 MACHINE_CONFIG_END
-
-machine_config_constructor gba_rom_flash_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( panasonic_flash );
-}
 
 
 READ32_MEMBER(gba_rom_flash_device::read_ram)
@@ -457,14 +450,9 @@ WRITE32_MEMBER(gba_rom_flash_device::write_ram)
 	}
 }
 
-static MACHINE_CONFIG_FRAGMENT( sanyo_flash )
+MACHINE_CONFIG_MEMBER( gba_rom_flash1m_device::device_add_mconfig )
 	MCFG_SANYO_LE26FV10N1TS_ADD("flash")
 MACHINE_CONFIG_END
-
-machine_config_constructor gba_rom_flash1m_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( sanyo_flash );
-}
 
 
 READ32_MEMBER(gba_rom_flash1m_device::read_ram)
@@ -965,7 +953,6 @@ uint32_t gba_eeprom_device::read()
 	switch (m_state)
 	{
 		case EEP_IDLE:
-//          printf("eeprom_r: @ %x, mask %08x (state %d) (PC=%x) = %d\n", offset, ~mem_mask, m_state, activecpu_get_pc(), 1);
 			return 0x00010001;  // "ready"
 
 		case EEP_READFIRST:
@@ -1004,17 +991,13 @@ uint32_t gba_eeprom_device::read()
 				m_state = EEP_IDLE;
 			}
 
-//          printf("out = %08x\n", out);
-//          printf("eeprom_r: @ %x, mask %08x (state %d) (PC=%x) = %08x\n", offset, ~mem_mask, m_state, activecpu_get_pc(), out);
 			return out;
 	}
-//  printf("eeprom_r: @ %x, mask %08x (state %d) (PC=%x) = %d\n", offset, ~mem_mask, m_state, space.device().safe_pc(), 0);
 	return 0;
 }
 
 void gba_eeprom_device::write(uint32_t data)
 {
-//  printf("eeprom_w: %x @ %x (state %d) (PC=%x)\n", data, offset, m_state, space.device().safe_pc());
 	switch (m_state)
 	{
 		case EEP_IDLE:

@@ -29,7 +29,6 @@ Notes:
 #include "machine/nvram.h"
 #include "sound/3812intf.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -602,7 +601,7 @@ static ADDRESS_MAP_START( imekura_io_map, AS_IO, 8, nbmj9195_state )
 	AM_RANGE(0xc0, 0xc1) AM_MIRROR(0xff00) AM_READ(blitter_0_r)
 	AM_RANGE(0xc0, 0xcf) AM_MIRROR(0xff00) AM_WRITE(blitter_0_w)
 
-	AM_RANGE(0xd0, 0xdf) AM_WRITE(clut_0_w)
+	AM_RANGE(0xd0, 0xdf) AM_MIRROR(0xff00) AM_WRITE(clut_0_w)
 
 	AM_RANGE(0xe0, 0xe1) AM_MIRROR(0xff00) AM_READ(blitter_1_r)
 	AM_RANGE(0xe0, 0xef) AM_MIRROR(0xff00) AM_WRITE(blitter_1_w)
@@ -2543,10 +2542,9 @@ static MACHINE_CONFIG_START( NBMJDRV1_base )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.7)
 
 	MCFG_SOUND_ADD("dac1", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("dac2", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac1", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac1", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac2", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac2", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( NBMJDRV1, NBMJDRV1_base )
@@ -3467,4 +3465,4 @@ GAME( 1994, mscoutm,  0,        mscoutm,  mscoutm,  nbmj9195_state, nbmj9195, RO
 GAME( 1994, imekura,  0,        imekura,  imekura,  nbmj9195_state, nbmj9195, ROT0,    "Sphinx / AV Japan", "Imekura Mahjong (Japan)", MACHINE_SUPPORTS_SAVE )
 GAME( 1994, mjegolf,  0,        mjegolf,  mjegolf,  nbmj9195_state, nbmj9195, ROT0,    "Fujic / AV Japan", "Mahjong Erotica Golf (Japan)", MACHINE_SUPPORTS_SAVE )
 
-GAME( 199?, shabdama, 0,        shabdama, mjuraden, nbmj9195_state, nbmj9195, ROT0,    "Nichibutsu", "LD Mahjong #4 Shabon-Dama", MACHINE_NOT_WORKING | MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )
+GAME( 1991, shabdama, 0,        shabdama, mjuraden, nbmj9195_state, nbmj9195, ROT0,    "Nichibutsu", "LD Mahjong #4 Shabon-Dama", MACHINE_NOT_WORKING | MACHINE_NO_SOUND | MACHINE_SUPPORTS_SAVE )

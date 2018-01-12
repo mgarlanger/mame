@@ -80,7 +80,7 @@ msx_cart_msx_audio_hxmu900_device::msx_cart_msx_audio_hxmu900_device(const machi
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( msx_audio_hxmu900 )
+MACHINE_CONFIG_MEMBER( msx_cart_msx_audio_hxmu900_device::device_add_mconfig )
 	// This is actually incorrect. The sound output is passed back into the MSX machine where it is mixed internally and output through the system 'speaker'.
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("y8950", Y8950, XTAL_3_579545MHz)    // Not verified
@@ -90,12 +90,6 @@ static MACHINE_CONFIG_FRAGMENT( msx_audio_hxmu900 )
 
 	MCFG_MSX_AUDIO_KBDC_PORT_ADD("kbdc", msx_audio_keyboards, nullptr)
 MACHINE_CONFIG_END
-
-
-machine_config_constructor msx_cart_msx_audio_hxmu900_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( msx_audio_hxmu900 );
-}
 
 
 void msx_cart_msx_audio_hxmu900_device::device_start()
@@ -126,6 +120,17 @@ READ8_MEMBER(msx_cart_msx_audio_hxmu900_device::read_cart)
 }
 
 
+ROM_START( msx_hxmu )
+	ROM_REGION(0x8000, "y8950", ROMREGION_ERASE00)
+ROM_END
+
+
+const tiny_rom_entry *msx_cart_msx_audio_hxmu900_device::device_rom_region() const
+{
+	return ROM_NAME( msx_hxmu );
+}
+
+
 
 
 
@@ -140,7 +145,7 @@ msx_cart_msx_audio_nms1205_device::msx_cart_msx_audio_nms1205_device(const machi
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( msx_audio_nms1205 )
+MACHINE_CONFIG_MEMBER( msx_cart_msx_audio_nms1205_device::device_add_mconfig )
 	// This is actually incorrect. The sound output is passed back into the MSX machine where it is mixed internally and output through the system 'speaker'.
 	// At the same time the sound is also output on two output on the nms1205 cartridge itself
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -163,12 +168,6 @@ static MACHINE_CONFIG_FRAGMENT( msx_audio_nms1205 )
 
 	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
 MACHINE_CONFIG_END
-
-
-machine_config_constructor msx_cart_msx_audio_nms1205_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( msx_audio_nms1205 );
-}
 
 
 ROM_START( msx_nms1205 )
@@ -206,10 +205,8 @@ void msx_cart_msx_audio_nms1205_device::device_start()
 	address_space &space = machine().device<cpu_device>("maincpu")->space(AS_IO);
 	space.install_write_handler(0xc0, 0xc1, write8_delegate(FUNC(y8950_device::write), m_y8950.target()));
 	space.install_read_handler(0xc0, 0xc1, read8_delegate(FUNC(y8950_device::read), m_y8950.target()));
-	space.install_write_handler(0x00, 0x00, write8_delegate(FUNC(acia6850_device::control_w), m_acia6850.target()));
-	space.install_write_handler(0x01, 0x01, write8_delegate(FUNC(acia6850_device::data_w), m_acia6850.target()));
-	space.install_read_handler(0x04,0x04, read8_delegate(FUNC(acia6850_device::status_r), m_acia6850.target()));
-	space.install_read_handler(0x05,0x05, read8_delegate(FUNC(acia6850_device::data_r), m_acia6850.target()));
+	space.install_write_handler(0x00, 0x01, write8_delegate(FUNC(acia6850_device::write), m_acia6850.target()));
+	space.install_read_handler(0x04, 0x05, read8_delegate(FUNC(acia6850_device::read), m_acia6850.target()));
 }
 
 
@@ -249,7 +246,7 @@ msx_cart_msx_audio_fsca1_device::msx_cart_msx_audio_fsca1_device(const machine_c
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( msx_audio_fsca1 )
+MACHINE_CONFIG_MEMBER( msx_cart_msx_audio_fsca1_device::device_add_mconfig )
 	// This is actually incorrect. The sound output is passed back into the MSX machine where it is mixed internally and output through the system 'speaker'.
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("y8950", Y8950, XTAL_3_579545MHz)
@@ -261,12 +258,6 @@ static MACHINE_CONFIG_FRAGMENT( msx_audio_fsca1 )
 
 	MCFG_MSX_AUDIO_KBDC_PORT_ADD("kbdc", msx_audio_keyboards, nullptr)
 MACHINE_CONFIG_END
-
-
-machine_config_constructor msx_cart_msx_audio_fsca1_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( msx_audio_fsca1 );
-}
 
 
 static INPUT_PORTS_START( msx_audio_fsca1 )

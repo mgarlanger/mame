@@ -242,7 +242,7 @@ WRITE8_MEMBER(nmk16_state::ssmissin_soundbank_w)
 
 WRITE16_MEMBER(nmk16_state::tharrier_mcu_control_w)
 {
-//  logerror("%04x: mcu_control_w %02x\n",space.device().safe_pc(),data);
+//  logerror("%04x: mcu_control_w %02x\n",m_maincpu->pc(),data);
 }
 
 READ16_MEMBER(nmk16_state::tharrier_mcu_r)
@@ -258,8 +258,8 @@ READ16_MEMBER(nmk16_state::tharrier_mcu_r)
 
 		int res;
 
-		if (space.device().safe_pc()==0x8aa) res = (m_mainram[0x9064/2])|0x20; /* Task Force Harrier */
-		else if (space.device().safe_pc()==0x8ce) res = (m_mainram[0x9064/2])|0x60; /* Task Force Harrier */
+		if (m_maincpu->pc()==0x8aa) res = (m_mainram[0x9064/2])|0x20; /* Task Force Harrier */
+		else if (m_maincpu->pc()==0x8ce) res = (m_mainram[0x9064/2])|0x60; /* Task Force Harrier */
 		else
 		{
 			res = to_main[m_prot_count++];
@@ -960,12 +960,12 @@ static ADDRESS_MAP_START( ssmissin_sound_map, AS_PROGRAM, 8, nmk16_state )
 	AM_RANGE(0xa000, 0xa000) AM_DEVREAD("soundlatch", generic_latch_8_device, read)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( oki1_map, AS_0, 8, nmk16_state )
+static ADDRESS_MAP_START( oki1_map, 0, 8, nmk16_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("okibank1")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( oki2_map, AS_0, 8, nmk16_state )
+static ADDRESS_MAP_START( oki2_map, 0, 8, nmk16_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("okibank2")
 ADDRESS_MAP_END
@@ -1051,6 +1051,12 @@ static ADDRESS_MAP_START( macross2_map, AS_PROGRAM, 16, nmk16_state )
 
 	AM_RANGE(0x170000, 0x170fff) AM_MIRROR(0x1000) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
 	AM_RANGE(0x1f0000, 0x1fffff) AM_RAM AM_SHARE("mainram")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( tdragon3h_map, AS_PROGRAM, 16, nmk16_state ) // bootleg has these 2 swapped
+	AM_RANGE(0x10000e, 0x10000f) AM_READ_PORT("DSW2")
+	AM_RANGE(0x10000a, 0x10000b) AM_DEVREAD8("soundlatch2", generic_latch_8_device, read, 0x00ff)    /* from Z80 */
+	AM_IMPORT_FROM(macross2_map)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( raphero_map, AS_PROGRAM, 16, nmk16_state )
@@ -3907,11 +3913,11 @@ static MACHINE_CONFIG_START( tharrier )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -3947,11 +3953,11 @@ static MACHINE_CONFIG_START( mustang )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4028,11 +4034,11 @@ static MACHINE_CONFIG_START( bioship )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", BIOSHIP_CRYSTAL2 / 3 , PIN7_LOW) /* 4.0 Mhz, Pin 7 High (verified) */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", BIOSHIP_CRYSTAL2 / 3 , PIN7_LOW) /* 4.0 Mhz, Pin 7 High (verified) */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4068,11 +4074,11 @@ static MACHINE_CONFIG_START( vandyke )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", XTAL_12MHz/3, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", XTAL_12MHz/3, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4136,11 +4142,11 @@ static MACHINE_CONFIG_START( acrobatm )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW) /* (verified on pcb) on the pcb pin7 is not connected to gnd or +5v! */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW) /* (verified on pcb) on the pcb pin7 is not connected to gnd or +5v! */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4215,11 +4221,11 @@ static MACHINE_CONFIG_START( tdragon )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", XTAL_8MHz/2, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", XTAL_8MHz/2, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( tdragon_prot, tdragon )
@@ -4253,7 +4259,7 @@ static MACHINE_CONFIG_START( ssmissin )
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_OKIM6295_ADD("oki1", 8000000/8, PIN7_HIGH) /* 1 Mhz, pin 7 high */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 MACHINE_CONFIG_END
@@ -4289,11 +4295,11 @@ static MACHINE_CONFIG_START( strahl )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4329,11 +4335,11 @@ static MACHINE_CONFIG_START( hachamf )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( hachamf_prot, hachamf )
@@ -4373,11 +4379,11 @@ static MACHINE_CONFIG_START( macross )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4413,11 +4419,11 @@ static MACHINE_CONFIG_START( blkheart )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", XTAL_8MHz/2, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", XTAL_8MHz/2, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4452,11 +4458,11 @@ static MACHINE_CONFIG_START( gunnail )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", XTAL_16MHz/4, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", XTAL_16MHz/4, PIN7_LOW) /* verified on pcb */
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -4551,6 +4557,12 @@ static MACHINE_CONFIG_START( tdragon2 )
 	MCFG_NMK112_ROM0("oki1")
 	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( tdragon3h, tdragon2 )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(tdragon3h_map)
+MACHINE_CONFIG_END
+
 
 static MACHINE_CONFIG_START( raphero )
 
@@ -4720,11 +4732,11 @@ static MACHINE_CONFIG_START( manybloc )
 	MCFG_SOUND_ROUTE(3, "mono", 1.20)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki1_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki1_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki2_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki2_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -5105,7 +5117,7 @@ WRITE8_MEMBER(nmk16_state::twinactn_oki_bank_w)
 	if (data & (~3))
 		logerror("%s: invalid oki bank %02x\n", machine().describe_context(), data);
 
-//  logerror("%04x: oki bank %02x\n", space.device().safe_pc(), data);
+//  logerror("%04x: oki bank %02x\n", m_audiocpu->pc(), data);
 }
 
 static ADDRESS_MAP_START( twinactn_sound_cpu, AS_PROGRAM, 8, nmk16_state )
@@ -5371,7 +5383,7 @@ static void decryptcode( running_machine &machine, int a23, int a22, int a21, in
 	memcpy( &buffer[0], RAM, size );
 	for( i = 0; i < size; i++ )
 	{
-		RAM[ i ] = buffer[ BITSWAP24( i, a23, a22, a21, a20, a19, a18, a17, a16, a15, a14, a13, a12,
+		RAM[ i ] = buffer[ bitswap<24>( i, a23, a22, a21, a20, a19, a18, a17, a16, a15, a14, a13, a12,
 			a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0 ) ];
 	}
 }
@@ -6326,7 +6338,7 @@ ROM_START( gunnail )
 	ROM_LOAD( "10_82s123.u96",  0x0200, 0x0020, CRC(c60103c8) SHA1(dfb05b704bb5e1f75f5aaa4fa36e8ddcc905f8b6) )  /* unknown */
 ROM_END
 
-ROM_START( macross2 )
+ROM_START( macross2 ) /* Title screen shows Kanji characters & Macross II */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 code */
 	ROM_LOAD16_WORD_SWAP( "mcrs2j.3",      0x00000, 0x80000, CRC(36a618fe) SHA1(56fdb2bcb4a39888cfbaf9692d66335524a6ac0c) )
 
@@ -6335,6 +6347,34 @@ ROM_START( macross2 )
 
 	ROM_REGION( 0x020000, "fgtile", 0 )
 	ROM_LOAD( "mcrs2j.1",    0x000000, 0x020000, CRC(c7417410) SHA1(41431d8f1ff4d66baf1a8518a0b0c0125d1d71d4) ) /* 8x8 tiles */
+
+	ROM_REGION( 0x200000, "bgtile", 0 )
+	ROM_LOAD( "bp932an.a04", 0x000000, 0x200000, CRC(c4d77ff0) SHA1(aca60a3f5f89265e7e3799e5d80ea8196fb11ff3) ) /* 16x16 tiles */
+
+	ROM_REGION( 0x400000, "sprites", 0 )
+	ROM_LOAD16_WORD_SWAP( "bp932an.a07", 0x000000, 0x200000, CRC(aa1b21b9) SHA1(133822e3d8628aa4eb3e62fbd054956799423b98) ) /* Sprites */
+	ROM_LOAD16_WORD_SWAP( "bp932an.a08", 0x200000, 0x200000, CRC(67eb2901) SHA1(25e0f9fda1a8c0c2b59616dd153cb6dcb459d2d9) )
+
+	ROM_REGION( 0x240000, "oki1", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "bp932an.a06", 0x040000, 0x200000, CRC(ef0ffec0) SHA1(fd72cc77e02d1a00bf27e77a33d7dab5f6ba1cb4) ) /* all banked */
+
+	ROM_REGION( 0x140000, "oki2", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "bp932an.a05", 0x040000, 0x100000, CRC(b5335abb) SHA1(f4eaf4e465eeca31741d432ee46ed39ffcd92cca) ) /* all banked */
+
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "mcrs2bpr.9",  0x0000, 0x0100, CRC(435653a2) SHA1(575b4a46ea65179de3042614da438d2f6d8b572e) ) /* unknown */
+	ROM_LOAD( "mcrs2bpr.10", 0x0100, 0x0100, CRC(e6ead349) SHA1(6d81b1c0233580aa48f9718bade42d640e5ef3dd) ) /* unknown */
+ROM_END
+
+ROM_START( macross2k ) /* Title screen only shows Macross II, no Kanji.  Suspected Korean version - Language dip still used for Stage info screens */
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 code */
+	ROM_LOAD16_WORD_SWAP( "1.3",      0x00000, 0x80000, CRC(1506fcfc) SHA1(638ccc90effde3be20ab9b4da3a0d75af2577e51) ) /* non descript rom label "1" */
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )        /* Z80 code */
+	ROM_LOAD( "mcrs2j.2",    0x00000, 0x20000, CRC(b4aa8ac7) SHA1(73a6de56cbfb468450d9b39fcbae0362f242f37b) ) /* banked */
+
+	ROM_REGION( 0x020000, "fgtile", 0 )
+	ROM_LOAD( "2.1",    0x000000, 0x020000, CRC(e8ab17f9) SHA1(9396e29a134698db59b7faae19dd8fb947cde752) ) /* 8x8 tiles - non descript rom label "2" */
 
 	ROM_REGION( 0x200000, "bgtile", 0 )
 	ROM_LOAD( "bp932an.a04", 0x000000, 0x200000, CRC(c4d77ff0) SHA1(aca60a3f5f89265e7e3799e5d80ea8196fb11ff3) ) /* 16x16 tiles */
@@ -6391,6 +6431,37 @@ ROM_START( tdragon2 )
 
 	ROM_REGION( 0x020000, "fgtile", 0 )
 	ROM_LOAD( "1.bin",    0x000000, 0x020000, CRC(d488aafa) SHA1(4d05e7ca075b638dd90ae4c9f224817a8a3ae9f3) )    /* 8x8 tiles */
+
+	ROM_REGION( 0x200000, "bgtile", 0 )
+	ROM_LOAD( "ww930914.2", 0x000000, 0x200000, CRC(f968c65d) SHA1(fd6d21bba53f945b1597d7d0735bc62dd44d5498) )  /* 16x16 tiles */
+
+	ROM_REGION( 0x400000, "sprites", 0 )
+	ROM_LOAD16_WORD_SWAP( "ww930917.7", 0x000000, 0x200000, CRC(b98873cb) SHA1(cc19200865176e940ff68e12de81f029b51c2084) )  /* Sprites */
+	ROM_LOAD16_WORD_SWAP( "ww930918.8", 0x200000, 0x200000, CRC(baee84b2) SHA1(b325b00e6147266dbdc840e03556004531dc2038) )
+
+	ROM_REGION( 0x240000, "oki1", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "ww930916.4", 0x040000, 0x200000, CRC(07c35fe6) SHA1(33547bd88764704310f2ef8cf3bfe21ceb56d5b7) )  /* all banked */
+
+	ROM_REGION( 0x240000, "oki2", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "ww930915.3", 0x040000, 0x200000, CRC(82025bab) SHA1(ac6053700326ea730d00ec08193e2c8a2a019f0b) )  /* all banked */
+
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "9.bpr",  0x0000, 0x0100, CRC(435653a2) SHA1(575b4a46ea65179de3042614da438d2f6d8b572e) )  /* unknown */
+	ROM_LOAD( "10.bpr", 0x0100, 0x0100, CRC(e6ead349) SHA1(6d81b1c0233580aa48f9718bade42d640e5ef3dd) )  /* unknown */
+ROM_END
+
+ROM_START( tdragon3h )
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 code */
+	ROM_LOAD16_BYTE( "H.27C2001",      0x00000, 0x40000, CRC(0091f4a3) SHA1(025e5f7ff12eaa90c5cfe757c71d58ba7040cba7) )
+	ROM_LOAD16_BYTE( "L.27C020",       0x00001, 0x40000, CRC(4699c313) SHA1(1851a4b5ad9c2bac230126d195e239a5ebe827f9) )
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )        /* Z80 code */
+	ROM_LOAD( "1.27C1000",    0x00000, 0x20000, CRC(b870be61) SHA1(ea5d45c3a3ab805e55806967f00167cf6366212e) ) /* banked */
+
+	ROM_REGION( 0x020000, "fgtile", 0 )
+	ROM_LOAD( "12.27C1000",    0x000000, 0x020000, CRC(f809d616) SHA1(c6a4d776fee770ec197204b855b85bcc719469a5) )    /* 8x8 tiles */
+
+	// all other roms are MASK parts marked 'CONNY' but weren't dumped from this PCB so content is only assumed to be the same
 
 	ROM_REGION( 0x200000, "bgtile", 0 )
 	ROM_LOAD( "ww930914.2", 0x000000, 0x200000, CRC(f968c65d) SHA1(fd6d21bba53f945b1597d7d0735bc62dd44d5498) )  /* 16x16 tiles */
@@ -7325,6 +7396,7 @@ ROM_START( grdnstrmg ) /* Germany */
 	ROM_LOAD( "gs2_s2.uc18", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) ) //
 ROM_END
 
+// 紅狐戰機 II (Hóng Hú Zhànjī II)
 ROM_START( redfoxwp2 )
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
 	ROM_LOAD16_BYTE( "u112", 0x000000, 0x040000, CRC(3f31600b) SHA1(6c56e36178effb60ec27dfcd205393e2cfac4ed6) ) /* No label */
@@ -7355,6 +7427,7 @@ DRIVER_INIT_MEMBER(nmk16_state,redfoxwp2a)
 	decryptcode( machine(),23, 22, 21, 20,   19, 18, /* */ 16, 17, /* */    15,14,13,12,    11, 10, 9, 8,       7, 6, 5, 4,     3, 2, 1, 0 );
 }
 
+// 紅狐戰機 II (Hóng Hú Zhànjī II)
 ROM_START( redfoxwp2a )
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
 	ROM_LOAD16_BYTE( "afega_4.u112", 0x000000, 0x040000, CRC(e6e6682a) SHA1(1a70ca3881b4ecc6d329814ff1fdafce16550ca2) )
@@ -7954,9 +8027,9 @@ GAME( 1990, vandykeb,   vandyke,  vandykeb,     vandykeb,     nmk16_state, vandy
 
 GAME( 1991, blkheart,   0,        blkheart,     blkheart,     nmk16_state, 0,                ROT0,   "UPL",                          "Black Heart", 0 )
 GAME( 1991, blkheartj,  blkheart, blkheart,     blkheart,     nmk16_state, 0,                ROT0,   "UPL",                          "Black Heart (Japan)", 0 )
-                                                              
+
 GAME( 1991, acrobatm,   0,        acrobatm,     acrobatm,     nmk16_state, 0,                ROT270, "UPL (Taito license)",          "Acrobat Mission", 0 )
-                                                              
+
 GAME( 1992, strahl,     0,        strahl,       strahl,       nmk16_state, 0,                ROT0,   "UPL",                          "Koutetsu Yousai Strahl (Japan set 1)", 0 )
 GAME( 1992, strahla,    strahl,   strahl,       strahl,       nmk16_state, 0,                ROT0,   "UPL",                          "Koutetsu Yousai Strahl (Japan set 2)", 0 )
 
@@ -7973,10 +8046,12 @@ GAME( 1993, gunnail,    0,        gunnail,      gunnail,      nmk16_state, nmk, 
 
 GAME( 1993, macross2,   0,        macross2,     macross2,     nmk16_state,  banked_audiocpu, ROT0,   "Banpresto",                    "Super Spacefortress Macross II / Chou-Jikuu Yousai Macross II", MACHINE_NO_COCKTAIL )
 GAME( 1993, macross2g,  macross2, macross2,     macross2,     nmk16_state,  banked_audiocpu, ROT0,   "Banpresto",                    "Super Spacefortress Macross II / Chou-Jikuu Yousai Macross II (GAMEST review build)", MACHINE_NO_COCKTAIL ) // Service switch pauses game
+GAME( 1993, macross2k,  macross2, macross2,     macross2,     nmk16_state,  banked_audiocpu, ROT0,   "Banpresto",                    "Macross II (Korea)", MACHINE_NO_COCKTAIL ) // Title screen only shows Macross II
 
 GAME( 1993, tdragon2,   0,        tdragon2,     tdragon2,     nmk16_state,  banked_audiocpu, ROT270, "NMK",                          "Thunder Dragon 2 (9th Nov. 1993)", MACHINE_NO_COCKTAIL )
 GAME( 1993, tdragon2a,  tdragon2, tdragon2,     tdragon2,     nmk16_state,  banked_audiocpu, ROT270, "NMK",                          "Thunder Dragon 2 (1st Oct. 1993)", MACHINE_NO_COCKTAIL )
 GAME( 1993, bigbang,    tdragon2, tdragon2,     tdragon2,     nmk16_state,  banked_audiocpu, ROT270, "NMK",                          "Big Bang (9th Nov. 1993)", MACHINE_NO_COCKTAIL )
+GAME( 1996, tdragon3h,  tdragon2, tdragon3h,    tdragon2,     nmk16_state,  banked_audiocpu, ROT270, "bootleg (Conny Co Ltd.)",      "Thunder Dragon 3 (bootleg of Thunder Dragon 2)", MACHINE_NO_COCKTAIL ) // based on 1st Oct. 1993 set
 
 /* arcadia was a name conflict to the Emerson Arcadia 2001 in mess */
 GAME( 1994, arcadian,   0,        raphero,      raphero,      nmk16_state,  banked_audiocpu, ROT270, "NMK",                          "Arcadia (NMK)", 0 ) // 23rd July 1993 in test mode, (c)1994 on title screen
@@ -8021,14 +8096,14 @@ GAME( 1997, redhawki, stagger1, redhawki, stagger1, nmk16_state, 0,         ROT0
 GAME( 1997, redhawkg, stagger1, redhawki, stagger1, nmk16_state, 0,         ROT0,   "Afega",                             "Red Hawk (Greece)", 0 )
 GAME( 1997, redhawke, stagger1, stagger1, stagger1, nmk16_state, 0,         ROT270, "Afega (Excellent Co. license)",     "Red Hawk (Excellent Co., Ltd)", 0 )
 GAME( 1997, redhawkk, stagger1, stagger1, stagger1, nmk16_state, 0,         ROT270, "Afega",                             "Red Hawk (Korea)", 0 )
-GAME( 1997, redhawkb, stagger1, redhawkb, redhawkb, nmk16_state, 0,         ROT0,   "bootleg",                           "Red Hawk (bootleg)", 0 )
+GAME( 1997, redhawkb, stagger1, redhawkb, redhawkb, nmk16_state, 0,         ROT0,   "bootleg",                           "Vince (bootleg of Red Hawk)", 0 )
 
 GAME( 1998, grdnstrm, 0,        grdnstrm, grdnstrm, nmk16_state, 0,         ORIENTATION_FLIP_Y, "Afega (Apples Industries license)", "Guardian Storm (horizontal, not encrypted)", 0 )
 GAME( 1998, grdnstrmv,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm,  ROT270,             "Afega (Apples Industries license)", "Guardian Storm (vertical)", 0 )
 GAME( 1998, grdnstrmj,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrmg, ROT270,             "Afega",                             "Sen Jing - Guardian Storm (Japan)", 0 )
 GAME( 1998, grdnstrmk,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm,  ROT270,             "Afega",                             "Jeon Sin - Guardian Storm (Korea)", 0 )
-GAME( 1998, redfoxwp2,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm,  ROT270,             "Afega",                             "Red Fox War Planes II (China, set 1)", 0 )
-GAME( 1998, redfoxwp2a,grdnstrm,grdnstrmk,grdnstrk, nmk16_state, redfoxwp2a,ROT270,             "Afega",                             "Red Fox War Planes II (China, set 2)", 0 )
+GAME( 1998, redfoxwp2,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm,  ROT270,             "Afega",                             "Hong Hu Zhanji II (China, set 1)", 0 )
+GAME( 1998, redfoxwp2a,grdnstrm,grdnstrmk,grdnstrk, nmk16_state, redfoxwp2a,ROT270,             "Afega",                             "Hong Hu Zhanji II (China, set 2)", 0 )
 GAME( 1998, grdnstrmg,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrmg, ROT270,             "Afega",                             "Guardian Storm (Germany)", 0 )
 
 // is there a 'bubble 2000' / 'hot bubble' version with Afega copyright, or is the only Afega release dolmen above, this seems like a sequel, not a clone?

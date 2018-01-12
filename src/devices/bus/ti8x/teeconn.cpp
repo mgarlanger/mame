@@ -5,25 +5,10 @@
 #include "teeconn.h"
 
 
-DEFINE_DEVICE_TYPE_NS(TI8X_TEE_CONNECTOR, bus::ti8x, tee_connector_device, "it8x_tconn", "TI-8x T-connector")
+DEFINE_DEVICE_TYPE_NS(TI8X_TEE_CONNECTOR, bus::ti8x, tee_connector_device, "ti8x_tconn", "TI-8x T-connector")
 
 
 namespace bus { namespace ti8x {
-
-namespace {
-
-MACHINE_CONFIG_FRAGMENT(tee_connector)
-	MCFG_TI8X_LINK_PORT_ADD("a", default_ti8x_link_devices, nullptr)
-	MCFG_TI8X_LINK_TIP_HANDLER(WRITELINE(tee_connector_device, tip_a_w))
-	MCFG_TI8X_LINK_RING_HANDLER(WRITELINE(tee_connector_device, ring_a_w))
-
-	MCFG_TI8X_LINK_PORT_ADD("b", default_ti8x_link_devices, nullptr)
-	MCFG_TI8X_LINK_TIP_HANDLER(WRITELINE(tee_connector_device, tip_b_w))
-	MCFG_TI8X_LINK_RING_HANDLER(WRITELINE(tee_connector_device, ring_b_w))
-MACHINE_CONFIG_END
-
-} // anonymous namespace
-
 
 tee_connector_device::tee_connector_device(
 		machine_config const &mconfig,
@@ -76,10 +61,15 @@ WRITE_LINE_MEMBER(tee_connector_device::ring_b_w)
 }
 
 
-machine_config_constructor tee_connector_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(tee_connector);
-}
+MACHINE_CONFIG_MEMBER(tee_connector_device::device_add_mconfig)
+	MCFG_TI8X_LINK_PORT_ADD("a", default_ti8x_link_devices, nullptr)
+	MCFG_TI8X_LINK_TIP_HANDLER(WRITELINE(tee_connector_device, tip_a_w))
+	MCFG_TI8X_LINK_RING_HANDLER(WRITELINE(tee_connector_device, ring_a_w))
+
+	MCFG_TI8X_LINK_PORT_ADD("b", default_ti8x_link_devices, nullptr)
+	MCFG_TI8X_LINK_TIP_HANDLER(WRITELINE(tee_connector_device, tip_b_w))
+	MCFG_TI8X_LINK_RING_HANDLER(WRITELINE(tee_connector_device, ring_b_w))
+MACHINE_CONFIG_END
 
 
 void tee_connector_device::device_start()

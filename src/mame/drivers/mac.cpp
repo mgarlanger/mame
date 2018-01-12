@@ -57,7 +57,6 @@
 #include "bus/scsi/scsi.h"
 #include "bus/scsi/scsihd.h"
 #include "bus/scsi/scsicd.h"
-#include "sound/volt_reg.h"
 
 // NuBus and 030/040 PDS cards
 #include "bus/nubus/nubus_48gc.h"
@@ -71,6 +70,8 @@
 #include "bus/nubus/nubus_asntmc3b.h"
 #include "bus/nubus/nubus_image.h"
 #include "bus/nubus/nubus_m2video.h"
+#include "bus/nubus/bootbug.h"
+#include "bus/nubus/quadralink.h"
 #include "bus/nubus/pds30_cb264.h"
 #include "bus/nubus/pds30_procolor816.h"
 #include "bus/nubus/pds30_sigmalview.h"
@@ -878,6 +879,8 @@ static SLOT_INTERFACE_START(mac_nubus_cards)
 	SLOT_INTERFACE("asmc3nb", NUBUS_ASNTMC3NB)  /* Asante MC3NB Ethernet card */
 	SLOT_INTERFACE("portrait", NUBUS_WSPORTRAIT)    /* Apple Macintosh II Portrait video card */
 	SLOT_INTERFACE("enetnb", NUBUS_APPLEENET)   /* Apple NuBus Ethernet */
+	SLOT_INTERFACE("bootbug", NUBUS_BOOTBUG)	/* Brigent BootBug debugger card */
+	SLOT_INTERFACE("quadralink", NUBUS_QUADRALINK)	/* AE Quadralink serial card */
 SLOT_INTERFACE_END
 
 static SLOT_INTERFACE_START(mac_pds030_cards)
@@ -930,8 +933,7 @@ static MACHINE_CONFIG_START( mac512ke )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_8BIT_PWM, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // 2 x ls161
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	/* devices */
 	MCFG_RTC3430042_ADD("rtc", XTAL_32_768kHz)

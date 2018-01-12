@@ -16,12 +16,12 @@
 
 READ8_MEMBER(isa16_ide_device::ide16_alt_r )
 {
-	return m_ide->read_cs1(space, 6/2, 0xff);
+	return m_ide->read_cs1(6/2, 0xff);
 }
 
 WRITE8_MEMBER(isa16_ide_device::ide16_alt_w )
 {
-	m_ide->write_cs1(space, 6/2, data, 0xff);
+	m_ide->write_cs1(6/2, data, 0xff);
 }
 
 DEVICE_ADDRESS_MAP_START(map, 16, isa16_ide_device)
@@ -44,22 +44,12 @@ WRITE_LINE_MEMBER(isa16_ide_device::ide_interrupt)
 	}
 }
 
-static MACHINE_CONFIG_FRAGMENT(cdrom_headphones)
+static MACHINE_CONFIG_START(cdrom_headphones)
 	MCFG_DEVICE_MODIFY("cdda")
 	MCFG_SOUND_ROUTE(0, "lheadphone", 1.0)
 	MCFG_SOUND_ROUTE(1, "rheadphone", 1.0)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lheadphone", "rheadphone")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( ide )
-	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", nullptr, false)
-	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(isa16_ide_device, ide_interrupt))
-
-	MCFG_DEVICE_MODIFY("ide:0")
-	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_headphones)
-	MCFG_DEVICE_MODIFY("ide:1")
-	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_headphones)
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( ide )
@@ -76,14 +66,18 @@ INPUT_PORTS_END
 DEFINE_DEVICE_TYPE(ISA16_IDE, isa16_ide_device, "isa_ide", "IDE Fixed Drive Adapter")
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor isa16_ide_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( ide );
-}
+MACHINE_CONFIG_MEMBER( isa16_ide_device::device_add_mconfig )
+	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", nullptr, false)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(isa16_ide_device, ide_interrupt))
+
+	MCFG_DEVICE_MODIFY("ide:0")
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_headphones)
+	MCFG_DEVICE_MODIFY("ide:1")
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_headphones)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  input_ports - device-specific input ports

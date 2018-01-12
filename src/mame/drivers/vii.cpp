@@ -35,7 +35,7 @@
          D - SPG243 - The Batman
          D - SPG243 - Wall-E
          D - SPG243 - Chintendo / KenSingTon / Siatronics / Jungle Soft Vii
- Partial D - SPG200 - V-Tech V-Smile
+ Partial D - SPG200 - VTech V.Smile
         ND - unknown - Zone 40
          D - SPG243 - Zone 60
          D - SPG243 - Wireless 60
@@ -44,7 +44,7 @@
 
 
 Similar Systems: ( from http://en.wkikpedia.org/wiki/V.Smile )
-- V.Smile by Vtech, a system designed for children under the age of 10
+- V.Smile by VTech, a system designed for children under the age of 10
 - V.Smile Pocket (2 versions)
 - V.Smile Cyber Pocket
 - V.Smile PC Pal
@@ -294,7 +294,7 @@ void vii_state::blit(bitmap_rgb32 &bitmap, const rectangle &cliprect, uint32_t x
 			bits <<= nc;
 			if(nbits < nc)
 			{
-				uint16_t b = space.read_word((m++ & 0x3fffff) << 1);
+				uint16_t b = space.read_word(m++ & 0x3fffff);
 				b = (b << 8) | (b >> 8);
 				bits |= b << (nc - nbits);
 				nbits += 16;
@@ -360,7 +360,7 @@ void vii_state::blit_page(bitmap_rgb32 &bitmap, const rectangle &cliprect, int d
 	{
 		for(x0 = 0; x0 < wn; x0++)
 		{
-			uint16_t tile = space.read_word((tilemap + x0 + wn * y0) << 1);
+			uint16_t tile = space.read_word(tilemap + x0 + wn * y0);
 			uint16_t palette = 0;
 			uint32_t xx, yy;
 
@@ -369,7 +369,7 @@ void vii_state::blit_page(bitmap_rgb32 &bitmap, const rectangle &cliprect, int d
 				continue;
 			}
 
-			palette = space.read_word((palette_map + (x0 + wn * y0) / 2) << 1);
+			palette = space.read_word(palette_map + (x0 + wn * y0) / 2);
 			if(x0 & 1)
 			{
 				palette >>= 8;
@@ -405,10 +405,10 @@ void vii_state::blit_sprite(bitmap_rgb32 &bitmap, const rectangle &cliprect, int
 	uint32_t h, w;
 	uint32_t bitmap_addr = 0x40 * m_video_regs[0x22];
 
-	tile = space.read_word((base_addr + 0) << 1);
-	x = space.read_word((base_addr + 1) << 1);
-	y = space.read_word((base_addr + 2) << 1);
-	attr = space.read_word((base_addr + 3) << 1);
+	tile = space.read_word(base_addr + 0);
+	x = space.read_word(base_addr + 1);
+	y = space.read_word(base_addr + 2);
+	attr = space.read_word(base_addr + 3);
 
 	if(!tile)
 	{
@@ -449,7 +449,7 @@ void vii_state::blit_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, in
 
 	for(n = 0; n < 256; n++)
 	{
-		//if(space.read_word((0x2c00 + 4*n) << 1))
+		//if(space.read_word(0x2c00 + 4*n)
 		{
 			blit_sprite(bitmap, cliprect, depth, 0x2c00 + 4*n);
 		}
@@ -495,7 +495,7 @@ void vii_state::do_dma(uint32_t len)
 
 	for(j = 0; j < len; j++)
 	{
-		mem.write_word((dst+j) << 1, mem.read_word((src+j) << 1));
+		mem.write_word(dst+j, mem.read_word(src+j));
 	}
 
 	m_video_regs[0x72] = 0;
@@ -697,7 +697,7 @@ void vii_state::spg_do_dma(uint32_t len)
 	uint32_t j;
 
 	for(j = 0; j < len; j++)
-		mem.write_word((dst+j) << 1, mem.read_word((src+j) << 1));
+		mem.write_word(dst+j, mem.read_word(src+j));
 
 	m_io_regs[0x102] = 0;
 }
@@ -1298,12 +1298,22 @@ ROM_END
 
 ROM_START( vsmile )
 	ROM_REGION( 0x800000, "maincpu", ROMREGION_ERASEFF )      /* dummy region for u'nSP */
+	ROM_LOAD( "vsmilebios.bin", 0x000000, 0x200000, CRC(11f1b416) SHA1(11f77c4973d29c962567390e41879c86a759c93b) )
+ROM_END
+
+ROM_START( vsmileg )
+	ROM_REGION( 0x800000, "maincpu", ROMREGION_ERASEFF )      /* dummy region for u'nSP */
 	ROM_LOAD16_WORD_SWAP( "bios german.bin", 0x000000, 0x200000, CRC(205c5296) SHA1(7fbcf761b5885c8b1524607aabaf364b4559c8cc) )
 ROM_END
 
 ROM_START( vsmilef )
 	ROM_REGION( 0x800000, "maincpu", ROMREGION_ERASEFF )      /* dummy region for u'nSP */
 	ROM_LOAD16_WORD_SWAP( "sysrom_france", 0x000000, 0x200000, CRC(0cd0bdf5) SHA1(5c8d1eada1b6b545555b8d2b09325d7127681af8) )
+ROM_END
+
+ROM_START( vsmileb )
+	ROM_REGION( 0x800000, "maincpu", ROMREGION_ERASEFF )      /* dummy region for u'nSP */
+	ROM_LOAD( "vbabybios.bin", 0x000000, 0x800000, CRC(ddc7f845) SHA1(2c17d0f54200070176d03d44a40c7923636e596a) )
 ROM_END
 
 ROM_START( walle )
@@ -1329,8 +1339,10 @@ ROM_END
 
 //    YEAR  NAME      PARENT    COMPAT    MACHINE   INPUT     STATE      INIT      COMPANY                                              FULLNAME             FLAGS
 CONS( 2004, batmantv, vii,      0,        batman,   batman,   vii_state, batman,   "JAKKS Pacific Inc / HotGen Ltd",                    "The Batman",        MACHINE_NO_SOUND )
-CONS( 2005, vsmile,   0,        0,        vsmile,   vsmile,   vii_state, vsmile,   "V-Tech",                                            "V-Smile (Germany)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
-CONS( 2005, vsmilef,  vsmile,   0,        vsmile,   vsmile,   vii_state, vsmile,   "V-Tech",                                            "V-Smile (France)",  MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+CONS( 2005, vsmile,   0,        0,        vsmile,   vsmile,   vii_state, vsmile,   "VTech",                                             "V.Smile (US)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+CONS( 2005, vsmileg,  vsmile,   0,        vsmile,   vsmile,   vii_state, vsmile,   "VTech",                                             "V.Smile (Germany)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+CONS( 2005, vsmilef,  vsmile,   0,        vsmile,   vsmile,   vii_state, vsmile,   "VTech",                                             "V.Smile (France)",  MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
+CONS( 2005, vsmileb,  0,        0,        vsmile,   vsmile,   vii_state, vsmile,   "VTech",                                             "V.Smile Baby (US)", MACHINE_NO_SOUND | MACHINE_NOT_WORKING )
 CONS( 2007, vii,      0,        0,        vii,      vii,      vii_state, vii,      "Jungle Soft / KenSingTon / Chintendo / Siatronics", "Vii",               MACHINE_NO_SOUND )
 CONS( 2008, walle,    vii,      0,        batman,   walle,    vii_state, walle,    "JAKKS Pacific Inc",                                 "Wall-E",            MACHINE_NO_SOUND )
 CONS( 2010, zone60,   0,        0,        wirels60, wirels60, vii_state, wirels60, "Jungle Soft / Ultimate Products (HK) Ltd",          "Zone 60",           MACHINE_NO_SOUND )

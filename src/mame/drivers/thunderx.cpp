@@ -70,12 +70,12 @@ READ8_MEMBER(thunderx_state::pmc_r)
 {
 	if (PMC_BK)
 	{
-//      logerror("%04x read pmcram %04x\n",space.device().safe_pc(),offset);
+//      logerror("%04x read pmcram %04x\n",m_audiocpu->pc(),offset);
 		return m_pmcram[offset];
 	}
 	else
 	{
-		LOG(("%04x read pmc internal ram %04x\n",space.device().safe_pc(),offset));
+		LOG(("%04x read pmc internal ram %04x\n",m_audiocpu->pc(),offset));
 		return 0;
 	}
 }
@@ -84,12 +84,12 @@ WRITE8_MEMBER(thunderx_state::pmc_w)
 {
 	if (PMC_BK)
 	{
-		LOG(("%04x pmcram %04x = %02x\n",space.device().safe_pc(),offset,data));
+		LOG(("%04x pmcram %04x = %02x\n",m_audiocpu->pc(),offset,data));
 		m_pmcram[offset] = data;
 	}
 	else
 	{
-		LOG(("%04x pmc internal ram %04x = %02x\n",space.device().safe_pc(),offset,data));
+		LOG(("%04x pmc internal ram %04x = %02x\n",m_audiocpu->pc(),offset,data));
 	}
 }
 
@@ -299,7 +299,7 @@ READ8_MEMBER(thunderx_state::_1f98_r)
 
 WRITE8_MEMBER(thunderx_state::thunderx_1f98_w)
 {
-	// logerror("%04x: 1f98_w %02x\n", space.device().safe_pc(),data);
+	// logerror("%04x: 1f98_w %02x\n", m_maincpu->pc(),data);
 
 	// bit 0 = enable char ROM reading through the video RAM
 	m_k052109->set_rmrd_line((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
@@ -643,8 +643,8 @@ static MACHINE_CONFIG_START( scontra )
 	MCFG_DEVICE_ADD("bank5800", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(scontra_bank5800_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_BIG)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(12)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(12)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x0800)
 
 	MCFG_WATCHDOG_ADD("watchdog")
@@ -705,7 +705,7 @@ static MACHINE_CONFIG_DERIVED( thunderx, scontra )
 
 	MCFG_DEVICE_MODIFY("bank5800")
 	MCFG_DEVICE_PROGRAM_MAP(thunderx_bank5800_map)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(13)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(13)
 
 	MCFG_DEVICE_REMOVE("k007232")
 MACHINE_CONFIG_END

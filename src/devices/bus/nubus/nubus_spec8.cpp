@@ -22,13 +22,6 @@
 
 #define VRAM_SIZE   (0xc0000)   // 768k of VRAM for 1024x768 @ 8 bit
 
-MACHINE_CONFIG_FRAGMENT( spec8s3 )
-	MCFG_SCREEN_ADD( SPEC8S3_SCREEN_NAME, RASTER)
-	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, nubus_spec8s3_device, screen_update)
-	MCFG_SCREEN_RAW_PARAMS(25175000, 800, 0, 640, 525, 0, 480)
-	MCFG_SCREEN_SIZE(1024,768)
-	MCFG_SCREEN_VISIBLE_AREA(0, 1024-1, 0, 768-1)
-MACHINE_CONFIG_END
 
 ROM_START( spec8s3 )
 	ROM_REGION(0x8000, SPEC8S3_ROM_REGION, 0)
@@ -44,14 +37,16 @@ DEFINE_DEVICE_TYPE(NUBUS_SPEC8S3, nubus_spec8s3_device, "nb_sp8s3", "SuperMac Sp
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor nubus_spec8s3_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( spec8s3 );
-}
+MACHINE_CONFIG_MEMBER( nubus_spec8s3_device::device_add_mconfig )
+	MCFG_SCREEN_ADD( SPEC8S3_SCREEN_NAME, RASTER)
+	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, nubus_spec8s3_device, screen_update)
+	MCFG_SCREEN_RAW_PARAMS(25175000, 800, 0, 640, 525, 0, 480)
+	MCFG_SCREEN_SIZE(1024,768)
+	MCFG_SCREEN_VISIBLE_AREA(0, 1024-1, 0, 768-1)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -83,7 +78,7 @@ nubus_spec8s3_device::nubus_spec8s3_device(const machine_config &mconfig, device
 	m_assembled_tag(util::string_format("%s:%s", tag, SPEC8S3_SCREEN_NAME)),
 	m_vbl_pending(false), m_parameter(0)
 {
-	m_screen_tag = m_assembled_tag.c_str();
+	static_set_screen(*this, m_assembled_tag.c_str());
 }
 
 //-------------------------------------------------
@@ -109,7 +104,7 @@ void nubus_spec8s3_device::device_start()
 	m_nubus->install_device(slotspace+0xd0000, slotspace+0xfffff, read32_delegate(FUNC(nubus_spec8s3_device::spec8s3_r), this), write32_delegate(FUNC(nubus_spec8s3_device::spec8s3_w), this));
 
 	m_timer = timer_alloc(0, nullptr);
-	m_timer->adjust(m_screen->time_until_pos(767, 0), 0);
+	m_timer->adjust(screen().time_until_pos(767, 0), 0);
 }
 
 //-------------------------------------------------
@@ -140,7 +135,7 @@ void nubus_spec8s3_device::device_timer(emu_timer &timer, device_timer_id tid, i
 		m_vbl_pending = true;
 	}
 
-	m_timer->adjust(m_screen->time_until_pos(767, 0), 0);
+	m_timer->adjust(screen().time_until_pos(767, 0), 0);
 }
 
 /***************************************************************************
@@ -262,9 +257,9 @@ WRITE32_MEMBER( nubus_spec8s3_device::spec8s3_w )
 
 			if (m_count == 3)
 			{
-				int actual_color = BITSWAP8(m_clutoffs, 0, 1, 2, 3, 4, 5, 6, 7);
+				int actual_color = bitswap<8>(m_clutoffs, 0, 1, 2, 3, 4, 5, 6, 7);
 
-//              printf("RAMDAC: color %d = %02x %02x %02x (PC=%x)\n", actual_color, m_colors[0], m_colors[1], m_colors[2], space.device().safe_pc() );
+//              logerror("RAMDAC: color %d = %02x %02x %02x %s\n", actual_color, m_colors[0], m_colors[1], m_colors[2], machine().describe_context() );
 				m_palette[actual_color] = rgb_t(m_colors[0], m_colors[1], m_colors[2]);
 				m_clutoffs++;
 				if (m_clutoffs > 255)
@@ -279,7 +274,7 @@ WRITE32_MEMBER( nubus_spec8s3_device::spec8s3_w )
 			if ((m_parameter == 2) && (data != 0xffffffff))
 			{
 				data &= 0xff;
-//              printf("%x to mode\n", data);
+//              logerror("%x to mode\n", data);
 				switch (data)
 				{
 					case 0x5f:
@@ -310,7 +305,7 @@ WRITE32_MEMBER( nubus_spec8s3_device::spec8s3_w )
 			break;
 
 		default:
-//          if (offset >= 0x3800) printf("spec8s3_w: %08x @ %x (mask %08x  PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
+//          if (offset >= 0x3800) logerror("spec8s3_w: %08x @ %x (mask %08x  %s)\n", data, offset, mem_mask, machine().describe_context());
 			break;
 	}
 }
@@ -338,7 +333,7 @@ READ32_MEMBER( nubus_spec8s3_device::spec8s3_r )
 			return 0;
 
 		default:
-//          if (offset >= 0x3800) printf("spec8s3_r: @ %x (mask %08x  PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+//          if (offset >= 0x3800) logerror("spec8s3_r: @ %x (mask %08x  %s)\n", offset, mem_mask, machine().describe_context());
 			break;
 	}
 	return 0;

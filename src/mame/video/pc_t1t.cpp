@@ -78,7 +78,7 @@ void pcvideo_t1000_device::device_start()
 	m_bank = 0;
 	m_chr_size = 1;
 	m_ra_offset = 256;
-	m_vram->space(AS_0).install_ram(0, 128*1024 - 1, m_ram->pointer());
+	m_vram->space(0).install_ram(0, 128*1024 - 1, m_ram->pointer());
 }
 
 
@@ -94,12 +94,12 @@ void pcvideo_pcjr_device::device_start()
 	if(!strncmp(machine().system().name, "ibmpcjx", 7))
 	{
 		m_jxkanji = machine().root_device().memregion("kanji")->base();
-		m_vram->space(AS_0).install_ram(0, 128*1024 - 1, memshare(":vram")->ptr()); // TODO: fix when this is really understood
+		m_vram->space(0).install_ram(0, 128*1024 - 1, memshare(":vram")->ptr()); // TODO: fix when this is really understood
 	}
 	else
 	{
 		m_jxkanji = nullptr;
-		m_vram->space(AS_0).install_ram(0, 128*1024 - 1, m_ram->pointer());
+		m_vram->space(0).install_ram(0, 128*1024 - 1, m_ram->pointer());
 	}
 }
 
@@ -110,12 +110,12 @@ void pcvideo_pcjr_device::device_start()
 
 ***************************************************************************/
 
-static ADDRESS_MAP_START(vram_map, AS_0, 8, pcvideo_t1000_device)
+static ADDRESS_MAP_START(vram_map, 0, 8, pcvideo_t1000_device)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x20000, 0x3ffff) AM_NOP
 ADDRESS_MAP_END
 
-MACHINE_CONFIG_FRAGMENT( pcvideo_t1000 )
+MACHINE_CONFIG_MEMBER( pcvideo_t1000_device::device_add_mconfig )
 	MCFG_SCREEN_ADD(T1000_SCREEN_NAME, RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_14_31818MHz,912,0,640,262,0,200)
 	MCFG_SCREEN_UPDATE_DEVICE( T1000_MC6845_NAME, mc6845_device, screen_update )
@@ -133,19 +133,15 @@ MACHINE_CONFIG_FRAGMENT( pcvideo_t1000 )
 	MCFG_DEVICE_ADD("vram", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(vram_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(18)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
 MACHINE_CONFIG_END
 
-machine_config_constructor pcvideo_t1000_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcvideo_t1000 );
-}
 
-MACHINE_CONFIG_FRAGMENT( pcvideo_pcjr )
+MACHINE_CONFIG_MEMBER( pcvideo_pcjr_device::device_add_mconfig )
 	MCFG_SCREEN_ADD(T1000_SCREEN_NAME, RASTER)
-	MCFG_SCREEN_RAW_PARAMS(XTAL_14_31818MHz,912,0,640,262,0,200)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_14_31818MHz, 912, 0, 640, 262, 0, 200)
 	MCFG_SCREEN_UPDATE_DEVICE( T1000_MC6845_NAME, mc6845_device, screen_update )
 
 	MCFG_PALETTE_ADD( "palette", 32 )
@@ -160,15 +156,10 @@ MACHINE_CONFIG_FRAGMENT( pcvideo_pcjr )
 	MCFG_DEVICE_ADD("vram", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(vram_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(18)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
 MACHINE_CONFIG_END
-
-machine_config_constructor pcvideo_pcjr_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( pcvideo_pcjr );
-}
 
 
 /***************************************************************************

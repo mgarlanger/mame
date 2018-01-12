@@ -8,7 +8,6 @@
 #include "stereo_fx.h"
 
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -109,7 +108,12 @@ static ADDRESS_MAP_START(stereo_fx_rom, AS_PROGRAM, 8, stereo_fx_device)
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 ADDRESS_MAP_END
 
-static MACHINE_CONFIG_FRAGMENT( stereo_fx )
+const tiny_rom_entry *stereo_fx_device::device_rom_region() const
+{
+	return ROM_NAME( stereo_fx );
+}
+
+MACHINE_CONFIG_MEMBER( stereo_fx_device::device_add_mconfig )
 	MCFG_CPU_ADD("stereo_fx_cpu", I80C31, XTAL_30MHz)
 	MCFG_CPU_IO_MAP(stereo_fx_io)
 	MCFG_CPU_PROGRAM_MAP(stereo_fx_rom)
@@ -121,23 +125,12 @@ static MACHINE_CONFIG_FRAGMENT( stereo_fx )
 	/* no CM/S support (empty sockets) */
 
 	MCFG_SOUND_ADD("ldac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_PC_JOY_ADD("pc_joy")
 MACHINE_CONFIG_END
-
-const tiny_rom_entry *stereo_fx_device::device_rom_region() const
-{
-	return ROM_NAME( stereo_fx );
-}
-
-machine_config_constructor stereo_fx_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( stereo_fx );
-}
 
 READ8_MEMBER( stereo_fx_device::dsp_data_r )
 {

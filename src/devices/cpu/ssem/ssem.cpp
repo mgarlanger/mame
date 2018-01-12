@@ -9,8 +9,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "ssem.h"
-
-CPU_DISASSEMBLE( ssem );
+#include "ssemdasm.h"
 
 
 #define SSEM_DISASM_ON_UNIMPL           0
@@ -135,13 +134,11 @@ void ssem_device::device_reset()
 //  the space doesn't exist
 //-------------------------------------------------
 
-const address_space_config *ssem_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector ssem_device::memory_space_config() const
 {
-	if (spacenum == AS_PROGRAM)
-	{
-		return &m_program_config;
-	}
-	return nullptr;
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -162,36 +159,13 @@ void ssem_device::state_string_export(const device_state_entry &entry, std::stri
 
 
 //-------------------------------------------------
-//  disasm_min_opcode_bytes - return the length
-//  of the shortest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t ssem_device::disasm_min_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_max_opcode_bytes - return the length
-//  of the longest instruction, in bytes
-//-------------------------------------------------
-
-uint32_t ssem_device::disasm_max_opcode_bytes() const
-{
-	return 4;
-}
-
-
-//-------------------------------------------------
-//  disasm_disassemble - call the disassembly
+//  disassemble - call the disassembly
 //  helper function
 //-------------------------------------------------
 
-offs_t ssem_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *ssem_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( ssem );
-	return CPU_DISASSEMBLE_NAME(ssem)(this, stream, pc, oprom, opram, options);
+	return new ssem_disassembler;
 }
 
 

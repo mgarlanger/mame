@@ -54,6 +54,7 @@ So this is the correct behavior of real hardware, not an emulation bug.
 
 #include "cpu/m68000/m68000.h"
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/gen_latch.h"
 #include "machine/watchdog.h"
 #include "sound/ay8910.h"
@@ -103,55 +104,40 @@ TIMER_DEVICE_CALLBACK_MEMBER(nemesis_state::gx400_interrupt)
 }
 
 
-WRITE16_MEMBER(nemesis_state::gx400_irq1_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::irq_enable_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_irq1_on = data & 0x0001;
-
-	if (ACCESSING_BITS_8_15)
-		machine().bookkeeping().coin_lockout_w(1, data & 0x0100);
+	m_irq_on = state;
 }
 
-WRITE16_MEMBER(nemesis_state::gx400_irq2_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::irq1_enable_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_irq2_on = data & 0x0001;
-
-	if (ACCESSING_BITS_8_15)
-		machine().bookkeeping().coin_lockout_w(0, data & 0x0100);
+	m_irq1_on = state;
 }
 
-WRITE16_MEMBER(nemesis_state::gx400_irq4_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::irq2_enable_w)
 {
-	if (ACCESSING_BITS_8_15)
-		m_irq4_on = data & 0x0100;
+	m_irq2_on = state;
 }
 
-WRITE16_MEMBER(nemesis_state::nemesis_irq_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::irq4_enable_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_irq_on = data & 0xff;
-
-	if (ACCESSING_BITS_8_15)
-		machine().bookkeeping().coin_lockout_global_w(data & 0x0100);
+	m_irq4_on = state;
 }
 
-WRITE16_MEMBER(nemesis_state::konamigt_irq_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::coin1_lockout_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_irq_on = data & 0xff;
-
-	if (ACCESSING_BITS_8_15)
-		machine().bookkeeping().coin_lockout_w(1, data & 0x0100);
+	machine().bookkeeping().coin_lockout_w(0, state);
 }
 
-WRITE16_MEMBER(nemesis_state::konamigt_irq2_enable_word_w)
+WRITE_LINE_MEMBER(nemesis_state::coin2_lockout_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_irq2_on = data & 0xff;
+	machine().bookkeeping().coin_lockout_w(1, state);
+}
 
-	if (ACCESSING_BITS_8_15)
-		machine().bookkeeping().coin_lockout_w(0, data & 0x0100);
+WRITE_LINE_MEMBER(nemesis_state::sound_irq_w)
+{
+	if (state)
+		m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 
@@ -234,8 +220,9 @@ WRITE8_MEMBER(nemesis_state::gx400_speech_start_w)
 
 WRITE8_MEMBER(nemesis_state::salamand_speech_start_w)
 {
-	m_vlm->st(1);
-	m_vlm->st(0);
+	m_vlm->rst(BIT(data, 0));
+	m_vlm->st(BIT(data, 1));
+	// bit 2 is OE for VLM data
 }
 
 READ8_MEMBER(nemesis_state::nemesis_portA_r)
@@ -286,12 +273,8 @@ static ADDRESS_MAP_START( nemesis_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x05cc02, 0x05cc03) AM_READ_PORT("IN1")
 	AM_RANGE(0x05cc04, 0x05cc05) AM_READ_PORT("IN2")
 	AM_RANGE(0x05cc06, 0x05cc07) AM_READ_PORT("TEST")
-	AM_RANGE(0x05e000, 0x05e001) AM_WRITE(nemesis_irq_enable_word_w)
-	AM_RANGE(0x05e002, 0x05e003) AM_WRITENOP        /* not used irq */
-	AM_RANGE(0x05e004, 0x05e005) AM_WRITE(nemesis_gfx_flipx_word_w)
-	AM_RANGE(0x05e006, 0x05e007) AM_WRITE(nemesis_gfx_flipy_word_w)
-	AM_RANGE(0x05e008, 0x05e009) AM_WRITENOP        /* not used irq */
-	AM_RANGE(0x05e00e, 0x05e00f) AM_WRITENOP        /* not used irq */
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("outlatch", ls259_device, write_d0, 0xff00)
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("intlatch", ls259_device, write_d0, 0x00ff)
 	AM_RANGE(0x060000, 0x067fff) AM_RAM         /* WORK RAM */
 ADDRESS_MAP_END
 
@@ -320,12 +303,8 @@ static ADDRESS_MAP_START( gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x05cc00, 0x05cc01) AM_READ_PORT("IN0")
 	AM_RANGE(0x05cc02, 0x05cc03) AM_READ_PORT("IN1")
 	AM_RANGE(0x05cc04, 0x05cc05) AM_READ_PORT("IN2")
-	AM_RANGE(0x05e000, 0x05e001) AM_WRITE(gx400_irq2_enable_word_w) /* ?? */
-	AM_RANGE(0x05e002, 0x05e003) AM_WRITE(gx400_irq1_enable_word_w) /* ?? */
-	AM_RANGE(0x05e004, 0x05e005) AM_WRITE(nemesis_gfx_flipx_word_w)
-	AM_RANGE(0x05e006, 0x05e007) AM_WRITE(nemesis_gfx_flipy_word_w)
-	AM_RANGE(0x05e008, 0x05e009) AM_WRITENOP        /* IRQ acknowledge??? */
-	AM_RANGE(0x05e00e, 0x05e00f) AM_WRITE(gx400_irq4_enable_word_w) /* ?? */
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("outlatch", ls259_device, write_d0, 0xff00)
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("intlatch", ls259_device, write_d0, 0x00ff)
 	AM_RANGE(0x060000, 0x07ffff) AM_RAM         /* WORK RAM */
 	AM_RANGE(0x080000, 0x0bffff) AM_ROM
 ADDRESS_MAP_END
@@ -352,12 +331,8 @@ static ADDRESS_MAP_START( konamigt_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x05cc02, 0x05cc03) AM_READ_PORT("IN1")
 	AM_RANGE(0x05cc04, 0x05cc05) AM_READ_PORT("IN2")
 	AM_RANGE(0x05cc06, 0x05cc07) AM_READ_PORT("TEST")
-	AM_RANGE(0x05e000, 0x05e001) AM_WRITE(konamigt_irq2_enable_word_w)
-	AM_RANGE(0x05e002, 0x05e003) AM_WRITE(konamigt_irq_enable_word_w)
-	AM_RANGE(0x05e004, 0x05e005) AM_WRITE(nemesis_gfx_flipx_word_w)
-	AM_RANGE(0x05e006, 0x05e007) AM_WRITE(nemesis_gfx_flipy_word_w)
-	AM_RANGE(0x05e008, 0x05e009) AM_WRITENOP        /* not used irq */
-	AM_RANGE(0x05e00e, 0x05e00f) AM_WRITENOP        /* not used irq */
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("outlatch", ls259_device, write_d0, 0xff00)
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("intlatch", ls259_device, write_d0, 0x00ff)
 	AM_RANGE(0x060000, 0x067fff) AM_RAM         /* WORK RAM */
 	AM_RANGE(0x070000, 0x070001) AM_READ(konamigt_input_word_r)
 ADDRESS_MAP_END
@@ -386,12 +361,8 @@ static ADDRESS_MAP_START( rf2_gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x05cc00, 0x05cc01) AM_READ_PORT("IN0")
 	AM_RANGE(0x05cc02, 0x05cc03) AM_READ_PORT("IN1")
 	AM_RANGE(0x05cc04, 0x05cc05) AM_READ_PORT("IN2")
-	AM_RANGE(0x05e000, 0x05e001) AM_WRITE(gx400_irq2_enable_word_w) /* ?? */
-	AM_RANGE(0x05e002, 0x05e003) AM_WRITE(gx400_irq1_enable_word_w) /* ?? */
-	AM_RANGE(0x05e004, 0x05e005) AM_WRITE(nemesis_gfx_flipx_word_w)
-	AM_RANGE(0x05e006, 0x05e007) AM_WRITE(nemesis_gfx_flipy_word_w)
-	AM_RANGE(0x05e008, 0x05e009) AM_WRITENOP    /* IRQ acknowledge??? */
-	AM_RANGE(0x05e00e, 0x05e00f) AM_WRITE(gx400_irq4_enable_word_w) /* ?? */
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("outlatch", ls259_device, write_d0, 0xff00)
+	AM_RANGE(0x05e000, 0x05e00f) AM_DEVWRITE8("intlatch", ls259_device, write_d0, 0x00ff)
 	AM_RANGE(0x060000, 0x067fff) AM_RAM         /* WORK RAM */
 	AM_RANGE(0x070000, 0x070001) AM_READ(konamigt_input_word_r)
 	AM_RANGE(0x080000, 0x0bffff) AM_ROM
@@ -436,7 +407,7 @@ static ADDRESS_MAP_START( gx400_sound_map, AS_PROGRAM, 8, nemesis_state )
 ADDRESS_MAP_END
 
 // gx400 voice data is not in a ROM but in sound RAM at $8000
-static ADDRESS_MAP_START( gx400_vlm_map, AS_0, 8, nemesis_state )
+static ADDRESS_MAP_START( gx400_vlm_map, 0, 8, nemesis_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x7ff)
 	AM_RANGE(0x000, 0x7ff) AM_RAM AM_SHARE("voiceram")
 ADDRESS_MAP_END
@@ -563,7 +534,7 @@ static ADDRESS_MAP_START( sal_sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(salamand_speech_start_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( salamand_vlm_map, AS_0, 8, nemesis_state )
+static ADDRESS_MAP_START( salamand_vlm_map, 0, 8, nemesis_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 ADDRESS_MAP_END
@@ -606,9 +577,7 @@ static ADDRESS_MAP_START( hcrash_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x0c0008, 0x0c0009) AM_DEVWRITE("watchdog", watchdog_timer_device, reset16_w)   /* watchdog probably */
 	AM_RANGE(0x0c000a, 0x0c000b) AM_READ_PORT("IN0")
 	AM_RANGE(0x0c2000, 0x0c2001) AM_READ(konamigt_input_word_r) /* Konami GT control */
-	AM_RANGE(0x0c2800, 0x0c2801) AM_WRITENOP
-	AM_RANGE(0x0c2802, 0x0c2803) AM_WRITE(gx400_irq2_enable_word_w) // or at 0x0c2804 ?
-	AM_RANGE(0x0c2804, 0x0c2805) AM_WRITENOP
+	AM_RANGE(0x0c2800, 0x0c280f) AM_DEVWRITE8("intlatch", ls259_device, write_d0, 0x00ff) // ???
 	AM_RANGE(0x0c4000, 0x0c4001) AM_READ_PORT("IN1") AM_WRITE(selected_ip_word_w)
 	AM_RANGE(0x0c4002, 0x0c4003) AM_READ(selected_ip_word_r) AM_WRITENOP    /* WEC Le Mans 24 control. latches the value read previously */
 	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(nemesis_videoram2_word_w) AM_SHARE("videoram2")       /* VRAM */
@@ -622,11 +591,6 @@ static ADDRESS_MAP_START( hcrash_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x190400, 0x1907ff) AM_SHARE("xscroll1")
 	AM_RANGE(0x190f00, 0x190f7f) AM_SHARE("yscroll1")
 	AM_RANGE(0x190f80, 0x190fff) AM_SHARE("yscroll2")
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( hcrash_vlm_map, AS_0, 8, nemesis_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
-	AM_RANGE(0x0000, 0x3fff) AM_ROM AM_REGION("vlm", 0x4000)
 ADDRESS_MAP_END
 
 /******************************************************************************/
@@ -1473,9 +1437,6 @@ void nemesis_state::machine_start()
 void nemesis_state::machine_reset()
 {
 	m_irq_on = 0;
-	m_irq1_on = 0;
-	m_irq2_on = 0;
-	m_irq4_on = 0;
 	m_gx400_irq1_cnt = 0;
 	m_frame_counter = 1;
 	m_selected_ip = 0;
@@ -1495,6 +1456,16 @@ static MACHINE_CONFIG_START( nemesis )
 
 	MCFG_CPU_ADD("audiocpu", Z80,14318180/4) /* From schematics, should be accurate */
 	MCFG_CPU_PROGRAM_MAP(sound_map) /* fixed */
+
+	MCFG_DEVICE_ADD("outlatch", LS259, 0) // 13J
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, coin1_lockout_w))
+	MCFG_DEVCB_CHAIN_OUTPUT(WRITELINE(nemesis_state, coin2_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, sound_irq_w))
+
+	MCFG_DEVICE_ADD("intlatch", LS259, 0) // 11K
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, irq_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, gfx_flipx_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(nemesis_state, gfx_flipy_w))
 
 	MCFG_WATCHDOG_ADD("watchdog")
 
@@ -1553,6 +1524,18 @@ static MACHINE_CONFIG_START( gx400 )
 	MCFG_CPU_PROGRAM_MAP(gx400_sound_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", nemesis_state,  nmi_line_pulse)    /* interrupts are triggered by the main CPU */
 
+	MCFG_DEVICE_ADD("outlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, coin1_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, coin2_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, sound_irq_w))
+	MCFG_ADDRESSABLE_LATCH_Q7_OUT_CB(WRITELINE(nemesis_state, irq4_enable_w)) // ??
+
+	MCFG_DEVICE_ADD("intlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, irq2_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, irq1_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, gfx_flipx_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(nemesis_state, gfx_flipy_w))
+
 	MCFG_WATCHDOG_ADD("watchdog")
 
 	/* video hardware */
@@ -1598,7 +1581,7 @@ static MACHINE_CONFIG_START( gx400 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, gx400_vlm_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, gx400_vlm_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -1612,6 +1595,17 @@ static MACHINE_CONFIG_START( konamigt )
 
 	MCFG_CPU_ADD("audiocpu", Z80,14318180/4)        /* 3.579545 MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
+
+	MCFG_DEVICE_ADD("outlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, coin2_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, coin1_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, sound_irq_w))
+
+	MCFG_DEVICE_ADD("intlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, irq2_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, irq_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, gfx_flipx_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(nemesis_state, gfx_flipy_w))
 
 	MCFG_WATCHDOG_ADD("watchdog")
 
@@ -1670,6 +1664,18 @@ static MACHINE_CONFIG_START( rf2_gx400 )
 	MCFG_CPU_PROGRAM_MAP(gx400_sound_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", nemesis_state,  nmi_line_pulse)    /* interrupts are triggered by the main CPU */
 
+	MCFG_DEVICE_ADD("outlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, coin1_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, coin2_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, sound_irq_w))
+	MCFG_ADDRESSABLE_LATCH_Q7_OUT_CB(WRITELINE(nemesis_state, irq4_enable_w)) // ??
+
+	MCFG_DEVICE_ADD("intlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, irq2_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, irq1_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, gfx_flipx_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(nemesis_state, gfx_flipy_w))
+
 	MCFG_WATCHDOG_ADD("watchdog")
 
 	/* video hardware */
@@ -1715,7 +1721,7 @@ static MACHINE_CONFIG_START( rf2_gx400 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, gx400_vlm_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, gx400_vlm_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -1753,7 +1759,7 @@ static MACHINE_CONFIG_START( salamand )
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, salamand_vlm_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, salamand_vlm_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 2.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 2.50)
 
@@ -1927,6 +1933,11 @@ static MACHINE_CONFIG_START( hcrash )
 	MCFG_CPU_ADD("audiocpu", Z80,14318180/4)       /* 3.579545 MHz */
 	MCFG_CPU_PROGRAM_MAP(sal_sound_map)
 
+	MCFG_DEVICE_ADD("intlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(NOOP) // ?
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, irq2_enable_w)) // or at 0x0c2804 ?
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(NOOP) // ?
+
 	MCFG_WATCHDOG_ADD("watchdog")
 
 	/* video hardware */
@@ -1949,9 +1960,9 @@ static MACHINE_CONFIG_START( hcrash )
 	MCFG_GENERIC_LATCH_8_ADD("soundlatch")
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, hcrash_vlm_map)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
+	MCFG_DEVICE_ADDRESS_MAP(0, salamand_vlm_map)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.00)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
 	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
@@ -2355,7 +2366,7 @@ ROM_START( hcrash )
 	ROM_LOAD( "790-c08.j4",   0x04000, 0x04000, CRC(cfb844bc) SHA1(43b7adb6093e707212204118087ef4f79b0dbc1f) )
 	ROM_CONTINUE(             0x00000, 0x04000 ) /* Board is wired for 27C128, top half of EPROM is blank */
 
-	ROM_REGION( 0x80000, "k007232", 0 )  /* 007232 data */
+	ROM_REGION( 0x20000, "k007232", 0 )  /* 007232 data */
 	ROM_LOAD( "790-c01.m10",  0x00000, 0x20000, CRC(07976bc3) SHA1(9341ac6084fbbe17c4e7bbefade9a3f1dec3f132) )
 ROM_END
 
@@ -2373,7 +2384,7 @@ ROM_START( hcrashc )
 	ROM_LOAD( "790-c08.j4",   0x04000, 0x04000, CRC(cfb844bc) SHA1(43b7adb6093e707212204118087ef4f79b0dbc1f) )
 	ROM_CONTINUE(             0x00000, 0x04000 ) /* Board is wired for 27C128, top half of EPROM is blank */
 
-	ROM_REGION( 0x80000, "k007232", 0 )  /* 007232 data */
+	ROM_REGION( 0x20000, "k007232", 0 )  /* 007232 data */
 	ROM_LOAD( "790-c01.m10",  0x00000, 0x20000, CRC(07976bc3) SHA1(9341ac6084fbbe17c4e7bbefade9a3f1dec3f132) )
 ROM_END
 
@@ -2677,6 +2688,18 @@ static MACHINE_CONFIG_START( bubsys )
 	MCFG_CPU_PROGRAM_MAP(gx400_sound_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", nemesis_state, nmi_line_pulse)    /* interrupts are triggered by the main CPU */
 
+	MCFG_DEVICE_ADD("outlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, coin1_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, coin2_lockout_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, sound_irq_w))
+	MCFG_ADDRESSABLE_LATCH_Q7_OUT_CB(WRITELINE(nemesis_state, irq4_enable_w)) // ??
+
+	MCFG_DEVICE_ADD("intlatch", LS259, 0)
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(nemesis_state, irq2_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(nemesis_state, irq1_enable_w))
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(WRITELINE(nemesis_state, gfx_flipx_w))
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(nemesis_state, gfx_flipy_w))
+
 	MCFG_WATCHDOG_ADD("watchdog")
 
 	/* video hardware */
@@ -2722,7 +2745,7 @@ static MACHINE_CONFIG_START( bubsys )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, gx400_vlm_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, gx400_vlm_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 

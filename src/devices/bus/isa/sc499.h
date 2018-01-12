@@ -74,7 +74,7 @@ private:
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
 	// ISA overrides
@@ -82,7 +82,7 @@ private:
 	virtual void dack_w(int line,uint8_t data) override;
 	virtual void eop_w(int state) override;
 
-	const char *cpu_context();
+	std::string cpu_context() const;
 	template <typename Format, typename... Params> void logerror(Format &&fmt, Params &&... args) const;
 
 	void tape_status_clear(uint16_t value);

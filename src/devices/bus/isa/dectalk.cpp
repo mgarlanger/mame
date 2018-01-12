@@ -3,7 +3,6 @@
 #include "emu.h"
 #include "dectalk.h"
 
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -140,23 +139,6 @@ static ADDRESS_MAP_START(dectalk_dsp_map, AS_PROGRAM, 16, dectalk_isa_device)
 	AM_RANGE(0x0000, 0x0FFF) AM_ROM AM_REGION("dectalk_dsp", 0)
 ADDRESS_MAP_END
 
-static MACHINE_CONFIG_FRAGMENT( dectalk_isa )
-	MCFG_CPU_ADD("dectalk_cpu", I80186, XTAL_20MHz)
-	MCFG_CPU_IO_MAP(dectalk_cpu_io)
-	MCFG_CPU_PROGRAM_MAP(dectalk_cpu_map)
-	MCFG_80186_TMROUT0_HANDLER(WRITELINE(dectalk_isa_device, clock_w));
-
-	MCFG_CPU_ADD("dectalk_dsp", TMS32015, XTAL_20MHz)
-	MCFG_CPU_IO_MAP(dectalk_dsp_io)
-	MCFG_TMS32010_BIO_IN_CB(READLINE(dectalk_isa_device, bio_line_r))
-	MCFG_CPU_PROGRAM_MAP(dectalk_dsp_map)
-
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
-	MCFG_SOUND_ADD("dac", DAC_12BIT_R2R, 0) MCFG_SOUND_ROUTE(0, "speaker", 1.0) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-MACHINE_CONFIG_END
-
 ROM_START( dectalk_isa )
 	ROM_REGION( 0x4000, "dectalk_cpu", 0 )
 	ROM_LOAD16_BYTE("pc_boot_hxl.am27c64.d6.e26", 0x0000, 0x2000, CRC(7492f1e3) SHA1(fe6946a227f01c94f2b99220320a616445c96ee0)) // Some cards have a different label on the chip which lists the sum16: 31AC (matches contents)
@@ -170,10 +152,21 @@ const tiny_rom_entry* dectalk_isa_device::device_rom_region() const
 	return ROM_NAME( dectalk_isa );
 }
 
-machine_config_constructor dectalk_isa_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( dectalk_isa );
-}
+MACHINE_CONFIG_MEMBER( dectalk_isa_device::device_add_mconfig )
+	MCFG_CPU_ADD("dectalk_cpu", I80186, XTAL_20MHz)
+	MCFG_CPU_IO_MAP(dectalk_cpu_io)
+	MCFG_CPU_PROGRAM_MAP(dectalk_cpu_map)
+	MCFG_80186_TMROUT0_HANDLER(WRITELINE(dectalk_isa_device, clock_w));
+
+	MCFG_CPU_ADD("dectalk_dsp", TMS32015, XTAL_20MHz)
+	MCFG_CPU_IO_MAP(dectalk_dsp_io)
+	MCFG_TMS32010_BIO_IN_CB(READLINE(dectalk_isa_device, bio_line_r))
+	MCFG_CPU_PROGRAM_MAP(dectalk_dsp_map)
+
+	MCFG_SPEAKER_STANDARD_MONO("speaker")
+	MCFG_SOUND_ADD("dac", DAC_12BIT_R2R, 0) MCFG_SOUND_ROUTE(0, "speaker", 1.0) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
+MACHINE_CONFIG_END
 
 WRITE8_MEMBER(dectalk_isa_device::write)
 {

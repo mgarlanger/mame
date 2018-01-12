@@ -45,28 +45,26 @@ public:
 
 	// internal communications
 	DECLARE_WRITE8_MEMBER(bank_select_w);
-	DECLARE_WRITE8_MEMBER(talkback_w);
 	DECLARE_WRITE8_MEMBER(cvsd_digit_clock_clear_w);
 	DECLARE_WRITE8_MEMBER(cvsd_clock_set_w);
-	DECLARE_WRITE_LINE_MEMBER(ym2151_irq_w);
-	DECLARE_WRITE_LINE_MEMBER(pia_irqa);
-	DECLARE_WRITE_LINE_MEMBER(pia_irqb);
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 private:
 	// devices
-	required_device<m6809e_device> m_cpu;
+	required_device<mc6809e_device> m_cpu;
 	required_device<pia6821_device> m_pia;
 	required_device<hc55516_device> m_hc55516;
 
 	// internal state
 	uint8_t m_talkback;
+
+	DECLARE_WRITE8_MEMBER(talkback_w);
 };
 
 
@@ -96,11 +94,10 @@ public:
 	DECLARE_WRITE8_MEMBER(slave_sync_w);
 	DECLARE_WRITE8_MEMBER(cvsd_digit_clock_clear_w);
 	DECLARE_WRITE8_MEMBER(cvsd_clock_set_w);
-	DECLARE_WRITE_LINE_MEMBER(ym2151_irq_w);
 
 protected:
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -115,8 +112,8 @@ private:
 	};
 
 	// devices
-	required_device<m6809e_device> m_cpu0;
-	required_device<m6809e_device> m_cpu1;
+	required_device<mc6809e_device> m_cpu0;
+	required_device<mc6809e_device> m_cpu1;
 	required_device<hc55516_device> m_hc55516;
 
 	// internal state
@@ -147,7 +144,6 @@ public:
 	DECLARE_WRITE8_MEMBER(oki6295_bank_select_w);
 	DECLARE_READ8_MEMBER(command_r);
 	DECLARE_WRITE8_MEMBER(talkback_w);
-	DECLARE_WRITE_LINE_MEMBER(ym2151_irq_w);
 
 protected:
 	// timer IDs
@@ -158,14 +154,14 @@ protected:
 	};
 
 	// device-level overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
 
 private:
 	// devices
-	required_device<m6809e_device> m_cpu;
+	required_device<mc6809e_device> m_cpu;
 
 	// internal state
 	uint8_t m_latch;

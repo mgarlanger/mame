@@ -10,7 +10,9 @@
 #pragma once
 
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/ram.h"
+#include "machine/timer.h"
 
 #define MCFG_DECODMD_TYPE1_ADD(_tag, _region) \
 	MCFG_DEVICE_ADD(_tag, DECODMD1, 0) \
@@ -24,9 +26,8 @@ public:
 	required_memory_bank m_rombank1;
 	required_memory_bank m_rombank2;
 	required_device<ram_device> m_ram;
+	required_device<hc259_device> m_bitlatch;
 	memory_region* m_rom;
-
-	uint32_t screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect );
 
 	DECLARE_READ8_MEMBER(latch_r);
 	DECLARE_WRITE8_MEMBER(data_w);
@@ -37,12 +38,17 @@ public:
 	DECLARE_WRITE8_MEMBER(status_w);
 	DECLARE_READ8_MEMBER(dmd_port_r);
 	DECLARE_WRITE8_MEMBER(dmd_port_w);
-	TIMER_DEVICE_CALLBACK_MEMBER(dmd_nmi);
+
+	DECLARE_WRITE_LINE_MEMBER(blank_w);
+	DECLARE_WRITE_LINE_MEMBER(status_w);
+	DECLARE_WRITE_LINE_MEMBER(rowdata_w);
+	DECLARE_WRITE_LINE_MEMBER(rowclock_w);
+	DECLARE_WRITE_LINE_MEMBER(test_w);
 
 	static void static_set_gfxregion(device_t &device, const char *tag);
 
 protected:
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -56,7 +62,6 @@ private:
 	uint8_t m_ctrl;
 	uint8_t m_busy;
 	uint8_t m_command;
-	uint8_t m_bank;
 	uint8_t m_rowclock;
 	uint8_t m_rowdata;
 	uint32_t m_rowselect;
@@ -73,6 +78,8 @@ private:
 
 	void output_data();
 	void set_busy(uint8_t input, uint8_t val);
+	uint32_t screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect );
+	TIMER_DEVICE_CALLBACK_MEMBER(dmd_nmi);
 };
 
 DECLARE_DEVICE_TYPE(DECODMD1, decodmd_type1_device)

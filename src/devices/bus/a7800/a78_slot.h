@@ -22,7 +22,7 @@ enum
 	A78_TYPE3,          // as TYPE1 + POKEY chip on the PCB
 	A78_TYPE6,          // as TYPE1 + RAM IC on the PCB
 	A78_TYPEA,          // Alien Brigade, Crossbow (9x16K banks with diff bankswitch)
- 	A78_TYPE8,          // Rescue on Fractalus, as TYPE0 + 2K Mirror RAM IC on the PCB
+	A78_TYPE8,          // Rescue on Fractalus, as TYPE0 + 2K Mirror RAM IC on the PCB
 	A78_ABSOLUTE,       // F18 Hornet
 	A78_ACTIVISION,     // Double Dragon, Rampage
 	A78_HSC,            // Atari HighScore cart
@@ -81,9 +81,6 @@ protected:
 };
 
 
-void a78_partialhash(util::hash_collection &dest, const unsigned char *data, unsigned long length, const char *functions);
-
-
 // ======================> a78_cart_slot_device
 
 class a78_cart_slot_device : public device_t,
@@ -114,7 +111,7 @@ public:
 	virtual bool is_reset_on_load() const override { return 1; }
 	virtual const char *image_interface() const override { return "a7800_cart"; }
 	virtual const char *file_extensions() const override { return "bin,a78"; }
-	virtual device_image_partialhash_func get_partial_hash() const override { return &a78_partialhash; }
+	virtual u32 unhashed_header_length() const override { return 128; }
 
 	// slot interface overrides
 	virtual std::string get_default_card_software(get_default_card_software_hook &hook) const override;

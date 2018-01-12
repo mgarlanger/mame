@@ -4,6 +4,7 @@
 #define MAME_MACHINE_SEGACDCD_H
 
 #include "imagedev/chd_cd.h"
+#include "machine/timer.h"
 #include "sound/cdda.h"
 
 
@@ -73,9 +74,6 @@ public:
 
 	char* LC8915InitTransfer(int NeoCDDMACount);
 	void LC8915EndTransfer();
-
-
-	TIMER_DEVICE_CALLBACK_MEMBER( segacd_access_timer_callback );
 
 protected:
 	static constexpr unsigned SECTOR_SIZE = 2352;
@@ -195,7 +193,9 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
+
+	TIMER_DEVICE_CALLBACK_MEMBER( segacd_access_timer_callback );
 };
 
 DECLARE_DEVICE_TYPE(LC89510_TEMP, lc89510_temp_device)

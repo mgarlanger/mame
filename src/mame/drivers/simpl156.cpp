@@ -132,6 +132,22 @@ static INPUT_PORTS_START( simpl156 )
 	PORT_BIT( 0xffff0000, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( magdrop )
+	PORT_INCLUDE(simpl156)
+
+	PORT_MODIFY("IN1")
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_PLAYER(1)
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_PLAYER(2)
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(1) PORT_OPTIONAL // not used in gameplay
+	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2) PORT_OPTIONAL // not used in gameplay
+INPUT_PORTS_END
+
 
 WRITE32_MEMBER(simpl156_state::simpl156_eeprom_w)
 {
@@ -1032,7 +1048,7 @@ DRIVER_INIT_MEMBER(simpl156_state,simpl156)
 	{
 		uint32_t addr;
 
-		addr = BITSWAP24 (x,23,22,21,0, 20,
+		addr = bitswap<24> (x,23,22,21,0, 20,
 							19,18,17,16,
 							15,14,13,12,
 							11,10,9, 8,
@@ -1051,8 +1067,8 @@ DRIVER_INIT_MEMBER(simpl156_state,simpl156)
 /* Everything seems more stable if we run the CPU speed x4 and use Idle skips.. maybe it has an internal multipler? */
 READ32_MEMBER(simpl156_state::joemacr_speedup_r)
 {
-	if (space.device().safe_pc() == 0x284)
-		space.device().execute().spin_until_time(attotime::from_usec(400));
+	if (m_maincpu->pc() == 0x284)
+		m_maincpu->spin_until_time(attotime::from_usec(400));
 	return m_systemram[0x18/4];
 }
 
@@ -1065,8 +1081,8 @@ DRIVER_INIT_MEMBER(simpl156_state,joemacr)
 
 READ32_MEMBER(simpl156_state::chainrec_speedup_r)
 {
-	if (space.device().safe_pc() == 0x2d4)
-		space.device().execute().spin_until_time(attotime::from_usec(400));
+	if (m_maincpu->pc() == 0x2d4)
+		m_maincpu->spin_until_time(attotime::from_usec(400));
 	return m_systemram[0x18/4];
 }
 
@@ -1078,8 +1094,8 @@ DRIVER_INIT_MEMBER(simpl156_state,chainrec)
 
 READ32_MEMBER(simpl156_state::prtytime_speedup_r)
 {
-	if (space.device().safe_pc() == 0x4f0)
-		space.device().execute().spin_until_time(attotime::from_usec(400));
+	if (m_maincpu->pc() == 0x4f0)
+		m_maincpu->spin_until_time(attotime::from_usec(400));
 	return m_systemram[0xae0/4];
 }
 
@@ -1092,8 +1108,8 @@ DRIVER_INIT_MEMBER(simpl156_state,prtytime)
 
 READ32_MEMBER(simpl156_state::charlien_speedup_r)
 {
-	if (space.device().safe_pc() == 0xc8c8)
-		space.device().execute().spin_until_time(attotime::from_usec(400));
+	if (m_maincpu->pc() == 0xc8c8)
+		m_maincpu->spin_until_time(attotime::from_usec(400));
 	return m_systemram[0x10/4];
 }
 
@@ -1105,8 +1121,8 @@ DRIVER_INIT_MEMBER(simpl156_state,charlien)
 
 READ32_MEMBER(simpl156_state::osman_speedup_r)
 {
-	if (space.device().safe_pc() == 0x5974)
-		space.device().execute().spin_until_time(attotime::from_usec(400));
+	if (m_maincpu->pc() == 0x5974)
+		m_maincpu->spin_until_time(attotime::from_usec(400));
 	return m_systemram[0x10/4];
 }
 
@@ -1121,9 +1137,9 @@ DRIVER_INIT_MEMBER(simpl156_state,osman)
 GAME( 1994, joemacr,  0,        joemacr,     simpl156, simpl156_state, joemacr,  ROT0, "Data East", "Joe & Mac Returns (World, Version 1.1, 1994.05.27)", MACHINE_SUPPORTS_SAVE ) /* bootleg board with genuine DECO parts */
 GAME( 1994, joemacra, joemacr,  joemacr,     simpl156, simpl156_state, joemacr,  ROT0, "Data East", "Joe & Mac Returns (World, Version 1.0, 1994.05.19)", MACHINE_SUPPORTS_SAVE )
 GAME( 1994, joemacrj, joemacr,  joemacr,     simpl156, simpl156_state, joemacr,  ROT0, "Data East", "Joe & Mac Returns (Japan, Version 1.2, 1994.06.06)", MACHINE_SUPPORTS_SAVE )
-GAME( 1995, chainrec, 0,        chainrec,    simpl156, simpl156_state, chainrec, ROT0, "Data East", "Chain Reaction (World, Version 2.2, 1995.09.25)", MACHINE_SUPPORTS_SAVE )
-GAME( 1995, magdrop,  chainrec, magdrop,     simpl156, simpl156_state, chainrec, ROT0, "Data East", "Magical Drop (Japan, Version 1.1, 1995.06.21)", MACHINE_SUPPORTS_SAVE )
-GAME( 1995, magdropp, chainrec, magdropp,    simpl156, simpl156_state, chainrec, ROT0, "Data East", "Magical Drop Plus 1 (Japan, Version 2.1, 1995.09.12)", MACHINE_SUPPORTS_SAVE )
+GAME( 1995, chainrec, 0,        chainrec,    magdrop,  simpl156_state, chainrec, ROT0, "Data East", "Chain Reaction (World, Version 2.2, 1995.09.25)", MACHINE_SUPPORTS_SAVE )
+GAME( 1995, magdrop,  chainrec, magdrop,     magdrop,  simpl156_state, chainrec, ROT0, "Data East", "Magical Drop (Japan, Version 1.1, 1995.06.21)", MACHINE_SUPPORTS_SAVE )
+GAME( 1995, magdropp, chainrec, magdropp,    magdrop,  simpl156_state, chainrec, ROT0, "Data East", "Magical Drop Plus 1 (Japan, Version 2.1, 1995.09.12)", MACHINE_SUPPORTS_SAVE )
 
 /* Mitchell games running on the DEC-22VO / MT5601-0 PCB */
 GAME( 1995, charlien, 0,        mitchell156, simpl156, simpl156_state, charlien, ROT0,  "Mitchell", "Charlie Ninja" , MACHINE_SUPPORTS_SAVE ) /* language in service mode */

@@ -22,7 +22,7 @@
 //  CONSTANTS
 //**************************************************************************
 
-const int STREAM_SYNC       = -1;       // special rate value indicating a one-sample-at-a-time stream
+constexpr int STREAM_SYNC   = -1;       // special rate value indicating a one-sample-at-a-time stream
 										// with actual rate defined by its input
 
 //**************************************************************************
@@ -34,9 +34,6 @@ typedef delegate<void (sound_stream &, stream_sample_t **inputs, stream_sample_t
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
-
-// forward references
-struct wav_file;
 
 
 // structure describing an indexed mixer
@@ -85,6 +82,7 @@ class sound_stream
 		attoseconds_t       m_latency_attoseconds;  // latency between this stream and the input stream
 		s16               m_gain;                 // gain to apply to this input
 		s16               m_user_gain;            // user-controlled gain to apply to this input
+		stream_sample_t   m_default_level;        // default level (when no active source)
 	};
 
 	// constants
@@ -113,7 +111,7 @@ public:
 	float output_gain(int outputnum) const;
 
 	// operations
-	void set_input(int inputnum, sound_stream *input_stream, int outputnum = 0, float gain = 1.0f);
+	void set_input(int inputnum, sound_stream *input_stream, int outputnum = 0, float gain = 1.0f, stream_sample_t level = 0);
 	void update();
 	const stream_sample_t *output_since_last_update(int outputnum, int &numsamples);
 
@@ -250,4 +248,4 @@ private:
 };
 
 
-#endif  /* MAME_EMU_SOUND_H */
+#endif // MAME_EMU_SOUND_H

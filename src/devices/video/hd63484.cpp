@@ -344,9 +344,11 @@ ROM_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *hd63484_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector hd63484_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 
@@ -365,7 +367,7 @@ const tiny_rom_entry *hd63484_device::device_rom_region() const
 
 inline uint16_t hd63484_device::readword(offs_t address)
 {
-	return space().read_word(address << 1);
+	return space().read_word(address);
 }
 
 
@@ -375,7 +377,7 @@ inline uint16_t hd63484_device::readword(offs_t address)
 
 inline void hd63484_device::writeword(offs_t address, uint16_t data)
 {
-	space().write_word(address << 1, data);
+	space().write_word(address, data);
 }
 
 
@@ -526,10 +528,10 @@ inline void hd63484_device::recompute_parameters()
 	if (BIT(m_dcr, 13)) vbstart += m_sp[0];
 	if (BIT(m_dcr, 11)) vbstart += m_sp[2];
 
-	rectangle visarea = m_screen->visible_area();
+	rectangle visarea = screen().visible_area();
 	visarea.set((m_hsw + m_hds) * ppmc, (m_hsw + m_hds + m_hdw) * ppmc - 1, m_vds, vbstart - 1);
-	attoseconds_t frame_period = m_screen->frame_period().attoseconds(); // TODO: use clock() to calculate the frame_period
-	m_screen->configure(m_hc * ppmc, m_vc, visarea, frame_period);
+	attoseconds_t frame_period = screen().frame_period().attoseconds(); // TODO: use clock() to calculate the frame_period
+	screen().configure(m_hc * ppmc, m_vc, visarea, frame_period);
 }
 
 
@@ -1783,7 +1785,7 @@ uint16_t hd63484_device::video_registers_r(int offset)
 			break;
 
 		case 0x80:
-			res = m_screen->vpos() & 0xfff; // Raster Count
+			res = screen().vpos() & 0xfff; // Raster Count
 			break;
 
 		default:

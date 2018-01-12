@@ -65,7 +65,7 @@ static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, mustache_state )
 	AM_RANGE(0xf000, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( decrypted_opcodes_map, AS_DECRYPTED_OPCODES, 8, mustache_state )
+static ADDRESS_MAP_START( decrypted_opcodes_map, AS_OPCODES, 8, mustache_state )
 	AM_RANGE(0x0000, 0x7fff) AM_DEVREAD("sei80bu", sei80bu_device, opcode_r)
 	AM_RANGE(0x8000, 0xbfff) AM_ROM AM_REGION("maincpu", 0x8000)
 ADDRESS_MAP_END
@@ -200,8 +200,7 @@ static MACHINE_CONFIG_START( mustache )
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mustache)
-	MCFG_PALETTE_ADD("palette", 8*16+16*8)
-	MCFG_PALETTE_INIT_OWNER(mustache_state, mustache)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", "proms", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -281,10 +280,10 @@ DRIVER_INIT_MEMBER(mustache_state,mustache)
 	{
 		uint16_t w;
 
-		buf[i] = BITSWAP8(gfx1[i], 0,5,2,6,4,1,7,3);
+		buf[i] = bitswap<8>(gfx1[i], 0,5,2,6,4,1,7,3);
 
 		w = (gfx1[i+G1] << 8) | gfx1[i+G1*2];
-		w = BITSWAP16(w, 14,1,13,5,9,2,10,6, 3,8,4,15,0,11,12,7);
+		w = bitswap<16>(w, 14,1,13,5,9,2,10,6, 3,8,4,15,0,11,12,7);
 
 		buf[i+G1]   = w >> 8;
 		buf[i+G1*2] = w & 0xff;
@@ -292,7 +291,7 @@ DRIVER_INIT_MEMBER(mustache_state,mustache)
 
 	/* BG address lines */
 	for (i = 0; i < 3*G1; i++)
-		gfx1[i] = buf[BITSWAP16(i,15,14,13,2,1,0,12,11,10,9,8,7,6,5,4,3)];
+		gfx1[i] = buf[bitswap<16>(i,15,14,13,2,1,0,12,11,10,9,8,7,6,5,4,3)];
 
 	/* SPR data lines */
 	for (i=0;i<G2; i++)
@@ -300,7 +299,7 @@ DRIVER_INIT_MEMBER(mustache_state,mustache)
 		uint16_t w;
 
 		w = (gfx2[i] << 8) | gfx2[i+G2];
-		w = BITSWAP16(w, 5,7,11,4,15,10,3,14, 9,2,13,8,1,12,0,6 );
+		w = bitswap<16>(w, 5,7,11,4,15,10,3,14, 9,2,13,8,1,12,0,6 );
 
 		buf[i]    = w >> 8;
 		buf[i+G2] = w & 0xff;
@@ -308,7 +307,7 @@ DRIVER_INIT_MEMBER(mustache_state,mustache)
 
 	/* SPR address lines */
 	for (i = 0; i < 2*G2; i++)
-		gfx2[i] = buf[BITSWAP24(i,23,22,21,20,19,18,17,16,15,12,11,10,9,8,7,6,5,4,13,14,3,2,1,0)];
+		gfx2[i] = buf[bitswap<24>(i,23,22,21,20,19,18,17,16,15,12,11,10,9,8,7,6,5,4,13,14,3,2,1,0)];
 }
 
 

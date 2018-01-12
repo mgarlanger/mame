@@ -4,6 +4,7 @@
 #include "machine/6821pia.h"
 #include "machine/6840ptm.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 
 #include "cpu/m6809/m6809.h"
 #include "sound/ay8910.h"
@@ -15,7 +16,7 @@
 #include "machine/meters.h"
 
 
-#define MPU4_MASTER_CLOCK (6880000)
+#define MPU4_MASTER_CLOCK           XTAL_6_88MHz
 #define VIDEO_MASTER_CLOCK          XTAL_10MHz
 
 

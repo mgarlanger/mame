@@ -18,6 +18,7 @@
 #include "emu.h"
 #include "debugger.h"
 #include "mb86233.h"
+#include "mb86233d.h"
 
 
 DEFINE_DEVICE_TYPE(MB86233, mb86233_cpu_device, "mb86233", "MB86233")
@@ -37,11 +38,18 @@ mb86233_cpu_device::mb86233_cpu_device(const machine_config &mconfig, const char
 {
 }
 
-
-offs_t mb86233_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+device_memory_interface::space_config_vector mb86233_cpu_device::memory_space_config() const
 {
-	extern CPU_DISASSEMBLE( mb86233 );
-	return CPU_DISASSEMBLE_NAME(mb86233)(this, stream, pc, oprom, opram, options);
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config)
+	};
+}
+
+
+util::disasm_interface *mb86233_cpu_device::create_disassembler()
+{
+	return new mb86233_disassembler;
 }
 
 
@@ -71,9 +79,9 @@ offs_t mb86233_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, c
 #define GETBRAM()           m_BRAM
 #define GETREPCNT()         m_repcnt
 
-#define ROPCODE(a)          m_direct->read_dword(a<<2)
-#define RDMEM(a)            m_program->read_dword((a<<2))
-#define WRMEM(a,v)          m_program->write_dword((a<<2), v)
+#define ROPCODE(a)          m_direct->read_dword(a)
+#define RDMEM(a)            m_program->read_dword(a)
+#define WRMEM(a,v)          m_program->write_dword((a), v)
 
 /***************************************************************************
     Initialization and Shutdown
@@ -102,7 +110,7 @@ void mb86233_cpu_device::device_start()
 	m_fifo_write_cb.resolve_safe();
 
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<-2>();
 
 	if ( m_tablergn )
 	{

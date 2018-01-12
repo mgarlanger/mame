@@ -22,8 +22,8 @@
 #include "machine/mc146818.h"
 #include "machine/nscsi_hd.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -644,11 +644,11 @@ WRITE32_MEMBER( rastersp_state::dsp_ctrl_w )
 WRITE32_MEMBER( rastersp_state::dsp_speedup_w )
 {
 	// 809e90  48fd, 48d5
-	if (space.device().safe_pc() == 0x809c23)
+	if (m_dsp->pc() == 0x809c23)
 	{
-		int32_t cycles_left = space.device().execute().cycles_remaining();
+		int32_t cycles_left = m_dsp->cycles_remaining();
 		data += cycles_left / 6;
-		space.device().execute().spin();
+		m_dsp->spin();
 	}
 
 	m_speedup_count = data;
@@ -828,7 +828,7 @@ WRITE32_MEMBER(rastersp_state::ncr53c700_write)
 	m_maincpu->space(AS_PROGRAM).write_dword(offset, data, mem_mask);
 }
 
-static MACHINE_CONFIG_FRAGMENT( ncr53c700 )
+static MACHINE_CONFIG_START( ncr53c700 )
 	MCFG_DEVICE_CLOCK(66000000)
 	MCFG_NCR53C7XX_IRQ_HANDLER(DEVWRITELINE(":", rastersp_state, scsi_irq))
 	MCFG_NCR53C7XX_HOST_READ(DEVREAD32(":", rastersp_state, ncr53c700_read))
@@ -884,10 +884,9 @@ static MACHINE_CONFIG_START( rastersp )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ldac", DAC_16BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdac", DAC_16BIT_R2R_TWOS_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 

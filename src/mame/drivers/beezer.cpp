@@ -26,6 +26,7 @@
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/input_merger.h"
+#include "machine/timer.h"
 #include "machine/watchdog.h"
 #include "machine/bankdev.h"
 #include "machine/6522via.h"
@@ -450,7 +451,7 @@ void beezer_state::machine_reset()
 	bankswitch_w(machine().dummy_space(), 0, 0);
 
 	// start timer
-	m_timer_count->adjust(attotime::zero, 0, attotime::from_hz((XTAL_12MHz / 12) / 16));
+	m_timer_count->adjust(attotime::zero, 0, attotime::from_hz((XTAL_4MHz / 4) / 16));
 }
 
 
@@ -460,19 +461,19 @@ void beezer_state::machine_reset()
 
 static MACHINE_CONFIG_START( beezer )
 	// basic machine hardware
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_12MHz / 12)
+	MCFG_CPU_ADD("maincpu", MC6809, XTAL_12MHz / 3)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_DEVICE_ADD("sysbank", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(banked_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_BIG)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(15)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(15)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x1000)
 
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", beezer_state, scanline_cb, "screen", 0, 1)
 
-	MCFG_DEVICE_ADD("via_u6", VIA6522, 0)
+	MCFG_DEVICE_ADD("via_u6", VIA6522, XTAL_12MHz / 12)
 	MCFG_VIA6522_READPA_HANDLER(READ8(beezer_state, via_system_pa_r))
 	MCFG_VIA6522_READPB_HANDLER(READ8(beezer_state, via_system_pb_r))
 	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(beezer_state, via_system_pa_w))
@@ -496,26 +497,26 @@ static MACHINE_CONFIG_START( beezer )
 	MCFG_PALETTE_INIT_OWNER(beezer_state, beezer)
 
 	// sound hardware
-	MCFG_CPU_ADD("audiocpu", M6809, XTAL_12MHz / 12)
+	MCFG_CPU_ADD("audiocpu", MC6809, XTAL_4MHz)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
-	MCFG_INPUT_MERGER_ACTIVE_HIGH("audio_irqs")
+	MCFG_INPUT_MERGER_ANY_HIGH("audio_irqs")
 	MCFG_INPUT_MERGER_OUTPUT_HANDLER(INPUTLINE("audiocpu", M6809_IRQ_LINE))
 
-	MCFG_DEVICE_ADD("via_u18", VIA6522, 0)
+	MCFG_DEVICE_ADD("via_u18", VIA6522, XTAL_4MHz / 4)
 	MCFG_VIA6522_READPA_HANDLER(READ8(beezer_state, via_audio_pa_r))
 	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(beezer_state, via_audio_pa_w))
 	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(beezer_state, via_audio_pb_w))
 	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE("via_u6", via6522_device, write_cb1))
 	MCFG_VIA6522_CB1_HANDLER(WRITELINE(beezer_state, dmod_clr_w))
 	MCFG_VIA6522_CB2_HANDLER(WRITELINE(beezer_state, dmod_data_w))
-	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("audio_irqs", input_merger_active_high_device, in0_w))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("audio_irqs", input_merger_device, in_w<0>))
 
-	MCFG_DEVICE_ADD("ptm", PTM6840, XTAL_12MHz / 12)
+	MCFG_DEVICE_ADD("ptm", PTM6840, XTAL_4MHz / 4)
 	MCFG_PTM6840_OUT0_CB(WRITELINE(beezer_state, ptm_out0_w))
 	MCFG_PTM6840_OUT1_CB(WRITELINE(beezer_state, ptm_out1_w))
 	MCFG_PTM6840_OUT2_CB(WRITELINE(beezer_state, ptm_out2_w))
-	MCFG_PTM6840_IRQ_CB(DEVWRITELINE("audio_irqs", input_merger_active_high_device, in1_w))
+	MCFG_PTM6840_IRQ_CB(DEVWRITELINE("audio_irqs", input_merger_device, in_w<1>))
 	// schematics show an input labeled VCO to channel 2, but the source is unknown
 
 	MCFG_MM5837_ADD("noise")

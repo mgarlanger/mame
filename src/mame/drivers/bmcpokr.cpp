@@ -22,6 +22,7 @@ Other:  BMC B816140 (CPLD)
 #include "sound/okim6295.h"
 #include "machine/nvram.h"
 #include "machine/ticket.h"
+#include "machine/timer.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -300,7 +301,7 @@ uint32_t bmcpokr_state::screen_update_bmcpokr(screen_device &screen, bitmap_ind1
 
 READ16_MEMBER(bmcpokr_state::unk_r)
 {
-	return space.machine().rand();
+	return machine().rand();
 }
 
 // Hack!
@@ -328,9 +329,9 @@ WRITE16_MEMBER(bmcpokr_state::mux_w)
 	COMBINE_DATA(&m_mux);
 	if (ACCESSING_BITS_0_7)
 	{
-		m_hopper->write(space, 0,   (data & 0x0001) ? 0x80 : 0x00); // hopper motor
-		machine().bookkeeping().coin_counter_w(1, data & 0x0002);                // coin-in / key-in
-		machine().bookkeeping().coin_counter_w(2, data & 0x0004);                // pay-out
+		m_hopper->motor_w(BIT(data, 0)); // hopper motor
+		machine().bookkeeping().coin_counter_w(1, BIT(data, 1));                // coin-in / key-in
+		machine().bookkeeping().coin_counter_w(2, BIT(data, 2));                // pay-out
 		//                           data & 0x0060                  // DSW mux
 		//                           data & 0x0080                  // ? always on
 	}
@@ -795,7 +796,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(bmcpokr_state::interrupt)
 		if (m_irq_enable & (1<<6)) m_maincpu->set_input_line(6, ASSERT_LINE);
 }
 
-static ADDRESS_MAP_START( ramdac_map, AS_0, 8, bmcpokr_state )
+static ADDRESS_MAP_START( ramdac_map, 0, 8, bmcpokr_state )
 	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
 ADDRESS_MAP_END
 

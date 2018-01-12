@@ -47,16 +47,6 @@ static const floppy_interface floppy_interface =
 	"floppy_5_25"
 };
 
-MACHINE_CONFIG_FRAGMENT( diskii )
-	MCFG_APPLEFDC_ADD(FDC_TAG, fdc_interface)
-	MCFG_LEGACY_FLOPPY_APPLE_2_DRIVES_ADD(floppy_interface,15,16)
-MACHINE_CONFIG_END
-
-MACHINE_CONFIG_FRAGMENT( iwmflop )
-	MCFG_IWM_ADD(FDC_TAG, fdc_interface)
-	MCFG_LEGACY_FLOPPY_APPLE_2_DRIVES_ADD(floppy_interface,15,16)
-MACHINE_CONFIG_END
-
 ROM_START( diskii )
 	ROM_REGION(0x100, DISKII_ROM_REGION, 0)
 	ROM_LOAD( "341-0027-a.p5", 0x000000, 0x000100, CRC(ce7144f6) SHA1(d4181c9f046aafc3fb326b381baac809d9e38d16) )
@@ -68,19 +58,18 @@ ROM_START( agat7 )
 ROM_END
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor a2bus_floppy_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( diskii );
-}
+MACHINE_CONFIG_MEMBER( a2bus_floppy_device::device_add_mconfig )
+	MCFG_APPLEFDC_ADD(FDC_TAG, fdc_interface)
+	MCFG_LEGACY_FLOPPY_APPLE_2_DRIVES_ADD(floppy_interface,15,16)
+MACHINE_CONFIG_END
 
-machine_config_constructor a2bus_iwmflop_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( iwmflop );
-}
+MACHINE_CONFIG_MEMBER( a2bus_iwmflop_device::device_add_mconfig )
+	MCFG_IWM_ADD(FDC_TAG, fdc_interface)
+	MCFG_LEGACY_FLOPPY_APPLE_2_DRIVES_ADD(floppy_interface,15,16)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -143,7 +132,7 @@ void a2bus_floppy_device::device_reset()
     read_c0nx - called for reads from this card's c0nx space
 -------------------------------------------------*/
 
-uint8_t a2bus_floppy_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_floppy_device::read_c0nx(uint8_t offset)
 {
 	return m_fdc->read(offset);
 }
@@ -153,7 +142,7 @@ uint8_t a2bus_floppy_device::read_c0nx(address_space &space, uint8_t offset)
     write_c0nx - called for writes to this card's c0nx space
 -------------------------------------------------*/
 
-void a2bus_floppy_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_floppy_device::write_c0nx(uint8_t offset, uint8_t data)
 {
 	m_fdc->write(offset, data);
 }
@@ -162,7 +151,7 @@ void a2bus_floppy_device::write_c0nx(address_space &space, uint8_t offset, uint8
     read_cnxx - called for reads from this card's c0nx space
 -------------------------------------------------*/
 
-uint8_t a2bus_floppy_device::read_cnxx(address_space &space, uint8_t offset)
+uint8_t a2bus_floppy_device::read_cnxx(uint8_t offset)
 {
 	return m_rom[offset];
 }

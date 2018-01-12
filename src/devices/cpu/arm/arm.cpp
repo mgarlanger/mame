@@ -20,9 +20,7 @@
 #include "emu.h"
 #include "arm.h"
 #include "debugger.h"
-
-CPU_DISASSEMBLE( arm );
-CPU_DISASSEMBLE( arm_be );
+#include "armdasm.h"
 
 #define ARM_DEBUG_CORE 0
 #define ARM_DEBUG_COPRO 0
@@ -227,6 +225,13 @@ enum
 DEFINE_DEVICE_TYPE(ARM,    arm_cpu_device,    "arm_le", "ARM (little)")
 DEFINE_DEVICE_TYPE(ARM_BE, arm_be_cpu_device, "arm_be", "ARM (big)")
 
+
+device_memory_interface::space_config_vector arm_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
+}
 
 arm_cpu_device::arm_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: arm_cpu_device(mconfig, ARM, tag, owner, clock, ENDIANNESS_LITTLE)
@@ -505,7 +510,7 @@ void arm_cpu_device::execute_set_input(int irqline, int state)
 void arm_cpu_device::device_start()
 {
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 
 	save_item(NAME(m_sArmRegister));
 	save_item(NAME(m_coproRegister));
@@ -1555,15 +1560,7 @@ void arm_cpu_device::HandleCoPro( uint32_t insn )
 }
 
 
-offs_t arm_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *arm_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( arm );
-	return CPU_DISASSEMBLE_NAME(arm)(this, stream, pc, oprom, opram, options);
-}
-
-
-offs_t arm_be_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
-{
-	extern CPU_DISASSEMBLE( arm_be );
-	return CPU_DISASSEMBLE_NAME(arm_be)(this, stream, pc, oprom, opram, options);
+	return new arm_disassembler;
 }

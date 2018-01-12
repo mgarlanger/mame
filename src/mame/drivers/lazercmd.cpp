@@ -235,7 +235,6 @@
 
 #include "emu.h"
 #include "includes/lazercmd.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -438,7 +437,7 @@ static ADDRESS_MAP_START( bbonk_map, AS_PROGRAM, 8, lazercmd_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( lazercmd_portmap, AS_IO, 8, lazercmd_state )
+static ADDRESS_MAP_START( lazercmd_portmap, AS_DATA, 8, lazercmd_state )
 	AM_RANGE(S2650_CTRL_PORT, S2650_CTRL_PORT) AM_READWRITE(lazercmd_ctrl_port_r, lazercmd_ctrl_port_w)
 	AM_RANGE(S2650_DATA_PORT, S2650_DATA_PORT) AM_READWRITE(lazercmd_data_port_r, lazercmd_data_port_w)
 ADDRESS_MAP_END
@@ -631,7 +630,7 @@ static MACHINE_CONFIG_START( lazercmd )
     within the line and frame blanking period
     thus requiring an extra loading of approx 3-5 */
 	MCFG_CPU_PROGRAM_MAP(lazercmd_map)
-	MCFG_CPU_IO_MAP(lazercmd_portmap)
+	MCFG_CPU_DATA_MAP(lazercmd_portmap)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", lazercmd_state, lazercmd_timer, "screen", 0, 1)
 
 	/* video hardware */
@@ -650,14 +649,13 @@ static MACHINE_CONFIG_START( lazercmd )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac0", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac1", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac2", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac3", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac0", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac1", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac2", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac3", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 MACHINE_CONFIG_END
 
 
@@ -670,7 +668,7 @@ static MACHINE_CONFIG_START( medlanes )
     within the line and frame blanking period
     thus requiring an extra loading of approx 3-5 */
 	MCFG_CPU_PROGRAM_MAP(medlanes_map)
-	MCFG_CPU_IO_MAP(lazercmd_portmap)
+	MCFG_CPU_DATA_MAP(lazercmd_portmap)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", lazercmd_state, lazercmd_timer, "screen", 0, 1)
 
 	/* video hardware */
@@ -689,10 +687,9 @@ static MACHINE_CONFIG_START( medlanes )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac2", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac3", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac2", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac3", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 MACHINE_CONFIG_END
 
 
@@ -705,7 +702,7 @@ static MACHINE_CONFIG_START( bbonk )
     within the line and frame blanking period
     thus requiring an extra loading of approx 3-5 */
 	MCFG_CPU_PROGRAM_MAP(bbonk_map)
-	MCFG_CPU_IO_MAP(lazercmd_portmap)
+	MCFG_CPU_DATA_MAP(lazercmd_portmap)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", lazercmd_state, bbonk_timer, "screen", 0, 1)
 
 	/* video hardware */
@@ -724,10 +721,9 @@ static MACHINE_CONFIG_START( bbonk )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac2", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac3", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.99)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac2", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac3", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 MACHINE_CONFIG_END
 
 /***************************************************************************

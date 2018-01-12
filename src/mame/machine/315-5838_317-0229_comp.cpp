@@ -48,7 +48,7 @@
 #include "emu.h"
 #include "machine/315-5838_317-0229_comp.h"
 
-DEFINE_DEVICE_TYPE(SEGA315_5838_COMP, sega_315_5838_comp_device, "sega315_5838", "Sega 315-4838 / 317-0029 Compression (Encryption?)")
+DEFINE_DEVICE_TYPE(SEGA315_5838_COMP, sega_315_5838_comp_device, "sega315_5838", "Sega 315-5838 / 317-0229 Compression (Encryption?)")
 
 //#define DEBUG_DATA_DUMP
 
@@ -346,7 +346,7 @@ READ32_MEMBER(sega_315_5838_comp_device::doa_prot_r)
 	else
 	{
 		printf("doa_prot_read %08x %08x %08x\n", offset*4, retval, mem_mask);
-		logerror("Unhandled Protection READ @ %x mask %x (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+		logerror("Unhandled Protection READ @ %x mask %x %s\n", offset, mem_mask, machine().describe_context());
 	}
 
 	return retval;

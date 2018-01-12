@@ -14,6 +14,7 @@
 #include "emu.h"
 #include "hmcs40.h"
 #include "debugger.h"
+#include "hmcs40d.h"
 
 #define IS_PMOS 0
 #define IS_CMOS ~0
@@ -149,6 +150,13 @@ hd44828_device::hd44828_device(const machine_config &mconfig, const char *tag, d
 	: hmcs45_cpu_device(mconfig, HD44828, tag, owner, clock, IS_CMOS)
 { }
 
+device_memory_interface::space_config_vector hmcs40_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+		std::make_pair(AS_DATA,    &m_data_config)
+	};
+}
 
 // disasm
 void hmcs40_cpu_device::state_string_export(const device_state_entry &entry, std::string &str) const
@@ -166,12 +174,10 @@ void hmcs40_cpu_device::state_string_export(const device_state_entry &entry, std
 	}
 }
 
-offs_t hmcs40_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const u8 *oprom, const u8 *opram, u32 options)
+util::disasm_interface *hmcs40_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE(hmcs40);
-	return CPU_DISASSEMBLE_NAME(hmcs40)(this, stream, pc, oprom, opram, options);
+	return new hmcs40_disassembler;
 }
-
 
 
 //-------------------------------------------------
@@ -613,8 +619,8 @@ void hmcs40_cpu_device::execute_run()
 		// fetch next opcode
 		debugger_instruction_hook(this, m_pc);
 		m_icount--;
-		m_op = m_program->read_word(m_pc << 1) & 0x3ff;
-		m_i = BITSWAP8(m_op,7,6,5,4,0,1,2,3) & 0xf; // reversed bit-order for 4-bit immediate param (except for XAMR)
+		m_op = m_program->read_word(m_pc) & 0x3ff;
+		m_i = bitswap<8>(m_op,7,6,5,4,0,1,2,3) & 0xf; // reversed bit-order for 4-bit immediate param (except for XAMR)
 		increment_pc();
 
 		// handle opcode

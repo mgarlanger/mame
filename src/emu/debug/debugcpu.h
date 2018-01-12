@@ -8,17 +8,14 @@
 
 ***************************************************************************/
 
-#pragma once
-
 #ifndef MAME_EMU_DEBUG_DEBUGCPU_H
 #define MAME_EMU_DEBUG_DEBUGCPU_H
+
+#pragma once
 
 #include "express.h"
 
 #include <set>
-
-
-namespace util { namespace xml { class data_node; } }
 
 
 //**************************************************************************
@@ -113,7 +110,7 @@ public:
 		offs_t address() const { return m_address; }
 		offs_t length() const { return m_length; }
 		const char *condition() const { return m_condition.original_string(); }
-		const char *action() const { return m_action.c_str(); }
+		const std::string &action() const { return m_action; }
 
 		// setters
 		void setEnabled(bool value) { m_enabled = value; }
@@ -218,7 +215,8 @@ public:
 	void breakpoint_enable_all(bool enable = true);
 
 	// watchpoints
-	watchpoint *watchpoint_first(address_spacenum spacenum) const { return m_wplist[spacenum]; }
+	int watchpoint_space_count() const { return m_wplist.size(); }
+	watchpoint *watchpoint_first(int spacenum) const { return m_wplist[spacenum]; }
 	int watchpoint_set(address_space &space, int type, offs_t address, offs_t length, const char *condition, const char *action);
 	bool watchpoint_clear(int wpnum);
 	void watchpoint_clear_all();
@@ -258,7 +256,7 @@ public:
 
 	// memory tracking
 	void set_track_mem(bool value) { m_track_mem = value; }
-	offs_t track_mem_pc_from_space_address_data(const address_spacenum& space,
+	offs_t track_mem_pc_from_space_address_data(const int& space,
 												const offs_t& address,
 												const u64& data) const;
 	void track_mem_data_clear() { m_track_mem_set.clear(); }
@@ -280,7 +278,6 @@ private:
 
 	// internal helpers
 	void prepare_for_step_overout(offs_t pc);
-	u32 dasm_wrapped(std::string &buffer, offs_t pc);
 	void errorlog_write_line(const char *line);
 
 	// breakpoint and watchpoint helpers
@@ -291,14 +288,12 @@ private:
 	void hotspot_check(address_space &space, offs_t address);
 
 	// symbol get/set callbacks
-	static u64 get_current_pc(symbol_table &table, void *ref);
-	static u64 get_cycles(symbol_table &table, void *ref);
-	static u64 get_totalcycles(symbol_table &table, void *ref);
-	static u64 get_lastinstructioncycles(symbol_table &table, void *ref);
-	static u64 get_logunmap(symbol_table &table, void *ref);
-	static void set_logunmap(symbol_table &table, void *ref, u64 value);
-	static u64 get_state(symbol_table &table, void *ref);
-	static void set_state(symbol_table &table, void *ref, u64 value);
+	static u64 get_current_pc(symbol_table &table);
+	static u64 get_cycles(symbol_table &table);
+	static u64 get_totalcycles(symbol_table &table);
+	static u64 get_lastinstructioncycles(symbol_table &table);
+	static u64 get_state(symbol_table &table, int index);
+	static void set_state(symbol_table &table, int index, u64 value);
 
 	// basic device information
 	device_t &                 m_device;                // device we are attached to
@@ -331,7 +326,7 @@ private:
 
 	// breakpoints and watchpoints
 	breakpoint *            m_bplist;                   // list of breakpoints
-	watchpoint *            m_wplist[ADDRESS_SPACES];   // watchpoint lists for each address space
+	std::vector<watchpoint *> m_wplist;                 // watchpoint lists for each address space
 	registerpoint *         m_rplist;                   // list of registerpoints
 
 	// tracing
@@ -411,7 +406,7 @@ private:
 	class dasm_memory_access
 	{
 	public:
-		dasm_memory_access(const address_spacenum& address_space,
+		dasm_memory_access(const int& address_space,
 							const offs_t& address,
 							const u64& data,
 							const offs_t& pc);
@@ -428,7 +423,7 @@ private:
 		}
 
 		// Stores the PC for a given address, memory region, and data value
-		address_spacenum m_address_space;
+		int m_address_space;
 		offs_t           m_address;
 		u64              m_data;
 		mutable offs_t   m_pc;
@@ -572,7 +567,7 @@ public:
 	void ensure_comments_loaded();
 	void reset_transient_flags();
 	void process_source_file();
-	void watchpoint_check(address_space& space, int type, offs_t address, u64 value_to_write, u64 mem_mask, device_debug::watchpoint** wplist);
+	void watchpoint_check(address_space& space, int type, offs_t address, u64 value_to_write, u64 mem_mask, std::vector<device_debug::watchpoint *> &wplist);
 
 private:
 	static const size_t NUM_TEMP_VARIABLES;
@@ -588,10 +583,10 @@ private:
 	device_t* expression_get_device(const char *tag);
 
 	/* variable getters/setters */
-	u64 get_cpunum(symbol_table &table, void *ref);
-	u64 get_beamx(symbol_table &table, void *ref);
-	u64 get_beamy(symbol_table &table, void *ref);
-	u64 get_frame(symbol_table &table, void *ref);
+	u64 get_cpunum(symbol_table &table);
+	u64 get_beamx(symbol_table &table, screen_device *screen);
+	u64 get_beamy(symbol_table &table, screen_device *screen);
+	u64 get_frame(symbol_table &table, screen_device *screen);
 
 	/* internal helpers */
 	void on_vblank(screen_device &device, bool vblank_state);
@@ -602,7 +597,7 @@ private:
 	device_t *  m_visiblecpu;
 	device_t *  m_breakcpu;
 
-	FILE *      m_source_file;          // script source file
+	std::unique_ptr<std::istream> m_source_file;        // script source file
 
 	std::unique_ptr<symbol_table> m_symtable;           // global symbol table
 

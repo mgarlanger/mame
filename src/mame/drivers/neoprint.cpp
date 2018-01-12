@@ -48,20 +48,8 @@ public:
 		m_generic_paletteram_16(*this, "paletteram")
 	{ }
 
-	required_shared_ptr<uint16_t> m_npvidram;
-	required_shared_ptr<uint16_t> m_npvidregs;
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_audiocpu;
-	required_device<upd4990a_device> m_upd4990a;
-	required_device<gfxdecode_device> m_gfxdecode;
-	required_device<screen_device> m_screen;
-	required_device<palette_device> m_palette;
-	required_device<generic_latch_8_device> m_soundlatch;
-	optional_shared_ptr<uint16_t> m_generic_paletteram_16;
+	static constexpr feature_type unemulated_features() { return feature::CAMERA | feature::PRINTER; }
 
-	uint8_t m_audio_result;
-	uint8_t m_bank_val;
-	uint8_t m_vblank;
 	DECLARE_READ8_MEMBER(neoprint_calendar_r);
 	DECLARE_WRITE8_MEMBER(neoprint_calendar_w);
 	DECLARE_READ8_MEMBER(neoprint_unk_r);
@@ -77,11 +65,29 @@ public:
 	DECLARE_DRIVER_INIT(npcartv1);
 	DECLARE_DRIVER_INIT(nprsp);
 	DECLARE_DRIVER_INIT(unkneo);
-	virtual void machine_start() override;
-	virtual void video_start() override;
 	DECLARE_MACHINE_RESET(nprsp);
 	uint32_t screen_update_neoprint(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_nprsp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+protected:
+	virtual void machine_start() override;
+	virtual void video_start() override;
+
+private:
+	required_shared_ptr<uint16_t> m_npvidram;
+	required_shared_ptr<uint16_t> m_npvidregs;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<upd4990a_device> m_upd4990a;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_device<generic_latch_8_device> m_soundlatch;
+	optional_shared_ptr<uint16_t> m_generic_paletteram_16;
+
+	uint8_t m_audio_result;
+	uint8_t m_bank_val;
+	uint8_t m_vblank;
 	void draw_layer(bitmap_ind16 &bitmap,const rectangle &cliprect,int layer,int data_shift);
 	void audio_cpu_assert_nmi();
 };
@@ -179,8 +185,8 @@ READ8_MEMBER(neoprint_state::neoprint_unk_r)
 
 	m_vblank = (m_screen->frame_number() & 0x1) ? 0x10 : 0x00;
 
-	//if(space.device().safe_pc() != 0x1504 && space.device().safe_pc() != 0x5f86 && space.device().safe_pc() != 0x5f90)
-	//  printf("%08x\n",space.device().safe_pc());
+	//if(m_maincpu->pc() != 0x1504 && m_maincpu->pc() != 0x5f86 && m_machine->safe_pc() != 0x5f90)
+	//  printf("%08x\n",m_maincpu->pc());
 
 	return m_vblank| 4 | 3;
 }
@@ -210,7 +216,7 @@ WRITE8_MEMBER(neoprint_state::audio_command_w)
 	/* boost the interleave to let the audio CPU read the command */
 	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(50));
 
-	//if (LOG_CPU_COMM) logerror("MAIN CPU PC %06x: audio_command_w %04x - %04x\n", space.device().safe_pc(), data, mem_mask);
+	//if (LOG_CPU_COMM) logerror("MAIN CPU PC %06x: audio_command_w %04x - %04x\n", m_maincpu->pc(), data, mem_mask);
 }
 
 
@@ -218,7 +224,7 @@ READ8_MEMBER(neoprint_state::audio_command_r)
 {
 	uint8_t ret = m_soundlatch->read(space, 0);
 
-	//if (LOG_CPU_COMM) logerror(" AUD CPU PC   %04x: audio_command_r %02x\n", space.device().safe_pc(), ret);
+	//if (LOG_CPU_COMM) logerror(" AUD CPU PC   %04x: audio_command_r %02x\n", m_audiocpu->pc(), ret);
 
 	/* this is a guess */
 	audio_cpu_clear_nmi_w(space, 0, 0);
@@ -230,7 +236,7 @@ READ8_MEMBER(neoprint_state::audio_command_r)
 
 WRITE8_MEMBER(neoprint_state::audio_result_w)
 {
-	//if (LOG_CPU_COMM && (m_audio_result != data)) logerror(" AUD CPU PC   %04x: audio_result_w %02x\n", space.device().safe_pc(), data);
+	//if (LOG_CPU_COMM && (m_audio_result != data)) logerror(" AUD CPU PC   %04x: audio_result_w %02x\n", m_audiocpu->pc(), data);
 
 	m_audio_result = data;
 }

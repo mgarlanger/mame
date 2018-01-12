@@ -38,6 +38,8 @@
 #include "corestr.h"
 #include "bitmap.h"
 
+#include "emufwd.h"
+
 
 //**************************************************************************
 //  COMPILER-SPECIFIC NASTINESS
@@ -73,9 +75,6 @@ typedef u32 pen_t;
 
 // stream_sample_t is used to represent a single sample in a sound stream
 typedef s32 stream_sample_t;
-
-// running_machine is core to pretty much everything
-class running_machine;
 
 
 
@@ -169,14 +168,14 @@ const endianness_t ENDIANNESS_NATIVE = ENDIANNESS_BIG;
 
 
 // orientation of bitmaps
-#define ORIENTATION_FLIP_X              0x0001  /* mirror everything in the X direction */
-#define ORIENTATION_FLIP_Y              0x0002  /* mirror everything in the Y direction */
-#define ORIENTATION_SWAP_XY             0x0004  /* mirror along the top-left/bottom-right diagonal */
+constexpr int ORIENTATION_FLIP_X   = 0x0001;  // mirror everything in the X direction
+constexpr int ORIENTATION_FLIP_Y   = 0x0002;  // mirror everything in the Y direction
+constexpr int ORIENTATION_SWAP_XY  = 0x0004;  // mirror along the top-left/bottom-right diagonal
 
-#define ROT0                            0
-#define ROT90                           (ORIENTATION_SWAP_XY | ORIENTATION_FLIP_X)  /* rotate clockwise 90 degrees */
-#define ROT180                          (ORIENTATION_FLIP_X | ORIENTATION_FLIP_Y)   /* rotate 180 degrees */
-#define ROT270                          (ORIENTATION_SWAP_XY | ORIENTATION_FLIP_Y)  /* rotate counter-clockwise 90 degrees */
+constexpr int ROT0                 = 0;
+constexpr int ROT90                = ORIENTATION_SWAP_XY | ORIENTATION_FLIP_X;  // rotate clockwise 90 degrees
+constexpr int ROT180               = ORIENTATION_FLIP_X | ORIENTATION_FLIP_Y;   // rotate 180 degrees
+constexpr int ROT270               = ORIENTATION_SWAP_XY | ORIENTATION_FLIP_Y;  // rotate counter-clockwise 90 degrees
 
 
 
@@ -189,12 +188,20 @@ const endianness_t ENDIANNESS_NATIVE = ENDIANNESS_BIG;
 	TYPE(const TYPE &) = delete; \
 	TYPE &operator=(const TYPE &) = delete
 
-// macro for declaring enumerator operators that increment/decrement like plain old C
-#define DECLARE_ENUM_OPERATORS(TYPE) \
+// macro for declaring enumeration operators that increment/decrement like plain old C
+#define DECLARE_ENUM_INCDEC_OPERATORS(TYPE) \
 inline TYPE &operator++(TYPE &value) { return value = TYPE(std::underlying_type_t<TYPE>(value) + 1); } \
-inline TYPE operator++(TYPE &value, int) { TYPE const old(value); ++value; return old; } \
 inline TYPE &operator--(TYPE &value) { return value = TYPE(std::underlying_type_t<TYPE>(value) - 1); } \
+inline TYPE operator++(TYPE &value, int) { TYPE const old(value); ++value; return old; } \
 inline TYPE operator--(TYPE &value, int) { TYPE const old(value); --value; return old; }
+
+// macro for declaring bitwise operators for an enumerated type
+#define DECLARE_ENUM_BITWISE_OPERATORS(TYPE) \
+constexpr TYPE operator~(TYPE value) { return TYPE(~std::underlying_type_t<TYPE>(value)); } \
+constexpr TYPE operator&(TYPE a, TYPE b) { return TYPE(std::underlying_type_t<TYPE>(a) & std::underlying_type_t<TYPE>(b)); } \
+constexpr TYPE operator|(TYPE a, TYPE b) { return TYPE(std::underlying_type_t<TYPE>(a) | std::underlying_type_t<TYPE>(b)); } \
+inline TYPE &operator&=(TYPE &a, TYPE b) { return a = a & b; } \
+inline TYPE &operator|=(TYPE &a, TYPE b) { return a = a | b; }
 
 
 // this macro passes an item followed by a string version of itself as two consecutive parameters
@@ -248,22 +255,13 @@ template <typename T, typename U, typename... V> constexpr T bitswap(T val, U b,
 	return (BIT(val, b) << sizeof...(c)) | bitswap(val, c...);
 }
 
+// explicit version that checks number of bit position arguments
 template <unsigned B, typename T, typename... U> T bitswap(T val, U... b)
 {
 	static_assert(sizeof...(b) == B, "wrong number of bits");
 	static_assert((sizeof(std::remove_reference_t<T>) * 8) >= B, "return type too small for result");
 	return bitswap(val, b...);
 }
-
-// explicit versions that check number of bit position arguments
-template <typename T, typename... U> constexpr T BITSWAP8(T val, U... b) {  return bitswap<8U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP16(T val, U... b) {  return bitswap<16U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP24(T val, U... b) {  return bitswap<24U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP32(T val, U... b) {  return bitswap<32U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP40(T val, U... b) {  return bitswap<40U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP48(T val, U... b) {  return bitswap<48U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP56(T val, U... b) {  return bitswap<56U>(val, b...); }
-template <typename T, typename... U> constexpr T BITSWAP64(T val, U... b) {  return bitswap<64U>(val, b...); }
 
 
 
@@ -304,8 +302,6 @@ private:
 //**************************************************************************
 //  CASTING TEMPLATES
 //**************************************************************************
-
-class device_t;
 
 void report_bad_cast(const std::type_info &src_type, const std::type_info &dst_type);
 void report_bad_device_cast(const device_t *dev, const std::type_info &src_type, const std::type_info &dst_type);
@@ -379,19 +375,6 @@ enum_value(T value) noexcept
 //  INLINE FUNCTIONS
 //**************************************************************************
 
-// population count
-#if !defined(__NetBSD__)
-inline int popcount(u32 val)
-{
-	int count;
-
-	for (count = 0; val != 0; count++)
-		val &= val - 1;
-	return count;
-}
-#endif
-
-
 // convert a series of 32 bits into a float
 inline float u2f(u32 v)
 {
@@ -437,6 +420,14 @@ inline u64 d2u(double d)
 	} u;
 	u.dd = d;
 	return u.vv;
+}
+
+
+// constexpr absolute value of an integer
+template <typename T>
+constexpr std::enable_if_t<std::is_signed<T>::value, T> iabs(T v)
+{
+	return (v < T(0)) ? -v : v;
 }
 
 #endif  /* MAME_EMU_EMUCORE_H */

@@ -13,6 +13,7 @@
 
 #include "emu.h"
 #include "t11.h"
+#include "t11dasm.h"
 #include "debugger.h"
 
 
@@ -58,6 +59,13 @@ t11_device::t11_device(const machine_config &mconfig, device_type type, const ch
 t11_device::t11_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: t11_device(mconfig, T11, tag, owner, clock)
 {
+}
+
+device_memory_interface::space_config_vector t11_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config)
+	};
 }
 
 
@@ -253,7 +261,7 @@ void t11_device::device_start()
 
 	m_initial_pc = initial_pc[c_initial_mode >> 13];
 	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = m_program->direct<0>();
 	m_out_reset_func.resolve_safe();
 
 	save_item(NAME(m_ppc.w.l));
@@ -415,9 +423,7 @@ void t11_device::execute_run()
 	} while (m_icount > 0);
 }
 
-
-offs_t t11_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *t11_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( t11 );
-	return CPU_DISASSEMBLE_NAME(t11)(this, stream, pc, oprom, opram, options);
+	return new t11_disassembler;
 }

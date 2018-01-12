@@ -194,7 +194,7 @@ Notes:
 #include "includes/pacland.h"
 
 #include "cpu/m6809/m6809.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 #include "machine/watchdog.h"
 #include "speaker.h"
 
@@ -429,7 +429,7 @@ INTERRUPT_GEN_MEMBER(pacland_state::mcu_vblank_irq)
 static MACHINE_CONFIG_START( pacland )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_49_152MHz/32) /* 1.536 MHz */
+	MCFG_CPU_ADD("maincpu", MC6809E, XTAL_49_152MHz/32) /* 1.536 MHz */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pacland_state,  main_vblank_irq)
 

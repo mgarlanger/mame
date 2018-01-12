@@ -35,6 +35,11 @@
         ???? abcd = one bit per voice, set to 0 if nothing is playing, or
                     1 if it is active
 
+    OKI Semiconductor produced this chip in two package variants. The
+    44-pin QFP version, MSM6295GS, is the original one and by far the more
+    common of the two. The 42-pin DIP version, MSM6295VRS, omits A17 and
+    RD, which limits its ROM addressing to one megabit instead of two.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -284,12 +289,12 @@ void okim6295_device::write_command(uint8_t command)
 					// invalid samples go here
 					else
 					{
-						logerror("OKIM6295:'%s' requested to play invalid sample %02x\n",tag(),m_command);
+						logerror("Requested to play invalid sample %02x\n", m_command);
 					}
 				}
 				else
 				{
-					logerror("OKIM6295:'%s' requested to play sample %02x on non-stopped voice\n",tag(),m_command);
+					logerror("Requested to play sample %02x on non-stopped voice\n", m_command);
 				}
 			}
 

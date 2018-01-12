@@ -207,7 +207,7 @@ protected:
 		INTSB  = 0x0010
 	};
 
-	upd7810_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
+	upd7810_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, address_map_constructor internal_map);
 
 	// device-level overrides
 	virtual void device_start() override;
@@ -221,15 +221,13 @@ protected:
 	virtual void execute_set_input(int inputnum, int state) override;
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
+	virtual space_config_vector memory_space_config() const override;
 
 	// device_state_interface overrides
 	virtual void state_string_export(const device_state_entry &entry, std::string &str) const override;
 
 	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 4; }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual util::disasm_interface *create_disassembler() override;
 
 	virtual void handle_timers(int cycles);
 	virtual void upd7810_take_irq();
@@ -276,6 +274,8 @@ protected:
 		uint8_t cycles_skip;
 		uint8_t mask_l0_l1;
 	};
+
+	virtual void configure_ops();
 
 	static const struct opcode_s s_op48[256];
 	static const struct opcode_s s_op4C[256];
@@ -411,7 +411,7 @@ protected:
 	const struct opcode_s *m_op70;
 	const struct opcode_s *m_op74;
 	address_space *m_program;
-	direct_read_data *m_direct;
+	direct_read_data<0> *m_direct;
 	int m_icount;
 
 	uint8_t RP(offs_t port);
@@ -1441,7 +1441,8 @@ public:
 	upd7807_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 protected:
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual util::disasm_interface *create_disassembler() override;
+	virtual void configure_ops() override;
 };
 
 
@@ -1454,9 +1455,10 @@ public:
 protected:
 	virtual void device_reset() override;
 	virtual void execute_set_input(int inputnum, int state) override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual util::disasm_interface *create_disassembler() override;
 	virtual void handle_timers(int cycles) override;
 	virtual void upd7810_take_irq() override;
+	virtual void configure_ops() override;
 };
 
 
@@ -1473,8 +1475,9 @@ protected:
 	virtual void device_reset() override;
 	virtual uint64_t execute_clocks_to_cycles(uint64_t clocks) const override { return (clocks + 4 - 1) / 4; }
 	virtual uint64_t execute_cycles_to_clocks(uint64_t cycles) const override { return (cycles * 4); }
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual util::disasm_interface *create_disassembler() override;
 	virtual void handle_timers(int cycles) override;
+	virtual void configure_ops() override;
 };
 
 
@@ -1483,6 +1486,7 @@ class upd78c06_device : public upd78c05_device
 public:
 	// construction/destruction
 	upd78c06_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
+	virtual void configure_ops() override;
 };
 
 

@@ -48,6 +48,7 @@ Note
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "machine/i8255.h"
+#include "machine/timer.h"
 #include "sound/ym2413.h"
 #include "screen.h"
 #include "speaker.h"
@@ -379,7 +380,7 @@ READ8_MEMBER(jackie_state::expram_r)
 	uint8_t *rom = memregion("gfx3")->base();
 
 	offset += m_exp_bank * 0x8000;
-//  logerror("PC %06X: %04x = %02x\n",space.device().safe_pc(),offset,rom[offset]);
+//  logerror("PC %06X: %04x = %02x\n",m_maincpu->pc(),offset,rom[offset]);
 	return rom[offset];
 }
 

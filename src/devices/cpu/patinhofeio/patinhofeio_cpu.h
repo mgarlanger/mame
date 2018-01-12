@@ -65,7 +65,7 @@ public:
 protected:
 
 	virtual void execute_run() override;
-	virtual offs_t disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options) override;
+	virtual util::disasm_interface *create_disassembler() override;
 
 	address_space_config m_program_config;
 
@@ -119,11 +119,7 @@ protected:
 	virtual uint32_t execute_max_cycles() const override { return 2; }
 
 	// device_memory_interface overrides
-	virtual const address_space_config *memory_space_config(address_spacenum spacenum) const override { return (spacenum == AS_PROGRAM) ? &m_program_config : nullptr; }
-
-	// device_disasm_interface overrides
-	virtual uint32_t disasm_min_opcode_bytes() const override { return 1; }
-	virtual uint32_t disasm_max_opcode_bytes() const override { return 2; }
+	virtual space_config_vector memory_space_config() const override;
 
 private:
 	void execute_instruction();

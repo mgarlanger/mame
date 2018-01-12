@@ -22,13 +22,6 @@
 
 #define VRAM_SIZE   (0x80000)   // 512k max
 
-MACHINE_CONFIG_FRAGMENT( wsportrait )
-	MCFG_SCREEN_ADD( WSPORTRAIT_SCREEN_NAME, RASTER)
-	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, nubus_wsportrait_device, screen_update)
-	MCFG_SCREEN_SIZE(1024,960)
-	MCFG_SCREEN_REFRESH_RATE(75.0)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 870-1)
-MACHINE_CONFIG_END
 
 ROM_START( wsportrait )
 	ROM_REGION(0x1000, WSPORTRAIT_ROM_REGION, 0)
@@ -43,14 +36,16 @@ DEFINE_DEVICE_TYPE(NUBUS_WSPORTRAIT, nubus_wsportrait_device, "nb_wspt", "Macint
 
 
 //-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-machine_config_constructor nubus_wsportrait_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( wsportrait );
-}
+MACHINE_CONFIG_MEMBER( nubus_wsportrait_device::device_add_mconfig )
+	MCFG_SCREEN_ADD( WSPORTRAIT_SCREEN_NAME, RASTER)
+	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, nubus_wsportrait_device, screen_update)
+	MCFG_SCREEN_SIZE(1024,960)
+	MCFG_SCREEN_REFRESH_RATE(75.0)
+	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 870-1)
+MACHINE_CONFIG_END
 
 //-------------------------------------------------
 //  rom_region - device-specific ROM region
@@ -81,7 +76,7 @@ nubus_wsportrait_device::nubus_wsportrait_device(const machine_config &mconfig, 
 	m_vram32(nullptr), m_mode(0), m_vbl_disable(0), m_toggle(0), m_count(0), m_clutoffs(0), m_timer(nullptr),
 	m_assembled_tag(util::string_format("%s:%s", tag, WSPORTRAIT_SCREEN_NAME))
 {
-	m_screen_tag = m_assembled_tag.c_str();
+	static_set_screen(*this, m_assembled_tag.c_str());
 }
 
 //-------------------------------------------------
@@ -108,7 +103,7 @@ void nubus_wsportrait_device::device_start()
 	m_nubus->install_device(slotspace+0x80000, slotspace+0xeffff, read32_delegate(FUNC(nubus_wsportrait_device::wsportrait_r), this), write32_delegate(FUNC(nubus_wsportrait_device::wsportrait_w), this));
 
 	m_timer = timer_alloc(0, nullptr);
-	m_timer->adjust(m_screen->time_until_pos(869, 0), 0);
+	m_timer->adjust(screen().time_until_pos(869, 0), 0);
 }
 
 //-------------------------------------------------
@@ -133,7 +128,7 @@ void nubus_wsportrait_device::device_timer(emu_timer &timer, device_timer_id tid
 		raise_slot_irq();
 	}
 
-	m_timer->adjust(m_screen->time_until_pos(869, 0), 0);
+	m_timer->adjust(screen().time_until_pos(869, 0), 0);
 }
 
 /***************************************************************************
@@ -248,7 +243,7 @@ WRITE32_MEMBER( nubus_wsportrait_device::wsportrait_w )
 
 			if (m_count == 3)
 			{
-//              printf("RAMDAC: color %d = %02x %02x %02x (PC=%x)\n", m_clutoffs, m_colors[0], m_colors[1], m_colors[2], space.device().safe_pc() );
+//              logerror("RAMDAC: color %d = %02x %02x %02x %s\n", m_clutoffs, m_colors[0], m_colors[1], m_colors[2], machine().describe_context());
 				m_palette[m_clutoffs] = rgb_t(m_colors[2], m_colors[2], m_colors[2]);
 				m_clutoffs++;
 				if (m_clutoffs > 255)

@@ -42,9 +42,9 @@
 #include "cpu/z80/z80.h"
 #include "imagedev/cassette.h"
 #include "machine/6522via.h"
+#include "machine/timer.h"
 #include "machine/wd_fdc.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "sound/wave.h"
 #include "video/mc6845.h"
 
@@ -834,7 +834,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(applix_state::cass_timer)
 
 static MACHINE_CONFIG_START( applix )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 7500000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_30MHz / 4) // MC68000-P10 @ 7.5 MHz
 	MCFG_CPU_PROGRAM_MAP(applix_mem)
 	MCFG_CPU_ADD("subcpu", Z80, XTAL_16MHz / 2) // Z80H
 	MCFG_CPU_PROGRAM_MAP(subcpu_mem)
@@ -856,22 +856,21 @@ static MACHINE_CONFIG_START( applix )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ldac", DAC0800, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0) // 74ls374.u20 + dac0800.u21 + 4052.u23
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdac", DAC0800, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0) // 74ls374.u20 + dac0800.u21 + 4052.u23
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 
 	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 1875000) // 6545
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_30MHz / 16) // MC6545 @ 1.875 MHz
 	MCFG_MC6845_SHOW_BORDER_AREA(false)
 	MCFG_MC6845_CHAR_WIDTH(8)
 	MCFG_MC6845_UPDATE_ROW_CB(applix_state, crtc_update_row)
 	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(applix_state, vsync_w))
 
-	MCFG_DEVICE_ADD("via6522", VIA6522, 0)
+	MCFG_DEVICE_ADD("via6522", VIA6522, XTAL_30MHz / 4 / 10) // VIA uses 68000 E clock
 	MCFG_VIA6522_READPB_HANDLER(READ8(applix_state, applix_pb_r))
 	// in CB1 kbd clk
 	// in CA2 vsync

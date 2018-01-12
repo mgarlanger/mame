@@ -25,7 +25,9 @@
 
 #define MCFG_IBM5160_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, IBM5160_MOTHERBOARD, 0) \
-	ibm5160_mb_device::static_set_cputag(*device, _cputag);
+	ibm5160_mb_device::static_set_cputag(*device, "^" _cputag); \
+	isa8_device::static_set_cputag(*device->subdevice("isa"), "^^" _cputag);
+
 // ======================> ibm5160_mb_device
 class ibm5160_mb_device : public device_t
 {
@@ -36,22 +38,37 @@ public:
 	// inline configuration
 	static void static_set_cputag(device_t &device, const char *tag);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-	virtual ioport_constructor device_input_ports() const override;
-
 	DECLARE_ADDRESS_MAP(map, 8);
+
+	uint8_t m_pit_out2;
+
+	DECLARE_WRITE8_MEMBER(pc_page_w);
+	DECLARE_WRITE8_MEMBER(nmi_enable_w);
+
+	DECLARE_WRITE_LINE_MEMBER( pc_speaker_set_spkrdata );
+
+	DECLARE_WRITE_LINE_MEMBER( pc_pit8253_out1_changed );
+	DECLARE_WRITE_LINE_MEMBER( pc_pit8253_out2_changed );
+
+	DECLARE_WRITE_LINE_MEMBER( pic_int_w );
+
 protected:
 	ibm5160_mb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	// device-level overrides
 	virtual void device_start() override;
 	virtual void device_reset() override;
-public:
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
+	virtual ioport_constructor device_input_ports() const override;
+
+protected:
 	required_device<cpu_device>             m_maincpu;
+public:
 	required_device<pic8259_device>         m_pic8259;
-	required_device<am9517a_device>         m_dma8237;
 	required_device<pit8253_device>         m_pit8253;
+	required_device<am9517a_device>         m_dma8237;
+protected:
 	optional_device<i8255_device>           m_ppi8255;
 	required_device<speaker_sound_device>   m_speaker;
 	required_device<isa8_device>            m_isabus;
@@ -65,7 +82,6 @@ public:
 	int m_dma_channel;
 	uint8_t m_dma_offset[4];
 	uint8_t m_pc_spkrdata;
-	uint8_t m_pit_out2;
 	bool m_cur_eop;
 
 	uint8_t m_nmi_enabled;
@@ -88,9 +104,6 @@ public:
 	DECLARE_READ8_MEMBER ( pc_ppi_portc_r );
 	DECLARE_WRITE8_MEMBER( pc_ppi_portb_w );
 
-	DECLARE_WRITE_LINE_MEMBER( pc_pit8253_out1_changed );
-	DECLARE_WRITE_LINE_MEMBER( pc_pit8253_out2_changed );
-
 	DECLARE_WRITE_LINE_MEMBER( pc_dma_hrq_changed );
 	DECLARE_WRITE_LINE_MEMBER( pc_dma8237_out_eop );
 	DECLARE_READ8_MEMBER( pc_dma_read_byte );
@@ -107,14 +120,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( pc_dack2_w );
 	DECLARE_WRITE_LINE_MEMBER( pc_dack3_w );
 
-	DECLARE_WRITE_LINE_MEMBER( pc_speaker_set_spkrdata );
-
-	DECLARE_WRITE8_MEMBER(pc_page_w);
-	DECLARE_WRITE8_MEMBER(nmi_enable_w);
-
-	const char *m_cputag;
-
-private:
 	void pc_select_dma_channel(int channel, bool state);
 };
 
@@ -125,7 +130,8 @@ DECLARE_DEVICE_TYPE(IBM5160_MOTHERBOARD, ibm5160_mb_device)
 
 #define MCFG_IBM5150_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, IBM5150_MOTHERBOARD, 0) \
-	ibm5150_mb_device::static_set_cputag(*device, _cputag);
+	ibm5150_mb_device::static_set_cputag(*device, "^" _cputag); \
+	isa8_device::static_set_cputag(*device->subdevice("isa"), "^^" _cputag);
 
 // ======================> ibm5150_mb_device
 class ibm5150_mb_device : public ibm5160_mb_device
@@ -134,18 +140,17 @@ public:
 	// construction/destruction
 	ibm5150_mb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 	DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
 
 protected:
 	ibm5150_mb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
-	// device-level overrides
+	// optional information overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 
+private:
 	required_device<cassette_image_device>  m_cassette;
-public:
+
 	DECLARE_READ8_MEMBER ( pc_ppi_porta_r );
 	DECLARE_READ8_MEMBER ( pc_ppi_portc_r );
 	DECLARE_WRITE8_MEMBER( pc_ppi_portb_w );
@@ -158,7 +163,8 @@ DECLARE_DEVICE_TYPE(IBM5150_MOTHERBOARD, ibm5150_mb_device)
 
 #define MCFG_EC1841_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, EC1841_MOTHERBOARD, 0) \
-	ec1841_mb_device::static_set_cputag(*device, _cputag);
+	ec1841_mb_device::static_set_cputag(*device, "^" _cputag); \
+	isa8_device::static_set_cputag(*device->subdevice("isa"), "^^" _cputag);
 
 class ec1841_mb_device : public ibm5160_mb_device
 {
@@ -166,12 +172,13 @@ public:
 	// construction/destruction
 	ec1841_mb_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
+protected:
 	// optional information overrides
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 	virtual void device_start() override;
 
-public:
+private:
 	DECLARE_READ8_MEMBER ( pc_ppi_portc_r );
 	DECLARE_WRITE8_MEMBER( pc_ppi_portb_w );
 
@@ -182,7 +189,8 @@ DECLARE_DEVICE_TYPE(EC1841_MOTHERBOARD, ec1841_mb_device)
 
 #define MCFG_PCNOPPI_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, PCNOPPI_MOTHERBOARD, 0) \
-	pc_noppi_mb_device::static_set_cputag(*device, _cputag);
+	pc_noppi_mb_device::static_set_cputag(*device, "^" _cputag); \
+	isa8_device::static_set_cputag(*device->subdevice("isa"), "^^" _cputag);
 
 class pc_noppi_mb_device : public ibm5160_mb_device
 {
@@ -196,7 +204,7 @@ public:
 protected:
 	pc_noppi_mb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 };
 

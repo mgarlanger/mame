@@ -23,6 +23,7 @@
 #include "cpu/m68000/m68000.h"
 #include "machine/6821pia.h"
 #include "machine/6840ptm.h"
+#include "machine/timer.h"
 #include "machine/watchdog.h"
 #include "screen.h"
 #include "speaker.h"
@@ -470,7 +471,7 @@ READ8_MEMBER( zwackery_state::pia2_porta_r )
 // 6840 take 14 additional cycles
 READ8_MEMBER( zwackery_state::ptm_r )
 {
-	space.device().execute().adjust_icount(-14);
+	m_maincpu->adjust_icount(-14);
 	return m_ptm->read(space, offset);
 }
 

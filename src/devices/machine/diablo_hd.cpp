@@ -1359,8 +1359,8 @@ void diablo_hd_device::device_reset()
 		m_cylinders = 2 * DIABLO_CYLINDERS;
 		m_pages = 2 * DIABLO_PAGES;
 	}
-	LOG_DRIVE(0,"[DHD%u]   m_handle            : %p\n", m_unit, m_handle);
-	LOG_DRIVE(0,"[DHD%u]   m_disk              : %p\n", m_unit, m_disk);
+	LOG_DRIVE(0,"[DHD%u]   m_handle            : %p\n", m_unit, reinterpret_cast<void const *>(m_handle));
+	LOG_DRIVE(0,"[DHD%u]   m_disk              : %p\n", m_unit, reinterpret_cast<void const *>(m_disk));
 	LOG_DRIVE(0,"[DHD%u]   rotation time       : %.0fns\n", m_unit, m_rotation_time.as_double() * ATTOSECONDS_PER_NANOSECOND);
 	LOG_DRIVE(0,"[DHD%u]   sector time         : %.0fns\n", m_unit, m_sector_time.as_double() * ATTOSECONDS_PER_NANOSECOND);
 	LOG_DRIVE(0,"[DHD%u]   sector mark 0 time  : %.0fns\n", m_unit, m_sector_mark_0_time.as_double() * ATTOSECONDS_PER_NANOSECOND);
@@ -1442,13 +1442,9 @@ void diablo_hd_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 	}
 }
 
-MACHINE_CONFIG_FRAGMENT( diablo_drive )
+MACHINE_CONFIG_MEMBER( diablo_hd_device::device_add_mconfig )
 	MCFG_DIABLO_ADD("drive")
 MACHINE_CONFIG_END
 
-machine_config_constructor diablo_hd_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( diablo_drive );
-}
 
 DEFINE_DEVICE_TYPE(DIABLO_HD, diablo_hd_device, "diablo_hd", "Diablo Disk")

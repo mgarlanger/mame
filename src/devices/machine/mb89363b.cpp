@@ -57,7 +57,7 @@
                                          S
 
     Block Diagram / Pin Descriptions:
-    http://www.mess.org/_media/datasheets/fujitsu/mb89363b_partial.pdf
+    http://mess.redump.net/_media/datasheets/fujitsu/mb89363b_partial.pdf
 
     D.C. Characteristics:
     (Recommended operating conditions unless otherwise noted)
@@ -134,7 +134,7 @@ WRITE8_MEMBER( mb89363b_device::write )
 }
 
 
-static MACHINE_CONFIG_FRAGMENT( mb89363b )
+MACHINE_CONFIG_MEMBER( mb89363b_device::device_add_mconfig )
 	MCFG_DEVICE_ADD("i8255_a", I8255, 0)
 	MCFG_I8255_IN_PORTA_CB(READ8(mb89363b_device, i8255_a_port_a_r))
 	MCFG_I8255_IN_PORTB_CB(READ8(mb89363b_device, i8255_a_port_b_r))
@@ -152,10 +152,6 @@ static MACHINE_CONFIG_FRAGMENT( mb89363b )
 	MCFG_I8255_OUT_PORTC_CB(WRITE8(mb89363b_device, i8255_b_port_c_w))
 MACHINE_CONFIG_END
 
-machine_config_constructor mb89363b_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( mb89363b );
-}
 
 void mb89363b_device::device_start()
 {

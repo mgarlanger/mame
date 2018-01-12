@@ -178,7 +178,7 @@ TODO:
 #include "includes/namcos86.h"
 
 #include "cpu/m6809/m6809.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 #include "sound/ym2151.h"
 #include "sound/n63701x.h"
 #include "screen.h"
@@ -1050,11 +1050,11 @@ GFXDECODE_END
 static MACHINE_CONFIG_START( hopmappy )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("cpu1", M6809, XTAL_49_152MHz/32)
+	MCFG_CPU_ADD("cpu1", MC6809E, XTAL_49_152MHz/32)
 	MCFG_CPU_PROGRAM_MAP(cpu1_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos86_state,  irq0_line_assert)
 
-	MCFG_CPU_ADD("cpu2", M6809, XTAL_49_152MHz/32)
+	MCFG_CPU_ADD("cpu2", MC6809E, XTAL_49_152MHz/32)
 	MCFG_CPU_PROGRAM_MAP(hopmappy_cpu2_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos86_state,  irq0_line_assert)
 

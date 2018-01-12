@@ -47,11 +47,11 @@ CPU/Video Board Parts:
 
 #include "cpu/m6809/m6809.h"
 #include "cpu/z80/z80.h"
+#include "machine/74259.h"
 #include "machine/gen_latch.h"
 #include "machine/konami1.h"
 #include "machine/watchdog.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -61,14 +61,21 @@ WRITE8_MEMBER(sbasketb_state::sbasketb_sh_irqtrigger_w)
 	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
-WRITE8_MEMBER(sbasketb_state::sbasketb_coin_counter_w)
+WRITE_LINE_MEMBER(sbasketb_state::coin_counter_1_w)
 {
-	machine().bookkeeping().coin_counter_w(offset, data);
+	machine().bookkeeping().coin_counter_w(0, state);
 }
 
-WRITE8_MEMBER(sbasketb_state::irq_mask_w)
+WRITE_LINE_MEMBER(sbasketb_state::coin_counter_2_w)
 {
-	m_irq_mask = data & 1;
+	machine().bookkeeping().coin_counter_w(1, state);
+}
+
+WRITE_LINE_MEMBER(sbasketb_state::irq_mask_w)
+{
+	m_irq_mask = state;
+	if (!m_irq_mask)
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( sbasketb_map, AS_PROGRAM, 8, sbasketb_state )
@@ -80,10 +87,7 @@ static ADDRESS_MAP_START( sbasketb_map, AS_PROGRAM, 8, sbasketb_state )
 	AM_RANGE(0x3c00, 0x3c00) AM_DEVWRITE("watchdog", watchdog_timer_device, reset_w)
 	AM_RANGE(0x3c10, 0x3c10) AM_READNOP    /* ???? */
 	AM_RANGE(0x3c20, 0x3c20) AM_WRITEONLY AM_SHARE("palettebank")
-	AM_RANGE(0x3c80, 0x3c80) AM_WRITE(sbasketb_flipscreen_w)
-	AM_RANGE(0x3c81, 0x3c81) AM_WRITE(irq_mask_w)
-	AM_RANGE(0x3c83, 0x3c84) AM_WRITE(sbasketb_coin_counter_w)
-	AM_RANGE(0x3c85, 0x3c85) AM_WRITEONLY AM_SHARE("spriteramsel")
+	AM_RANGE(0x3c80, 0x3c87) AM_DEVWRITE("mainlatch", ls259_device, write_d0)
 	AM_RANGE(0x3d00, 0x3d00) AM_DEVWRITE("soundlatch", generic_latch_8_device, write)
 	AM_RANGE(0x3d80, 0x3d80) AM_WRITE(sbasketb_sh_irqtrigger_w)
 	AM_RANGE(0x3e00, 0x3e00) AM_READ_PORT("SYSTEM")
@@ -197,6 +201,15 @@ static MACHINE_CONFIG_START( sbasketb )
 	MCFG_CPU_ADD("audiocpu", Z80, XTAL_14_31818MHz / 4) /* 3.5795 MHz */
 	MCFG_CPU_PROGRAM_MAP(sbasketb_sound_map)
 
+	MCFG_DEVICE_ADD("mainlatch", LS259, 0) // B3
+	MCFG_ADDRESSABLE_LATCH_Q0_OUT_CB(WRITELINE(sbasketb_state, flipscreen_w)) // FLIP
+	MCFG_ADDRESSABLE_LATCH_Q1_OUT_CB(WRITELINE(sbasketb_state, irq_mask_w)) // INTST
+	MCFG_ADDRESSABLE_LATCH_Q2_OUT_CB(NOOP) // MUT - not used?
+	MCFG_ADDRESSABLE_LATCH_Q3_OUT_CB(WRITELINE(sbasketb_state, coin_counter_1_w)) // COIN 1
+	MCFG_ADDRESSABLE_LATCH_Q4_OUT_CB(WRITELINE(sbasketb_state, coin_counter_2_w)) // COIN 2
+	MCFG_ADDRESSABLE_LATCH_Q5_OUT_CB(WRITELINE(sbasketb_state, spriteram_select_w)) // OBJ CHE
+	MCFG_ADDRESSABLE_LATCH_Q6_OUT_CB(NOOP) // END - not used
+
 	MCFG_WATCHDOG_ADD("watchdog")
 
 	/* video hardware */
@@ -221,8 +234,7 @@ static MACHINE_CONFIG_START( sbasketb )
 	MCFG_SOUND_ADD("trackfld_audio", TRACKFLD_AUDIO, 0)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SOUND_ADD("snsnd", SN76489, XTAL_14_31818MHz / 8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
@@ -233,7 +245,7 @@ MACHINE_CONFIG_END
 
 MACHINE_CONFIG_DERIVED(sbasketbu, sbasketb)
 	MCFG_DEVICE_REMOVE("maincpu")
-	MCFG_CPU_ADD("maincpu", M6809, 1400000)        /* 1.400 MHz ??? */
+	MCFG_CPU_ADD("maincpu", MC6809E, 1400000)        /* 6809E at 1.400 MHz ??? */
 	MCFG_CPU_PROGRAM_MAP(sbasketb_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", sbasketb_state,  vblank_irq)
 MACHINE_CONFIG_END

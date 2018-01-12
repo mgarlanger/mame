@@ -210,6 +210,7 @@ TODO:
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
 #include "machine/kaneko_hit.h"
+#include "machine/timer.h"
 #include "machine/watchdog.h"
 #include "video/kaneko_tmap.h"
 #include "video/kaneko_spr.h"
@@ -798,7 +799,7 @@ static ADDRESS_MAP_START( smissw_map, AS_PROGRAM, 16, expro02_state )
 	AM_RANGE(0xf00000, 0xf00001) AM_READ8(comad_okim6295_r, 0xff00) AM_DEVWRITE8("oki", okim6295_device, write, 0xff00) /* fantasia, missw96 */
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( oki_map, AS_0, 8, expro02_state )
+static ADDRESS_MAP_START( oki_map, 0, 8, expro02_state )
 	AM_RANGE(0x00000, 0x2ffff) AM_ROM
 	AM_RANGE(0x30000, 0x3ffff) AM_ROMBANK("okibank")
 ADDRESS_MAP_END
@@ -922,7 +923,7 @@ static MACHINE_CONFIG_START( expro02 )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_OKIM6295_ADD("oki", 12000000/6, PIN7_LOW)
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 MACHINE_CONFIG_END
@@ -961,7 +962,7 @@ static MACHINE_CONFIG_DERIVED( supmodel, comad_noview2 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(supmodel_map)
 	MCFG_OKIM6295_REPLACE("oki", 1584000, PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -979,7 +980,7 @@ static MACHINE_CONFIG_DERIVED( galhustl, comad_noview2 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(galhustl_map)
 	MCFG_OKIM6295_REPLACE("oki", 1056000, PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SCREEN_MODIFY("screen")
@@ -991,7 +992,7 @@ static MACHINE_CONFIG_DERIVED( zipzap, comad_noview2 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(zipzap_map)
 	MCFG_OKIM6295_REPLACE("oki", 1056000, PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
+	MCFG_DEVICE_ADDRESS_MAP(0, oki_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SCREEN_MODIFY("screen") // doesn't work with original kaneko_spr implementation
@@ -1796,7 +1797,7 @@ DRIVER_INIT_MEMBER(expro02_state,expro02)
 			offset = x;
 
 			// swap bits around to simplify further processing
-			offset = BITSWAP24(offset, 23, 22, 21, 20, 19, 18, 15, 9, 10, 8, 7, 12, 13, 16, 17, 6, 5, 4, 3, 14, 11, 2, 1, 0);
+			offset = bitswap<24>(offset, 23, 22, 21, 20, 19, 18, 15, 9, 10, 8, 7, 12, 13, 16, 17, 6, 5, 4, 3, 14, 11, 2, 1, 0);
 
 			// invert 8 bits
 			offset ^= 0x0528f;
@@ -1808,7 +1809,7 @@ DRIVER_INIT_MEMBER(expro02_state,expro02)
 			offset = (offset & ~0x1fe00) | ((offset - 0x09600) & 0x1fe00);
 
 			// reverse the initial bitswap
-			offset = BITSWAP24(offset, 23, 22, 21, 20, 19, 18, 9, 10, 17, 4, 11, 12, 3, 15, 16, 14, 13, 8, 7, 6, 5, 2, 1, 0);
+			offset = bitswap<24>(offset, 23, 22, 21, 20, 19, 18, 9, 10, 17, 4, 11, 12, 3, 15, 16, 14, 13, 8, 7, 6, 5, 2, 1, 0);
 
 			// swap nibbles to use the same gfxdecode
 			dst[x] = (src[offset] << 4 & 0xF0F0F0F0) | (src[offset] >> 4 & 0x0F0F0F0F);

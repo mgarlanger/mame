@@ -21,6 +21,7 @@ they are internally.
 
 #include "emu.h"
 #include "sm8500.h"
+#include "sm8500d.h"
 #include "debugger.h"
 
 
@@ -43,6 +44,13 @@ sm8500_cpu_device::sm8500_cpu_device(const machine_config &mconfig, const char *
 	, m_PS0(0)
 	, m_PS1(0), m_IFLAGS(0), m_CheckInterrupts(0), m_halted(0), m_icount(0), m_program(nullptr), m_oldpc(0)
 {
+}
+
+device_memory_interface::space_config_vector sm8500_cpu_device::memory_space_config() const
+{
+	return space_config_vector {
+		std::make_pair(AS_PROGRAM, &m_program_config),
+	};
 }
 
 
@@ -341,10 +349,9 @@ void sm8500_cpu_device::process_interrupts()
 }
 
 
-offs_t sm8500_cpu_device::disasm_disassemble(std::ostream &stream, offs_t pc, const uint8_t *oprom, const uint8_t *opram, uint32_t options)
+util::disasm_interface *sm8500_cpu_device::create_disassembler()
 {
-	extern CPU_DISASSEMBLE( sm8500 );
-	return CPU_DISASSEMBLE_NAME(sm8500)(this, stream, pc, oprom, opram, options);
+	return new sm8500_disassembler;
 }
 
 

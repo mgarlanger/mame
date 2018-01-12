@@ -8,50 +8,33 @@
 
 int voodoo_pci_device::m_type = 0;
 
-static MACHINE_CONFIG_FRAGMENT( voodoo_1_pci )
-	MCFG_DEVICE_ADD("voodoo", VOODOO_1, STD_VOODOO_1_CLOCK)
-	MCFG_VOODOO_FBMEM(4)
-	MCFG_VOODOO_TMUMEM(1, 0)
-	MCFG_VOODOO_SCREEN_TAG("screen")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( voodoo_2_pci )
-	MCFG_DEVICE_ADD("voodoo", VOODOO_2, STD_VOODOO_2_CLOCK)
-	MCFG_VOODOO_FBMEM(4)
-	MCFG_VOODOO_TMUMEM(1, 0)
-	MCFG_VOODOO_SCREEN_TAG("screen")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( voodoo_banshee_pci )
-	MCFG_DEVICE_ADD("voodoo", VOODOO_BANSHEE, STD_VOODOO_BANSHEE_CLOCK)
-	MCFG_VOODOO_FBMEM(16)
-	MCFG_VOODOO_SCREEN_TAG("screen")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( voodoo_3_pci )
-	MCFG_DEVICE_ADD("voodoo", VOODOO_3, STD_VOODOO_3_CLOCK)
-	MCFG_VOODOO_FBMEM(16)
-	MCFG_VOODOO_SCREEN_TAG("screen")
-MACHINE_CONFIG_END
-
-machine_config_constructor voodoo_pci_device::device_mconfig_additions() const
-{
+MACHINE_CONFIG_MEMBER(voodoo_pci_device::device_add_mconfig)
 	switch (m_type) {
 		case TYPE_VOODOO_1:
-			return MACHINE_CONFIG_NAME( voodoo_1_pci );
+				MCFG_DEVICE_ADD("voodoo", VOODOO_1, STD_VOODOO_1_CLOCK)
+				MCFG_VOODOO_FBMEM(4)
+				MCFG_VOODOO_TMUMEM(1, 0)
+				MCFG_VOODOO_SCREEN_TAG("screen")
 			break;
 		case TYPE_VOODOO_2:
-			return MACHINE_CONFIG_NAME( voodoo_2_pci );
+				MCFG_DEVICE_ADD("voodoo", VOODOO_2, STD_VOODOO_2_CLOCK)
+				MCFG_VOODOO_FBMEM(4)
+				MCFG_VOODOO_TMUMEM(1, 0)
+				MCFG_VOODOO_SCREEN_TAG("screen")
 			break;
 		case TYPE_VOODOO_BANSHEE:
-			return MACHINE_CONFIG_NAME( voodoo_banshee_pci );
+				MCFG_DEVICE_ADD("voodoo", VOODOO_BANSHEE, STD_VOODOO_BANSHEE_CLOCK)
+				MCFG_VOODOO_FBMEM(16)
+				MCFG_VOODOO_SCREEN_TAG("screen")
 			break;
 		//case TYPE_VOODOO_3
 		default:
-			return MACHINE_CONFIG_NAME( voodoo_3_pci );
-			break;
-	}
-}
+				MCFG_DEVICE_ADD("voodoo", VOODOO_3, STD_VOODOO_3_CLOCK)
+				MCFG_VOODOO_FBMEM(16)
+				MCFG_VOODOO_SCREEN_TAG("screen")
+			break;}
+MACHINE_CONFIG_END
+
 
 DEFINE_DEVICE_TYPE(VOODOO_PCI, voodoo_pci_device, "voodoo_pci", "Voodoo PCI")
 
@@ -121,7 +104,6 @@ void voodoo_pci_device::device_start()
 		bank_infos[1].adr = 0xf8000008;
 		bank_infos[2].adr = 0xfffffff0;
 	}
-
 	save_item(NAME(m_pcictrl_reg));
 	machine().save().register_postload(save_prepost_delegate(FUNC(voodoo_pci_device::postload), this));
 }
@@ -163,11 +145,13 @@ READ32_MEMBER (voodoo_pci_device::pcictrl_r)
 	// The address map starts at 0x40
 	switch (offset + 0x40 / 4) {
 	case 0x40/4:
+		// V2: Init Enable: 19:16=Fab ID, 15:12=Graphics Rev
 		// Vegas driver needs this value at PCI 0x40
-		result = 0x00044000; // FAB ID
+		result = 0x00044000;
 		break;
 	case 0x54/4:
-		// AGP Capability Register: 8 bit 0, 4 bit AGP Major, 4 bit AGP Minor, 8 bit Next Ptr, 8 bit Capability ID
+		// V2: SiProcess Register: Osc Force On, Osc Ring Sel, Osc Count Reset, 12 bit PCI Counter, 16 bit Oscillator Counter
+		// V3: AGP Capability Register: 8 bit 0, 4 bit AGP Major, 4 bit AGP Minor, 8 bit Next Ptr, 8 bit Capability ID
 		// Tenthdeg (vegas) checks this
 		result = 0x00006002;
 		break;
@@ -206,7 +190,7 @@ READ32_MEMBER(voodoo_pci_device::vga_r)
 	if (ACCESSING_BITS_24_31)
 		result |= downcast<voodoo_banshee_device *>(m_voodoo.target())->banshee_vga_r(space, offset * 4 + 3 + 0xb0, mem_mask >> 24) << 24;
 	if (0)
-		logerror("%06X:voodoo_pci_device vga_r from offset %02X = %08X & %08X\n", space.device().safe_pc(), offset * 4, result, mem_mask);
+		logerror("%s voodoo_pci_device vga_r from offset %02X = %08X & %08X\n", machine().describe_context(), offset * 4, result, mem_mask);
 	return result;
 }
 WRITE32_MEMBER(voodoo_pci_device::vga_w)
@@ -221,5 +205,5 @@ WRITE32_MEMBER(voodoo_pci_device::vga_w)
 		downcast<voodoo_banshee_device *>(m_voodoo.target())->banshee_vga_w(space, offset * 4 + 3 + 0xb0, data >> 24, mem_mask >> 24);
 
 	if (0)
-		logerror("%06X:voodoo_pci_device vga_w to offset %04X = %08X & %08X\n", space.device().safe_pc(), offset * 4, data, mem_mask);
+		logerror("%s voodoo_pci_device vga_w to offset %04X = %08X & %08X\n", machine().describe_context(), offset * 4, data, mem_mask);
 }

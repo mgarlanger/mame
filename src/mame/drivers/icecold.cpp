@@ -10,6 +10,7 @@
 #include "cpu/m6809/m6809.h"
 #include "machine/6821pia.h"
 #include "machine/i8279.h"
+#include "machine/timer.h"
 #include "sound/ay8910.h"
 #include "speaker.h"
 
@@ -332,7 +333,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(icecold_state::icecold_motors_timer)
 static MACHINE_CONFIG_START( icecold )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, XTAL_6MHz/4)
+	MCFG_CPU_ADD("maincpu", MC6809E, XTAL_6MHz/4) // 68A09E
 	MCFG_CPU_PROGRAM_MAP(icecold_map)
 
 	MCFG_DEVICE_ADD( "pia0", PIA6821, 0)

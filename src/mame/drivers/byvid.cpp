@@ -38,13 +38,13 @@ ToDo (granny):
 
 
 #include "emu.h"
-#include "cpu/m6800/m6800.h"
+#include "cpu/m6800/m6801.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/6821pia.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 #include "sound/beep.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "video/tms9928a.h"
 #include "speaker.h"
 
@@ -119,7 +119,7 @@ private:
 	bool m_u11_timer;
 	virtual void machine_reset() override;
 	required_device<m6800_cpu_device> m_maincpu;
-	required_device<m6809e_device> m_videocpu;
+	required_device<mc6809_device> m_videocpu;
 	required_device<m6803_cpu_device> m_audiocpu;
 	required_device<pia6821_device> m_pia_u7;
 	required_device<pia6821_device> m_pia_u10;
@@ -745,7 +745,7 @@ static MACHINE_CONFIG_START( babypac )
 	MCFG_CPU_ADD("maincpu", M6800, XTAL_3_579545MHz/4) // no xtal, just 2 chips
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
-	MCFG_CPU_ADD("videocpu", M6809E, XTAL_3_579545MHz)
+	MCFG_CPU_ADD("videocpu", MC6809, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(video_map)
 
 	MCFG_CPU_ADD("audiocpu", M6803, XTAL_3_579545MHz)
@@ -796,8 +796,7 @@ static MACHINE_CONFIG_START( babypac )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", ZN429E, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // U32 (Vidiot) or U6 (Cheap Squeak)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SPEAKER_STANDARD_MONO("beee")
 	MCFG_SOUND_ADD("beeper", BEEP, 600)
@@ -806,7 +805,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( granny, babypac )
 	MCFG_DEVICE_REMOVE("videocpu")
-	MCFG_CPU_ADD("videocpu", M6809E, XTAL_8MHz) //??
+	MCFG_CPU_ADD("videocpu", MC6809, XTAL_8MHz) // MC68B09P (XTAL value hard to read)
 	MCFG_CPU_PROGRAM_MAP(granny_map)
 
 	MCFG_DEVICE_REMOVE("screen")

@@ -16,7 +16,6 @@
 #include "machine/ram.h"
 #include "machine/nvram.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "screen.h"
 #include "speaker.h"
 
@@ -45,6 +44,7 @@ public:
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(on_button);
 	void install_boot_rom();
+	void remove_boot_rom();
 
 private:
 	required_device<cpu_device> m_maincpu;
@@ -64,6 +64,11 @@ void risc2500_state::install_boot_rom()
 	m_maincpu->space(AS_PROGRAM).install_rom(0x00000000, 0x001ffff, memregion("maincpu")->base());
 }
 
+void risc2500_state::remove_boot_rom()
+{
+	m_maincpu->space(AS_PROGRAM).install_ram(0x00000000, m_ram->size() - 1, m_ram->pointer());
+}
+
 uint32_t risc2500_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	for(int c=0; c<12; c++)
@@ -71,7 +76,7 @@ uint32_t risc2500_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
 		// 12 characters 5 x 7
 		for(int x=0; x<5; x++)
 		{
-			uint8_t gfx = BITSWAP8(m_vram[c*5 + x], 6,5,0,1,2,3,4,7);
+			uint8_t gfx = bitswap<8>(m_vram[c*5 + x], 6,5,0,1,2,3,4,7);
 
 			for(int y=0; y<7; y++)
 				bitmap.pix16(y, 71 - (c*6 + x)) = (gfx >> (y + 1)) & 1;
@@ -80,7 +85,7 @@ uint32_t risc2500_state::screen_update(screen_device &screen, bitmap_ind16 &bitm
 		// LCD digits and symbols
 		int data_addr = 0x40 + c * 5;
 		uint16_t data = ((m_vram[data_addr + 1] & 0x3) << 5) | ((m_vram[data_addr + 2] & 0x7) << 2) | (m_vram[data_addr + 4] & 0x3);
-		data = BITSWAP8(data, 7,3,0,1,4,6,5,2) | ((m_vram[data_addr - 1] & 0x04) ? 0x80 : 0);
+		data = bitswap<8>(data, 7,3,0,1,4,6,5,2) | ((m_vram[data_addr - 1] & 0x04) ? 0x80 : 0);
 
 		output().set_digit_value(c, data);
 		output().set_indexed_value("sym", c, BIT(m_vram[data_addr + 1], 2));
@@ -258,7 +263,7 @@ READ32_MEMBER(risc2500_state::disable_boot_rom)
 
 TIMER_CALLBACK_MEMBER(risc2500_state::disable_boot_rom)
 {
-	m_maincpu->space(AS_PROGRAM).install_ram(0x00000000, m_ram->size() - 1, m_ram->pointer());
+	remove_boot_rom();
 }
 
 void risc2500_state::machine_start()
@@ -268,6 +273,8 @@ void risc2500_state::machine_start()
 	save_item(NAME(m_p1000));
 	save_item(NAME(m_vram_addr));
 	save_item(NAME(m_vram));
+
+	machine().save().register_postload(save_prepost_delegate(FUNC(risc2500_state::remove_boot_rom), this));
 }
 
 void risc2500_state::machine_reset()
@@ -313,8 +320,7 @@ static MACHINE_CONFIG_START( risc2500 )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_2BIT_BINARY_WEIGHTED_ONES_COMPLEMENT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 
@@ -336,5 +342,5 @@ ROM_END
 
 
 /*    YEAR  NAME      PARENT   COMPAT  MACHINE    INPUT     STATE            INIT  COMPANY                      FULLNAME             FLAGS */
-CONS( 1992, risc,     0,       0,      risc2500,  risc2500, risc2500_state,  0,    "Saitek",                    "RISC 2500",         MACHINE_CLICKABLE_ARTWORK )
-CONS( 1995, montreux, 0,       0,      risc2500,  risc2500, risc2500_state,  0,    "Saitek / Hegener & Glaser", "Mephisto Montreux", MACHINE_CLICKABLE_ARTWORK )
+CONS( 1992, risc,     0,       0,      risc2500,  risc2500, risc2500_state,  0,    "Saitek",                    "RISC 2500",         MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )
+CONS( 1995, montreux, 0,       0,      risc2500,  risc2500, risc2500_state,  0,    "Saitek / Hegener & Glaser", "Mephisto Montreux", MACHINE_SUPPORTS_SAVE | MACHINE_CLICKABLE_ARTWORK )

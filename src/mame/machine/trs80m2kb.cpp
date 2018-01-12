@@ -33,7 +33,7 @@ DEFINE_DEVICE_TYPE(TRS80M2_KEYBOARD, trs80m2_keyboard_device, "trs80m2kb", "TRS-
 
 ROM_START( trs80m2_keyboard )
 	ROM_REGION( 0x400, I8021_TAG, 0 )
-	ROM_LOAD( "65-1991.z4", 0x0000, 0x0400, NO_DUMP )
+	ROM_LOAD( "65-1991.z4", 0x0000, 0x0400, CRC(0a50e977) SHA1(c944cb9be062c9eed4f20a5b2568c8019dc71e27))
 ROM_END
 
 
@@ -48,10 +48,10 @@ const tiny_rom_entry *trs80m2_keyboard_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  MACHINE_DRIVER( trs80m2_keyboard )
+//  device_add_mconfig - add device configuration
 //-------------------------------------------------
 
-static MACHINE_CONFIG_FRAGMENT( trs80m2_keyboard )
+MACHINE_CONFIG_MEMBER( trs80m2_keyboard_device::device_add_mconfig )
 	MCFG_CPU_ADD(I8021_TAG, I8021, 3000000) // 1000uH inductor connected across the XTAL inputs
 	MCFG_MCS48_PORT_T1_IN_CB(READLINE(trs80m2_keyboard_device, kb_t1_r))
 	MCFG_MCS48_PORT_BUS_IN_CB(READ8(trs80m2_keyboard_device, kb_p0_r))
@@ -59,17 +59,6 @@ static MACHINE_CONFIG_FRAGMENT( trs80m2_keyboard )
 	MCFG_MCS48_PORT_P2_OUT_CB(WRITE8(trs80m2_keyboard_device, kb_p2_w))
 	MCFG_DEVICE_DISABLE() // TODO
 MACHINE_CONFIG_END
-
-
-//-------------------------------------------------
-//  machine_config_additions - device-specific
-//  machine configurations
-//-------------------------------------------------
-
-machine_config_constructor trs80m2_keyboard_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( trs80m2_keyboard );
-}
 
 
 //-------------------------------------------------
@@ -358,5 +347,5 @@ WRITE8_MEMBER( trs80m2_keyboard_device::kb_p2_w )
 
 	*/
 
-	m_keylatch = BITSWAP8(data, 7, 6, 5, 4, 0, 1, 2, 3) & 0x0f;
+	m_keylatch = bitswap<8>(data, 7, 6, 5, 4, 0, 1, 2, 3) & 0x0f;
 }

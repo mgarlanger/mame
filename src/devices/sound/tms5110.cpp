@@ -1198,7 +1198,7 @@ void tms5110_device::device_timer(emu_timer &timer, device_timer_id id, int para
 	m_romclk_hack_state = !m_romclk_hack_state;
 }
 
-READ8_MEMBER( tms5110_device::romclk_hack_r )
+READ_LINE_MEMBER( tms5110_device::romclk_hack_r )
 {
 	/* bring up to date first */
 	m_stream->update();
@@ -1249,14 +1249,12 @@ void tms5110_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 /******************************************************************************
 
      tms5110_set_frequency -- adjusts the playback frequency
-     TODO: kill this function; we should be adjusting the tms51xx device clock itself,
-     not setting it here!
 
 ******************************************************************************/
 
-void tms5110_device::set_frequency(int frequency)
+void tms5110_device::device_clock_changed()
 {
-	m_stream->set_sample_rate(frequency / 80);
+	m_stream->set_sample_rate(clock() / 80);
 }
 
 
@@ -1347,7 +1345,7 @@ void tmsprom_device::device_timer(emu_timer &timer, device_timer_id id, int para
 	if (ctrl & (1 << m_reset_bit))
 		m_address = 0;
 
-	m_ctl_cb((offs_t)0, BITSWAP8(ctrl,0,0,0,0,m_ctl8_bit,
+	m_ctl_cb((offs_t)0, bitswap<8>(ctrl,0,0,0,0,m_ctl8_bit,
 			m_ctl4_bit,m_ctl2_bit,m_ctl1_bit));
 
 	m_pdc_cb((ctrl >> m_pdc_bit) & 0x01);

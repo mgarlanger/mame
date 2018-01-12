@@ -1697,7 +1697,7 @@ READ8_MEMBER( x1_state::x1_io_r )
 	else if(offset >= 0x4000 && offset <= 0xffff)   { return m_gfx_bitmap_ram[offset-0x4000+(m_scrn_reg.gfx_bank*0xc000)]; }
 	else
 	{
-		//logerror("(PC=%06x) Read i/o address %04x\n",space.device().safe_pc(),offset);
+		//logerror("(PC=%06x) Read i/o address %04x\n",m_maincpu->pc(),offset);
 	}
 	return 0xff;
 }
@@ -1740,7 +1740,7 @@ WRITE8_MEMBER( x1_state::x1_io_w )
 	else if(offset >= 0x4000 && offset <= 0xffff)   { m_gfx_bitmap_ram[offset-0x4000+(m_scrn_reg.gfx_bank*0xc000)] = data; }
 	else
 	{
-		//logerror("(PC=%06x) Write %02x at i/o address %04x\n",space.device().safe_pc(),data,offset);
+		//logerror("(PC=%06x) Write %02x at i/o address %04x\n",m_maincpu->pc(),data,offset);
 	}
 }
 
@@ -1787,7 +1787,7 @@ READ8_MEMBER( x1_state::x1turbo_io_r )
 	else if(offset >= 0x4000 && offset <= 0xffff)   { return m_gfx_bitmap_ram[offset-0x4000+(m_scrn_reg.gfx_bank*0xc000)]; }
 	else
 	{
-		//logerror("(PC=%06x) Read i/o address %04x\n",space.device().safe_pc(),offset);
+		//logerror("(PC=%06x) Read i/o address %04x\n",m_maincpu->pc(),offset);
 	}
 	return 0xff;
 }
@@ -1843,7 +1843,7 @@ WRITE8_MEMBER( x1_state::x1turbo_io_w )
 	else if(offset >= 0x4000 && offset <= 0xffff)   { m_gfx_bitmap_ram[offset-0x4000+(m_scrn_reg.gfx_bank*0xc000)] = data; }
 	else
 	{
-		//logerror("(PC=%06x) Write %02x at i/o address %04x\n",space.device().safe_pc(),data,offset);
+		//logerror("(PC=%06x) Write %02x at i/o address %04x\n",m_maincpu->pc(),data,offset);
 	}
 }
 
@@ -2507,7 +2507,7 @@ MACHINE_START_MEMBER(x1_state,x1)
 	save_pointer(NAME(m_emm_ram.get()), 0x1000000);
 	save_pointer(NAME(m_pcg_ram.get()), 0x1800);
 
-	m_gfxdecode->set_gfx(3, std::make_unique<gfx_element>(*m_palette, x1_pcg_8x8, m_pcg_ram.get(), 0, 1, 0));
+	m_gfxdecode->set_gfx(3, std::make_unique<gfx_element>(m_palette, x1_pcg_8x8, m_pcg_ram.get(), 0, 1, 0));
 }
 
 PALETTE_INIT_MEMBER(x1_state,x1)
@@ -2616,7 +2616,7 @@ static MACHINE_CONFIG_DERIVED( x1turbo, x1 )
 	MCFG_Z80_DAISY_CHAIN(x1turbo_daisy)
 	MCFG_MACHINE_RESET_OVERRIDE(x1_state,x1turbo)
 
-	MCFG_Z80SIO0_ADD("sio", MAIN_CLOCK/4 , 0, 0, 0, 0)
+	MCFG_DEVICE_ADD("sio", Z80SIO0, MAIN_CLOCK/4)
 	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("x1_cpu", INPUT_LINE_IRQ0))
 
 	MCFG_DEVICE_ADD("dma", Z80DMA, MAIN_CLOCK/4)

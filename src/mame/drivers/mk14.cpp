@@ -38,7 +38,6 @@ ToDo:
 #include "imagedev/cassette.h"
 #include "machine/ins8154.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "sound/wave.h"
 #include "speaker.h"
 
@@ -105,7 +104,7 @@ WRITE8_MEMBER( mk14_state::display_w )
 	}
 }
 
-static ADDRESS_MAP_START(mk14_mem, AS_PROGRAM, 8, mk14_state)
+static ADDRESS_MAP_START(mem_map, AS_PROGRAM, 8, mk14_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0x0fff)
 	AM_RANGE(0x000, 0x1ff) AM_MIRROR(0x600) AM_ROM // ROM
@@ -193,7 +192,7 @@ static MACHINE_CONFIG_START( mk14 )
 	// IC1 1SP-8A/600 (8060) SC/MP Microprocessor
 	MCFG_CPU_ADD("maincpu", INS8060, XTAL_4_433619MHz)
 	MCFG_SCMP_CONFIG(WRITELINE(mk14_state, cass_w), NOOP, READLINE(mk14_state, cass_r), NOOP, READLINE(mk14_state, cass_r), NOOP)
-	MCFG_CPU_PROGRAM_MAP(mk14_mem)
+	MCFG_CPU_PROGRAM_MAP(mem_map)
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_mk14)
@@ -203,10 +202,9 @@ static MACHINE_CONFIG_START( mk14 )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.05)
 	MCFG_SOUND_ADD("dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0)
 	MCFG_SOUND_ADD("dac8", ZN425E, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5) // Ferranti ZN425E
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac8", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac8", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	/* devices */
 	MCFG_DEVICE_ADD("ic8", INS8154, 0)

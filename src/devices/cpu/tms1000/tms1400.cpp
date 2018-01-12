@@ -70,7 +70,7 @@ tms1670_cpu_device::tms1670_cpu_device(const machine_config &mconfig, const char
 
 
 // machine configs
-static MACHINE_CONFIG_FRAGMENT(tms1400)
+MACHINE_CONFIG_MEMBER(tms1400_cpu_device::device_add_mconfig)
 
 	// microinstructions PLA, output PLA
 	MCFG_PLA_ADD("mpla", 8, 16, 30)
@@ -78,11 +78,6 @@ static MACHINE_CONFIG_FRAGMENT(tms1400)
 	MCFG_PLA_ADD("opla", 5, 8, 32)
 	MCFG_PLA_FILEFORMAT(BERKELEY)
 MACHINE_CONFIG_END
-
-machine_config_constructor tms1400_cpu_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(tms1400);
-}
 
 
 // device_reset
@@ -92,59 +87,4 @@ void tms1400_cpu_device::device_reset()
 
 	// small differences in 00-3f area
 	m_fixed_decode[0x0b] = F_TPC;
-}
-
-
-// opcode deviations
-void tms1400_cpu_device::op_br()
-{
-	// BR/BL: conditional branch
-	if (m_status)
-	{
-		m_pa = m_pb; // don't care about clatch
-		m_ca = m_cb;
-		m_pc = m_opcode & m_pc_mask;
-	}
-}
-
-void tms1400_cpu_device::op_call()
-{
-	// CALL/CALLL: conditional call
-	if (m_status)
-	{
-		// 3-level stack, mask clatch 3 bits (no need to mask others)
-		m_clatch = (m_clatch << 1 | 1) & 7;
-
-		m_sr = m_sr << m_pc_bits | m_pc;
-		m_pc = m_opcode & m_pc_mask;
-
-		m_ps = m_ps << 4 | m_pa;
-		m_pa = m_pb;
-
-		m_cs = m_cs << 2 | m_ca;
-		m_ca = m_cb;
-	}
-	else
-	{
-		m_pb = m_pa;
-		m_cb = m_ca;
-	}
-}
-
-void tms1400_cpu_device::op_retn()
-{
-	// RETN: return from subroutine
-	if (m_clatch & 1)
-	{
-		m_clatch >>= 1;
-
-		m_pc = m_sr & m_pc_mask;
-		m_sr >>= m_pc_bits;
-
-		m_pa = m_pb = m_ps & 0xf;
-		m_ps >>= 4;
-
-		m_ca = m_cb = m_cs & 3;
-		m_cs >>= 2;
-	}
 }

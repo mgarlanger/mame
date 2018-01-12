@@ -21,8 +21,6 @@ class hle_device_base
 public:
 	virtual ~hle_device_base() override;
 
-	virtual machine_config_constructor device_mconfig_additions() const override;
-
 	virtual DECLARE_WRITE_LINE_MEMBER( input_txd ) override;
 
 protected:
@@ -35,6 +33,7 @@ protected:
 			uint32_t clock);
 
 	// device overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr) override;
@@ -53,8 +52,6 @@ protected:
 	required_ioport m_dips;
 
 private:
-	// device_serial_interface uses 10'000 range
-	// device_matrix_keyboard_interface uses 20'000 range
 	enum {
 		CLICK_TIMER_ID = 30'000
 	};

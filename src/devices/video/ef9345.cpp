@@ -33,7 +33,7 @@ DEFINE_DEVICE_TYPE(EF9345, ef9345_device, "ef9345", "EF9345")
 DEFINE_DEVICE_TYPE(TS9347, ts9347_device, "ts9347", "TS9347")
 
 // default address map
-static ADDRESS_MAP_START( ef9345, AS_0, 8, ef9345_device )
+static ADDRESS_MAP_START( ef9345, 0, 8, ef9345_device )
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
 ADDRESS_MAP_END
 
@@ -42,9 +42,11 @@ ADDRESS_MAP_END
 //  any address spaces owned by this device
 //-------------------------------------------------
 
-const address_space_config *ef9345_device::memory_space_config(address_spacenum spacenum) const
+device_memory_interface::space_config_vector ef9345_device::memory_space_config() const
 {
-	return (spacenum == AS_0) ? &m_space_config : nullptr;
+	return space_config_vector {
+		std::make_pair(0, &m_space_config)
+	};
 }
 
 //**************************************************************************
@@ -143,7 +145,7 @@ void ef9345_device::device_start()
 
 	m_videoram = &space(0);
 
-	m_screen_out.allocate(496, m_screen->height());
+	m_screen_out.allocate(496, screen().height());
 
 	m_blink_timer->adjust(attotime::from_msec(500), 0, attotime::from_msec(500));
 
@@ -226,8 +228,8 @@ void ef9345_device::set_busy_flag(int period)
 void ef9345_device::draw_char_40(uint8_t *c, uint16_t x, uint16_t y)
 {
 	const rgb_t *palette = m_palette->palette()->entry_list_raw();
-	const int scan_xsize = std::min( m_screen->width() - (x * 8), 8);
-	const int scan_ysize = std::min( m_screen->height() - (y * 10), 10);
+	const int scan_xsize = std::min( screen().width() - (x * 8), 8);
+	const int scan_ysize = std::min( screen().height() - (y * 10), 10);
 
 	for(int i = 0; i < scan_ysize; i++)
 		for(int j = 0; j < scan_xsize; j++)
@@ -238,8 +240,8 @@ void ef9345_device::draw_char_40(uint8_t *c, uint16_t x, uint16_t y)
 void ef9345_device::draw_char_80(uint8_t *c, uint16_t x, uint16_t y)
 {
 	const rgb_t *palette = m_palette->palette()->entry_list_raw();
-	const int scan_xsize = std::min( m_screen->width() - (x * 6), 6);
-	const int scan_ysize = std::min( m_screen->height() - (y * 10), 10);
+	const int scan_xsize = std::min( screen().width() - (x * 6), 6);
+	const int scan_ysize = std::min( screen().height() - (y * 10), 10);
 
 	for(int i = 0; i < scan_ysize; i++)
 		for(int j = 0; j < scan_xsize; j++)
@@ -263,12 +265,12 @@ void ef9345_device::set_video_mode(void)
 
 	uint16_t new_width = (m_char_mode == MODE12x80 || m_char_mode == MODE8x80) ? 492 : 336;
 
-	if (m_screen->width() != new_width)
+	if (screen().width() != new_width)
 	{
-		rectangle visarea = m_screen->visible_area();
+		rectangle visarea = screen().visible_area();
 		visarea.max_x = new_width - 1;
 
-		m_screen->configure(new_width, m_screen->height(), visarea, m_screen->frame_period().attoseconds());
+		screen().configure(new_width, screen().height(), visarea, screen().frame_period().attoseconds());
 	}
 
 	//border color

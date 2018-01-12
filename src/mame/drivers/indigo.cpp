@@ -451,13 +451,13 @@ WRITE32_MEMBER(indigo_state::hpc_w)
 // INT/INT2/INT3 interrupt controllers
 READ32_MEMBER(indigo_state::int_r)
 {
-	osd_printf_info("INT: read @ ofs %x (mask %x) (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+	osd_printf_info("INT: read @ ofs %x (mask %x) (PC=%x)\n", offset, mem_mask, m_maincpu->pc());
 	return 0;
 }
 
 WRITE32_MEMBER(indigo_state::int_w)
 {
-	osd_printf_info("INT: write %x to ofs %x (mask %x) (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
+	osd_printf_info("INT: write %x to ofs %x (mask %x) (PC=%x)\n", data, offset, mem_mask, m_maincpu->pc());
 }
 
 static ADDRESS_MAP_START( indigo_map, AS_PROGRAM, 32, indigo_state )
@@ -568,7 +568,7 @@ static INPUT_PORTS_START( indigo )
 	PORT_BIT ( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 INPUT_PORTS_END
 
-static MACHINE_CONFIG_FRAGMENT( cdrom_config )
+static MACHINE_CONFIG_START( cdrom_config )
 	MCFG_DEVICE_MODIFY( "cdda" )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "^^^^mono", 1.0)
 MACHINE_CONFIG_END
@@ -615,9 +615,9 @@ MACHINE_CONFIG_END
 
 ROM_START( indigo3k )
 	ROM_REGION( 0x40000, "user1", 0 )
-	ROM_SYSTEM_BIOS( 0, "401RevC", "SGI Version 4.0.1 Rev C LG1/GR2, Jul 9, 1992" ) // dumped over serial connection from boot monitor and swapped
+	ROM_SYSTEM_BIOS( 0, "401-rev-c", "SGI Version 4.0.1 Rev C LG1/GR2, Jul 9, 1992" ) // dumped over serial connection from boot monitor and swapped
 	ROMX_LOAD( "ip12prom.070-8088-xxx.u56", 0x000000, 0x040000, CRC(25ca912f) SHA1(94b3753d659bfe50b914445cef41290122f43880), ROM_GROUPWORD | ROM_REVERSE | ROM_BIOS(1) )
-	ROM_SYSTEM_BIOS( 1, "401RevD", "SGI Version 4.0.1 Rev D LG1/GR2, Mar 24, 1992" ) // dumped with EPROM programmer
+	ROM_SYSTEM_BIOS( 1, "401-rev-d", "SGI Version 4.0.1 Rev D LG1/GR2, Mar 24, 1992" ) // dumped with EPROM programmer
 	ROMX_LOAD( "ip12prom.070-8088-002.u56", 0x000000, 0x040000, CRC(ea4329ef) SHA1(b7d67d0e30ae8836892f7170dd4757732a0a3fd6), ROM_GROUPWORD | ROM_REVERSE | ROM_BIOS(2) )
 ROM_END
 

@@ -122,15 +122,22 @@ WRITE8_MEMBER( timeplt_audio_device::filter_w )
  *
  *************************************/
 
-WRITE8_MEMBER( timeplt_audio_device::sh_irqtrigger_w )
+WRITE_LINE_MEMBER(timeplt_audio_device::sh_irqtrigger_w)
 {
-	if (m_last_irq_state == 0 && data)
+	if (m_last_irq_state == 0 && state)
 	{
 		/* setting bit 0 low then high triggers IRQ on the sound CPU */
 		m_soundcpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 	}
 
-	m_last_irq_state = data;
+	m_last_irq_state = state;
+}
+
+
+WRITE_LINE_MEMBER(timeplt_audio_device::mute_w)
+{
+	// controls pin 6 (DC audio mute) of LA4460 amplifier
+	machine().sound().system_mute(state);
 }
 
 
@@ -169,7 +176,7 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-MACHINE_CONFIG_FRAGMENT( timeplt_sound )
+MACHINE_CONFIG_START( timeplt_sound )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("tpsound",Z80,MASTER_CLOCK/8)

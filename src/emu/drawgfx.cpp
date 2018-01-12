@@ -86,8 +86,8 @@ gfxdecode_device::gfxdecode_device(const machine_config &mconfig, const char *ta
 //  gfx_element - constructor
 //-------------------------------------------------
 
-gfx_element::gfx_element(device_palette_interface &palette, u8 *base, u16 width, u16 height, u32 rowbytes, u32 total_colors, u32 color_base, u32 color_granularity)
-	: m_palette(&palette),
+gfx_element::gfx_element(device_palette_interface *palette, u8 *base, u16 width, u16 height, u32 rowbytes, u32 total_colors, u32 color_base, u32 color_granularity)
+	: m_palette(palette),
 		m_width(width),
 		m_height(height),
 		m_startx(0),
@@ -111,8 +111,8 @@ gfx_element::gfx_element(device_palette_interface &palette, u8 *base, u16 width,
 {
 }
 
-gfx_element::gfx_element(device_palette_interface &palette, const gfx_layout &gl, const u8 *srcdata, u32 xormask, u32 total_colors, u32 color_base)
-	: m_palette(&palette),
+gfx_element::gfx_element(device_palette_interface *palette, const gfx_layout &gl, const u8 *srcdata, u32 xormask, u32 total_colors, u32 color_base)
+	: m_palette(palette),
 		m_width(0),
 		m_height(0),
 		m_startx(0),
@@ -1918,6 +1918,18 @@ void copybitmap_trans(bitmap_rgb32 &dest, const bitmap_rgb32 &src, int flipx, in
 		COPYBITMAP_CORE(u32, PIXEL_OP_COPY_TRANSPEN, NO_PRIORITY);
 }
 
+
+/*-------------------------------------------------
+    copybitmap_transalphpa - copy from one bitmap
+    to another, copying all unclipped pixels except
+    those with an alpha value of zero
+-------------------------------------------------*/
+
+void copybitmap_transalpha(bitmap_rgb32 &dest, const bitmap_rgb32 &src, int flipx, int flipy, s32 destx, s32 desty, const rectangle &cliprect)
+{
+	DECLARE_NO_PRIORITY;
+	COPYBITMAP_CORE(u32, PIXEL_OP_COPY_TRANSALPHA, NO_PRIORITY);
+}
 
 
 /***************************************************************************

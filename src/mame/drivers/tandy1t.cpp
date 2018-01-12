@@ -254,9 +254,9 @@ void tandy1000_state::tandy1000_write_eeprom(uint8_t data)
 
 WRITE8_MEMBER( tandy1000_state::pc_t1t_p37x_w )
 {
-//  DBG_LOG(2,"T1T_p37x_w",("%.5x #%d $%02x\n", space.device().safe_pc( ),offset, data));
+//  DBG_LOG(2,"T1T_p37x_w",("%.5x #%d $%02x\n", m_maincpu->pc( ),offset, data));
 	if (offset!=4)
-		logerror("T1T_p37x_w %.5x #%d $%02x\n", space.device().safe_pc( ),offset, data);
+		logerror("T1T_p37x_w %.5x #%d $%02x\n", m_maincpu->pc( ),offset, data);
 	m_tandy_data[offset]=data;
 	switch( offset )
 	{
@@ -269,7 +269,7 @@ WRITE8_MEMBER( tandy1000_state::pc_t1t_p37x_w )
 READ8_MEMBER( tandy1000_state::pc_t1t_p37x_r )
 {
 	int data = m_tandy_data[offset];
-//  DBG_LOG(1,"T1T_p37x_r",("%.5x #%d $%02x\n", space.device().safe_pc( ), offset, data));
+//  DBG_LOG(1,"T1T_p37x_r",("%.5x #%d $%02x\n", m_maincpu->pc( ), offset, data));
 	return data;
 }
 
@@ -408,7 +408,7 @@ READ8_MEMBER( tandy1000_state::tandy1000_bank_r )
 {
 	uint8_t data = 0xFF;
 
-	logerror( "%s: tandy1000_bank_r: offset = %x\n", space.machine().describe_context(), offset );
+	logerror( "%s: tandy1000_bank_r: offset = %x\n", machine().describe_context(), offset );
 
 	switch( offset )
 	{
@@ -423,7 +423,7 @@ READ8_MEMBER( tandy1000_state::tandy1000_bank_r )
 
 WRITE8_MEMBER( tandy1000_state::tandy1000_bank_w )
 {
-	logerror( "%s: tandy1000_bank_w: offset = %x, data = %02x\n", space.machine().describe_context(), offset, data );
+	logerror( "%s: tandy1000_bank_w: offset = %x, data = %02x\n", machine().describe_context(), offset, data );
 
 	switch( offset )
 	{
@@ -553,7 +553,7 @@ static ADDRESS_MAP_START(tandy1000_bank_map, AS_PROGRAM, 16, tandy1000_state )
 	AM_RANGE(0xf0000, 0xfffff) AM_ROM AM_REGION( "rom", 0x70000 )
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START(biosbank_map, AS_0, 16, tandy1000_state)
+static ADDRESS_MAP_START(biosbank_map, 0, 16, tandy1000_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x80000, 0xfffff) AM_ROM AM_REGION("rom", 0)
 ADDRESS_MAP_END
@@ -601,7 +601,7 @@ static const gfx_layout t1000_charlayout =
 	8
 };
 
-static MACHINE_CONFIG_FRAGMENT( cfg_fdc_35 )
+static MACHINE_CONFIG_START( cfg_fdc_35 )
 	MCFG_DEVICE_MODIFY("fdc:0")
 	MCFG_SLOT_DEFAULT_OPTION("35dd")
 	MCFG_SLOT_FIXED(true)
@@ -609,7 +609,7 @@ static MACHINE_CONFIG_FRAGMENT( cfg_fdc_35 )
 	MCFG_DEVICE_REMOVE("fdc:1")
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_FRAGMENT( cfg_fdc_525 )
+static MACHINE_CONFIG_START( cfg_fdc_525 )
 	MCFG_DEVICE_MODIFY("fdc:0")
 	MCFG_SLOT_FIXED(true)
 
@@ -620,9 +620,9 @@ static GFXDECODE_START( t1000 )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, t1000_charlayout, 3, 1 )
 GFXDECODE_END
 
-static MACHINE_CONFIG_FRAGMENT(tandy1000_common)
+static MACHINE_CONFIG_START(tandy1000_common)
 	MCFG_DEVICE_ADD("mb", T1000_MOTHERBOARD, 0)
-	t1000_mb_device::static_set_cputag(*device, "maincpu");
+	t1000_mb_device::static_set_cputag(*device, "^maincpu");
 
 	/* video hardware */
 	MCFG_PCVIDEO_T1000_ADD("pcvideo_t1000")
@@ -651,11 +651,11 @@ static MACHINE_CONFIG_FRAGMENT(tandy1000_common)
 	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("pc_list","ibm5150")
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_FRAGMENT(tandy1000_90key)
+static MACHINE_CONFIG_START(tandy1000_90key)
 	MCFG_PC_KEYB_ADD("pc_keyboard", DEVWRITELINE("mb:pic8259", pic8259_device, ir1_w))
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_FRAGMENT(tandy1000_101key)
+static MACHINE_CONFIG_START(tandy1000_101key)
 	MCFG_AT_KEYB_ADD("pc_keyboard", 1, DEVWRITELINE("mb:pic8259", pic8259_device, ir1_w))
 MACHINE_CONFIG_END
 
@@ -702,8 +702,8 @@ static MACHINE_CONFIG_START( t1000rl )
 	MCFG_DEVICE_ADD("biosbank", ADDRESS_MAP_BANK, 0)
 	MCFG_DEVICE_PROGRAM_MAP(biosbank_map)
 	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
-	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(16)
-	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(20)
+	MCFG_ADDRESS_MAP_BANK_DATA_WIDTH(16)
+	MCFG_ADDRESS_MAP_BANK_ADDR_WIDTH(20)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
 
 	MCFG_MACHINE_RESET_OVERRIDE(tandy1000_state,tandy1000rl)

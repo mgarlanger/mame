@@ -18,6 +18,8 @@
     - speed up emulation
     - update SW401 baud rate options for Watz ROM
     - update SW401 & SW402 definitions for Super-19 ROM
+    - update SW401 & SW402 definitions for ULTRA ROM
+    - add option for ULTRA ROMs second page of screen RAM
 
 ****************************************************************************/
 /***************************************************************************
@@ -151,14 +153,14 @@ void h19_state::device_timer(emu_timer &timer, device_timer_id id, int param, vo
 
 
 
-static ADDRESS_MAP_START(h19_mem, AS_PROGRAM, 8, h19_state)
+static ADDRESS_MAP_START( mem_map, AS_PROGRAM, 8, h19_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x1fff) AM_MIRROR(0x2000) AM_ROM
 	AM_RANGE(0x4000, 0x4100) AM_MIRROR(0x3e00) AM_RAM
 	AM_RANGE(0xc000, 0xc7ff) AM_MIRROR(0x3800) AM_RAM AM_SHARE("videoram")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( h19_io, AS_IO, 8, h19_state)
+static ADDRESS_MAP_START( io_map, AS_IO, 8, h19_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_MIRROR(0x1f) AM_READ_PORT("SW401")
@@ -513,8 +515,8 @@ GFXDECODE_END
 static MACHINE_CONFIG_START( h19 )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, H19_CLOCK) // From schematics
-	MCFG_CPU_PROGRAM_MAP(h19_mem)
-	MCFG_CPU_IO_MAP(h19_io)
+	MCFG_CPU_PROGRAM_MAP(mem_map)
+	MCFG_CPU_IO_MAP(io_map)
 
 	/* video hardware */
 	// TODO: make configurable, Heath offered 3 different CRTs - White, Green, Amber.
@@ -599,6 +601,19 @@ ROM_START( watz19 )
 	ROM_LOAD( "keybd.bin", 0x0000, 0x0800, CRC(58dc8217) SHA1(1b23705290bdf9fc6342065c6a528c04bff67b13))
 ROM_END
 
+ROM_START( ultra19 )
+	// ULTRA ROM
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_LOAD( "2532_h19_ultra_firmware.bin", 0x0000, 0x1000, CRC(8ad4cdb4) SHA1(d6e1fc37a1f52abfce5e9adb1819e0030bed1df3))
+
+	ROM_REGION( 0x0800, "chargen", 0 )
+	// Original font dump
+	ROM_LOAD( "2716_444-29_h19font.bin", 0x0000, 0x0800, CRC(d595ac1d) SHA1(130fb4ea8754106340c318592eec2d8a0deaf3d0))
+	// Watzman keyboard
+	ROM_REGION( 0x1000, "keyboard", 0 )
+	ROM_LOAD( "2716_h19_ultra_keyboard.bin", 0x0000, 0x0800, CRC(76130c92) SHA1(ca39c602af48505139d2750a084b5f8f0e662ff7))
+ROM_END
+
 
 //    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT  STATE       INIT   COMPANY      FULLNAME                         FLAGS
 COMP( 1979, h19,     0,      0,      h19,     h19,   h19_state,  0,     "Heath Inc", "Heathkit H-19",                 0 )
@@ -606,3 +621,6 @@ COMP( 1979, h19,     0,      0,      h19,     h19,   h19_state,  0,     "Heath I
 COMP( 1982, super19, h19,    0,      h19,     h19,   h19_state,  0,     "Heath Inc", "Heathkit H-19 w/ Super-19 ROM", 0 )
 // Watzman ROM - HUG p/n 885-1121, announced in REMark Issue 33, Oct. 1982
 COMP( 1982, watz19,  h19,    0,      h19,     h19,   h19_state,  0,     "Heath Inc", "Heathkit H-19 w/ Watzman ROM",  0 )
+// ULTRA ROM - Software Wizardry, Inc., (c) 1983 William G. Parrott, III
+COMP( 1983, ultra19, h19,    0,      h19,     h19,   h19_state,  0,     "Heath Inc", "Heathkit H-19 w/ ULTRA ROM",    0 )
+

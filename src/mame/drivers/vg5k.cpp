@@ -12,8 +12,7 @@
     05/2009 Skeleton driver.
 
     Known issues:
-    - 1200 bauds cassette don't works
-    - BASIC games hangs in default BIOS but works in alternative version
+     - 1200 bauds cassette don't works
 
     Informations ( see the very informative http://vg5k.free.fr/ ):
      - Variants: Radiola VG5000 and Schneider VG5000
@@ -54,8 +53,8 @@
 #include "imagedev/cassette.h"
 #include "imagedev/printer.h"
 #include "machine/ram.h"
+#include "machine/timer.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "sound/wave.h"
 #include "video/ef9345.h"
 
@@ -386,8 +385,7 @@ static MACHINE_CONFIG_START( vg5k )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", DAC_1BIT, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.125)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	/* cassette */
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
@@ -414,14 +412,12 @@ MACHINE_CONFIG_END
 ROM_START( vg5k )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS(0, "v11", "BASIC v1.1")
-	ROMX_LOAD( "vg5k11.bin",  0x0000, 0x4000, CRC(a6998ff8) SHA1(881ba594be0a721a999378312aea0c3c1c7b2b58), ROM_BIOS(1) )           // dumped from a Radiola VG-5000
-	ROM_SYSTEM_BIOS(1, "v11a", "BASIC v1.1 (alt)")
-	ROMX_LOAD( "vg5k11a.bin", 0x0000, 0x4000, BAD_DUMP CRC(a6f4a0ea) SHA1(58eccce33cc21fc17bc83921018f531b8001eda3), ROM_BIOS(2) )  // from dcvg5k
-	ROM_SYSTEM_BIOS(2, "v10", "BASIC v1.0")
-	ROMX_LOAD( "vg5k10.bin", 0x0000, 0x4000, BAD_DUMP CRC(57983260) SHA1(5ad1787a6a597b5c3eedb7c3704b649faa9be4ca), ROM_BIOS(3) )
+	ROMX_LOAD( "vg5k11.bin", 0x0000, 0x4000, CRC(a6f4a0ea) SHA1(58eccce33cc21fc17bc83921018f531b8001eda3), ROM_BIOS(1) )  // dumped from a Philips VG-5000.
+	ROM_SYSTEM_BIOS(1, "v10", "BASIC v1.0")
+	ROMX_LOAD( "vg5k10.bin", 0x0000, 0x4000, BAD_DUMP CRC(57983260) SHA1(5ad1787a6a597b5c3eedb7c3704b649faa9be4ca), ROM_BIOS(2) )
 
 	ROM_REGION( 0x4000, "ef9345", 0 )
-	ROM_LOAD( "charset.rom", 0x0000, 0x2000, BAD_DUMP CRC(b2f49eb3) SHA1(d0ef530be33bfc296314e7152302d95fdf9520fc) )            // from dcvg5k
+	ROM_LOAD( "charset.rom", 0x0000, 0x2000, BAD_DUMP CRC(b2f49eb3) SHA1(d0ef530be33bfc296314e7152302d95fdf9520fc) )                // from dcvg5k
 ROM_END
 
 /* Driver */

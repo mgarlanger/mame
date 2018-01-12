@@ -8,6 +8,7 @@
 
 #include "video/315_5124.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/timer.h"
 
 
 #define MCFG_SEGA315_5313_IS_PAL(_bool) \
@@ -117,7 +118,7 @@ public:
 protected:
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual machine_config_constructor device_mconfig_additions() const override;
+	virtual void device_add_mconfig(machine_config &config) override;
 
 	// called when we hit 240 and 241 (used to control the z80 irq line on genesis, or the main irq on c2)
 	devcb_write_line m_sndirqline_callback;

@@ -27,10 +27,10 @@
 //**************************************************************************
 
 // base class so that GIME emulation can use some functionality
-class sam6883_friend_device
+class sam6883_friend_device_interface : public device_interface
 {
 public:
-	sam6883_friend_device() { m_cpu = nullptr; m_sam_state = 0x0000; }
+	sam6883_friend_device_interface(const machine_config &mconfig, device_t &device, int divider);
 
 protected:
 	// SAM state constants
@@ -56,6 +56,9 @@ protected:
 
 	// device state
 	uint16_t                  m_sam_state;
+
+	// base clock divider (/4 for MC6883, /8 for GIME)
+	int m_divider;
 
 	ATTR_FORCE_INLINE uint16_t display_offset(void)
 	{
@@ -83,14 +86,14 @@ protected:
 	void update_cpu_clock(void);
 };
 
-class sam6883_device : public device_t, public sam6883_friend_device
+class sam6883_device : public device_t, public sam6883_friend_device_interface
 {
 public:
 	sam6883_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
 	template <class Object> static devcb_base &set_res_rd_callback(device_t &device, Object &&cb) { return downcast<sam6883_device &>(device).m_read_res.set_callback(std::forward<Object>(cb)); }
 
-	static void configure_cpu(device_t &device, const char *tag, address_spacenum space)
+	static void configure_cpu(device_t &device, const char *tag, int space)
 	{
 		sam6883_device &dev = downcast<sam6883_device &>(device);
 		dev.m_cpu_tag = tag;
@@ -121,7 +124,7 @@ public:
 			if (bit3_carry)
 				counter_carry_bit3();
 		}
-		return m_read_res((m_counter & m_counter_mask) | m_counter_or);
+		return m_read_res(m_counter & m_counter_mask);
 	}
 
 	DECLARE_WRITE_LINE_MEMBER( hs_w );
@@ -156,7 +159,7 @@ private:
 	{
 	public:
 		sam_space(sam6883_device &owner);
-		void point(const sam_bank *bank, uint16_t offset, uint32_t length = ~0);
+		void point(const sam_bank &bank, uint16_t offset, uint32_t length = ~0);
 
 	private:
 		sam6883_device &    m_owner;
@@ -165,11 +168,11 @@ private:
 		uint32_t              m_length;
 
 		address_space &cpu_space() const;
-		void point_specific_bank(const sam_bank *bank, uint32_t offset, uint32_t mask, memory_bank *&memory_bank, uint32_t addrstart, uint32_t addrend, bool is_write);
+		void point_specific_bank(const sam_bank &bank, uint32_t offset, uint32_t mask, memory_bank *&memory_bank, uint32_t addrstart, uint32_t addrend, bool is_write);
 	};
 
 	const char *        m_cpu_tag;
-	address_spacenum    m_cpu_space_ref;
+	int    m_cpu_space_ref;
 
 	// incidentals
 	address_space *             m_cpu_space;
@@ -185,7 +188,6 @@ private:
 	sam_space<0xFF60, 0xFFBF>   m_space_FF60;
 	sam_space<0xFFE0, 0xFFFF>   m_space_FFE0;
 	uint16_t                      m_counter_mask;
-	uint16_t                      m_counter_or;
 
 	// SAM state
 	uint16_t                      m_counter;

@@ -104,6 +104,7 @@ TODO: - Distinguish door switches using manual
 #include "machine/6821pia.h"
 #include "machine/6840ptm.h"
 #include "machine/nvram.h"
+#include "machine/timer.h"
 
 #include "cpu/m6800/m6800.h"
 #include "machine/steppers.h"
@@ -756,7 +757,7 @@ WRITE8_MEMBER(mpu3_state::characteriser_w)
 	int x;
 	int call=data;
 	if (!m_current_chr_table)
-		fatalerror("No Characteriser Table @ %04x\n", space.device().safe_pcbase());
+		fatalerror("No Characteriser Table @ %04x\n", m_maincpu->pcbase());
 
 	if (offset == 0)
 	{
@@ -784,7 +785,7 @@ WRITE8_MEMBER(mpu3_state::characteriser_w)
 READ8_MEMBER(mpu3_state::characteriser_r)
 {
 	if (!m_current_chr_table)
-		fatalerror("No Characteriser Table @ %04x\n", space.device().safe_pcbase());
+		fatalerror("No Characteriser Table @ %04x\n", m_maincpu->pcbase());
 
 	if (offset == 0)
 	{

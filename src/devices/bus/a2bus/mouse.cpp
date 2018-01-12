@@ -85,21 +85,6 @@
 
 DEFINE_DEVICE_TYPE(A2BUS_MOUSE, a2bus_mouse_device, "a2mouse", "Apple II Mouse Card")
 
-static MACHINE_CONFIG_FRAGMENT( mouse )
-	MCFG_CPU_ADD(MOUSE_MCU_TAG, M68705P3, 2043600)
-	MCFG_M68705_PORTA_R_CB(READ8(a2bus_mouse_device, mcu_port_a_r))
-	MCFG_M68705_PORTB_R_CB(READ8(a2bus_mouse_device, mcu_port_b_r))
-	MCFG_M68705_PORTA_W_CB(WRITE8(a2bus_mouse_device, mcu_port_a_w))
-	MCFG_M68705_PORTB_W_CB(WRITE8(a2bus_mouse_device, mcu_port_b_w))
-	MCFG_M68705_PORTC_W_CB(WRITE8(a2bus_mouse_device, mcu_port_c_w))
-
-	MCFG_DEVICE_ADD(MOUSE_PIA_TAG, PIA6821, 1021800)
-	MCFG_PIA_WRITEPA_HANDLER(WRITE8(a2bus_mouse_device, pia_out_a))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a2bus_mouse_device, pia_out_b))
-	MCFG_PIA_IRQA_HANDLER(WRITELINE(a2bus_mouse_device, pia_irqa_w))
-	MCFG_PIA_IRQB_HANDLER(WRITELINE(a2bus_mouse_device, pia_irqb_w))
-MACHINE_CONFIG_END
-
 ROM_START( mouse )
 	ROM_REGION(0x800, MOUSE_ROM_REGION, 0)
 	ROM_LOAD( "341-0270-c.4b", 0x000000, 0x000800, CRC(0bcd1e8e) SHA1(3a9d881a8a8d30f55b9719aceebbcf717f829d6f) )
@@ -138,14 +123,24 @@ ioport_constructor a2bus_mouse_device::device_input_ports() const
 }
 
 /*-------------------------------------------------
-    machine_config_additions - device-specific
+    device_add_mconfig - device-specific
     machine configurations
 -------------------------------------------------*/
 
-machine_config_constructor a2bus_mouse_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME(mouse);
-}
+MACHINE_CONFIG_MEMBER(a2bus_mouse_device::device_add_mconfig)
+	MCFG_CPU_ADD(MOUSE_MCU_TAG, M68705P3, 2043600)
+	MCFG_M68705_PORTA_R_CB(READ8(a2bus_mouse_device, mcu_port_a_r))
+	MCFG_M68705_PORTB_R_CB(READ8(a2bus_mouse_device, mcu_port_b_r))
+	MCFG_M68705_PORTA_W_CB(WRITE8(a2bus_mouse_device, mcu_port_a_w))
+	MCFG_M68705_PORTB_W_CB(WRITE8(a2bus_mouse_device, mcu_port_b_w))
+	MCFG_M68705_PORTC_W_CB(WRITE8(a2bus_mouse_device, mcu_port_c_w))
+
+	MCFG_DEVICE_ADD(MOUSE_PIA_TAG, PIA6821, 1021800)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(a2bus_mouse_device, pia_out_a))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a2bus_mouse_device, pia_out_b))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(a2bus_mouse_device, pia_irqa_w))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(a2bus_mouse_device, pia_irqb_w))
+MACHINE_CONFIG_END
 
 /*-------------------------------------------------
     rom_region - device-specific ROM region
@@ -208,25 +203,25 @@ void a2bus_mouse_device::device_reset()
     read_c0nx - called for reads from this card's c0nx space
 -------------------------------------------------*/
 
-uint8_t a2bus_mouse_device::read_c0nx(address_space &space, uint8_t offset)
+uint8_t a2bus_mouse_device::read_c0nx(uint8_t offset)
 {
-	return m_pia->read(space, offset & 3);
+	return m_pia->reg_r(offset & 3);
 }
 
 /*-------------------------------------------------
     write_c0nx - called for writes to this card's c0nx space
 -------------------------------------------------*/
 
-void a2bus_mouse_device::write_c0nx(address_space &space, uint8_t offset, uint8_t data)
+void a2bus_mouse_device::write_c0nx(uint8_t offset, uint8_t data)
 {
-	m_pia->write(space, offset & 3, data);
+	m_pia->reg_w(offset & 3, data);
 }
 
 /*-------------------------------------------------
     read_cnxx - called for reads from this card's cnxx space
 -------------------------------------------------*/
 
-uint8_t a2bus_mouse_device::read_cnxx(address_space &space, uint8_t offset)
+uint8_t a2bus_mouse_device::read_cnxx(uint8_t offset)
 {
 	return m_rom[offset+m_rom_bank];
 }

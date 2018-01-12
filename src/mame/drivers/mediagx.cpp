@@ -72,6 +72,7 @@
 #include "machine/pcshare.h"
 #include "machine/pckeybrd.h"
 #include "machine/idectrl.h"
+#include "machine/timer.h"
 #include "sound/dmadac.h"
 #include "video/ramdac.h"
 #include "screen.h"
@@ -407,7 +408,7 @@ READ32_MEMBER(mediagx_state::disp_ctrl_r)
 
 #if SPEEDUP_HACKS
 			// wait for vblank speedup
-			space.device().execute().spin_until_interrupt();
+			m_maincpu->spin_until_interrupt();
 #endif
 			break;
 	}
@@ -525,7 +526,7 @@ READ32_MEMBER(mediagx_state::parallel_port_r)
 	{
 		uint8_t nibble = m_parallel_latched;
 		r |= ((~nibble & 0x08) << 12) | ((nibble & 0x07) << 11);
-		logerror("%08X:parallel_port_r()\n", space.device().safe_pc());
+		logerror("%08X:parallel_port_r()\n", m_maincpu->pc());
 #if 0
 		if (m_controls_data == 0x18)
 		{
@@ -572,7 +573,7 @@ WRITE32_MEMBER(mediagx_state::parallel_port_w)
 		        7x..ff = advance pointer
 		*/
 
-		logerror("%08X:", space.device().safe_pc());
+		logerror("%08X:", m_maincpu->pc());
 
 		m_parallel_latched = (m_ports[m_parallel_pointer / 3].read_safe(0) >> (4 * (m_parallel_pointer % 3))) & 15;
 		//parallel_pointer++;
@@ -866,7 +867,7 @@ void mediagx_state::machine_reset()
 	dmadac_enable(&m_dmadac[0], 2, 1);
 }
 
-static ADDRESS_MAP_START( ramdac_map, AS_0, 8, mediagx_state )
+static ADDRESS_MAP_START( ramdac_map, 0, 8, mediagx_state )
 	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
 ADDRESS_MAP_END
 

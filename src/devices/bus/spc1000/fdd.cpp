@@ -35,7 +35,7 @@ WRITE8_MEMBER(spc1000_fdd_exp_device::i8255_c_w)
 
 READ8_MEMBER( spc1000_fdd_exp_device::tc_r )
 {
-	logerror("%s: tc_r\n", space.machine().describe_context());
+	logerror("%s: tc_r\n", machine().describe_context());
 
 	// toggle tc on read
 	m_fdc->tc_w(true);
@@ -46,7 +46,7 @@ READ8_MEMBER( spc1000_fdd_exp_device::tc_r )
 
 WRITE8_MEMBER( spc1000_fdd_exp_device::control_w )
 {
-	logerror("%s: control_w(%02x)\n", space.machine().describe_context(), data);
+	logerror("%s: control_w(%02x)\n", machine().describe_context(), data);
 
 	// bit 0, motor on signal
 	if (m_fd0)
@@ -73,10 +73,14 @@ static SLOT_INTERFACE_START( sd725_floppies )
 	SLOT_INTERFACE("sd320", EPSON_SD_320)
 SLOT_INTERFACE_END
 
-static MACHINE_CONFIG_FRAGMENT(spc1000_fdd)
+//-------------------------------------------------
+//  device_add_mconfig
+//-------------------------------------------------
 
-	/* sub CPU(5 inch floppy drive) */
-	MCFG_CPU_ADD("fdccpu", Z80, XTAL_4MHz)       /* 4 MHz */
+MACHINE_CONFIG_MEMBER( spc1000_fdd_exp_device::device_add_mconfig )
+
+	// sub CPU (5 inch floppy drive)
+	MCFG_CPU_ADD("fdccpu", Z80, XTAL_4MHz)
 	MCFG_CPU_PROGRAM_MAP(sd725_mem)
 	MCFG_CPU_IO_MAP(sd725_io)
 
@@ -95,15 +99,6 @@ static MACHINE_CONFIG_FRAGMENT(spc1000_fdd)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", sd725_floppies, "sd320", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", sd725_floppies, "sd320", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
-
-//-------------------------------------------------
-//  device_mconfig_additions
-//-------------------------------------------------
-
-machine_config_constructor spc1000_fdd_exp_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( spc1000_fdd );
-}
 
 ROM_START( spc1000_fdd )
 	ROM_REGION(0x10000, "fdccpu", 0)

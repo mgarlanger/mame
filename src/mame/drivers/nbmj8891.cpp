@@ -48,7 +48,6 @@ TODO:
 #include "sound/3812intf.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 
@@ -64,7 +63,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,gionbana)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
+		prot[i] = bitswap<8>(prot[i],2,7,3,5,0,6,4,1);
 	}
 }
 
@@ -81,7 +80,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,omotesnd)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
+		prot[i] = bitswap<8>(prot[i],2,7,3,5,0,6,4,1);
 	}
 #endif
 
@@ -114,7 +113,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,telmahjn)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i + 0x20000],7,0,4,1,5,2,6,3);
+		prot[i] = bitswap<8>(prot[i + 0x20000],7,0,4,1,5,2,6,3);
 	}
 }
 
@@ -130,7 +129,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,mgmen89)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],5,6,1,0,7,3,2,4);
+		prot[i] = bitswap<8>(prot[i],5,6,1,0,7,3,2,4);
 	}
 }
 
@@ -150,7 +149,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,mjfocus)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i + 0x20000],7,0,4,1,5,2,6,3);
+		prot[i] = bitswap<8>(prot[i + 0x20000],7,0,4,1,5,2,6,3);
 	}
 }
 
@@ -190,7 +189,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,mjnanpas)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i + 0x20000],0,5,2,3,6,7,1,4);
+		prot[i] = bitswap<8>(prot[i + 0x20000],0,5,2,3,6,7,1,4);
 	}
 #endif
 }
@@ -207,7 +206,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,pairsnb)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i],5,6,1,0,7,3,2,4);
+		prot[i] = bitswap<8>(prot[i],5,6,1,0,7,3,2,4);
 	}
 }
 
@@ -223,7 +222,7 @@ DRIVER_INIT_MEMBER(nbmj8891_state,pairsten)
 	   the checksum. */
 	for (i = 0;i < 0x20000;i++)
 	{
-		prot[i] = BITSWAP8(prot[i + 0x20000],5,6,0,4,3,7,1,2);
+		prot[i] = bitswap<8>(prot[i + 0x20000],5,6,0,4,3,7,1,2);
 	}
 }
 
@@ -1718,31 +1717,9 @@ static INPUT_PORTS_START( chinmoku )
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
+	/* does not physically exist on PCB - MT 06592 */
 	PORT_START("DSWB")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("SYSTEM")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, nbmj8891_state, nb1413m3_busyflag_r, nullptr)    // DRAW BUSY
@@ -2228,8 +2205,7 @@ static MACHINE_CONFIG_START( gionbana )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.5)
 
 	MCFG_SOUND_ADD("dac", DAC_8BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.37) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mgion, gionbana )

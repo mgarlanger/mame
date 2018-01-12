@@ -199,7 +199,7 @@ GFX check (these don't explicitly fails):
 */
 #include "emu.h"
 #include "machine/mega32x.h"
-#include "sound/volt_reg.h"
+#include "machine/timer.h"
 
 
 // Fifa96 needs the CPUs swapped for the gameplay to enter due to some race conditions
@@ -388,7 +388,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15106_w )
 		{
 			// install the game rom in the normal 0x000000-0x03fffff space used by the genesis - this allows VDP DMA operations to work as they have to be from this area or RAM
 			// it should also UNMAP the banked rom area...
-			space.install_rom(0x0000100, 0x03fffff, space.machine().root_device().memregion("gamecart")->base() + 0x100);
+			space.install_rom(0x0000100, 0x03fffff, machine().root_device().memregion("gamecart")->base() + 0x100);
 		}
 		else
 		{
@@ -396,7 +396,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15106_w )
 
 			// this is actually blank / nop area
 			// we should also map the banked area back (we don't currently unmap it tho)
-			space.install_rom(0x0000100, 0x03fffff, space.machine().root_device().memregion("maincpu")->base()+0x100);
+			space.install_rom(0x0000100, 0x03fffff, machine().root_device().memregion("maincpu")->base()+0x100);
 		}
 
 		if((m_a15106_reg & 4) == 0) // clears the FIFO state
@@ -429,7 +429,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15106_w )
 
 READ16_MEMBER( sega_32x_device::_32x_dreq_common_r )
 {
-	address_space& _68kspace = space.machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& _68kspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
 
 	switch (offset)
 	{
@@ -458,10 +458,10 @@ READ16_MEMBER( sega_32x_device::_32x_dreq_common_r )
 		//  printf("reading FIFO!\n");
 
 			if (m_current_fifo_readblock == m_fifo_block_a && !m_fifo_block_a_full)
-				printf("Fifo block a isn't filled!\n");
+				logerror("Fifo block a isn't filled!\n");
 
 			if (m_current_fifo_readblock == m_fifo_block_b && !m_fifo_block_b_full)
-				printf("%08x Fifo block b isn't filled!\n",space.device().safe_pc());
+				logerror("%s Fifo block b isn't filled!\n", machine().describe_context());
 
 
 			if (m_current_fifo_read_pos==4)
@@ -500,7 +500,7 @@ READ16_MEMBER( sega_32x_device::_32x_dreq_common_r )
 
 WRITE16_MEMBER( sega_32x_device::_32x_dreq_common_w )
 {
-	address_space& _68kspace = space.machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& _68kspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
 
 	switch (offset)
 	{
@@ -688,12 +688,12 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15100_w )
 		if (data & 0x01)
 		{
 			m_32x_adapter_enabled = 1;
-			space.install_rom(0x0880000, 0x08fffff, space.machine().root_device().memregion("gamecart")->base()); // 'fixed' 512kb rom bank
+			space.install_rom(0x0880000, 0x08fffff, machine().root_device().memregion("gamecart")->base()); // 'fixed' 512kb rom bank
 
 			space.install_read_bank(0x0900000, 0x09fffff, "bank12"); // 'bankable' 1024kb rom bank
-			space.machine().root_device().membank("bank12")->set_base(space.machine().root_device().memregion("gamecart")->base()+((m_32x_68k_a15104_reg&0x3)*0x100000) );
+			machine().root_device().membank("bank12")->set_base(machine().root_device().memregion("gamecart")->base()+((m_32x_68k_a15104_reg&0x3)*0x100000) );
 
-			space.install_rom(0x0000000, 0x03fffff, space.machine().root_device().memregion("32x_68k_bios")->base());
+			space.install_rom(0x0000000, 0x03fffff, machine().root_device().memregion("32x_68k_bios")->base());
 
 			/* VDP area */
 			space.install_readwrite_handler(0x0a15180, 0x0a1518b, read16_delegate(FUNC(sega_32x_device::_32x_common_vdp_regs_r), this),     write16_delegate(FUNC(sega_32x_device::_32x_common_vdp_regs_w),this)); // common / shared VDP regs
@@ -703,14 +703,14 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15100_w )
 
 
 
-			space.machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x000070, 0x000073, read16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_r),this), write16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_w),this)); // h interrupt vector
+			machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x000070, 0x000073, read16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_r),this), write16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_w),this)); // h interrupt vector
 		}
 		else
 		{
 			m_32x_adapter_enabled = 0;
 
-			space.install_rom(0x0000000, 0x03fffff, space.machine().root_device().memregion("gamecart")->base());
-			space.machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x000070, 0x000073, read16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_r),this), write16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_w),this)); // h interrupt vector
+			space.install_rom(0x0000000, 0x03fffff, machine().root_device().memregion("gamecart")->base());
+			machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x000070, 0x000073, read16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_r),this), write16_delegate(FUNC(sega_32x_device::_32x_68k_m_hint_vector_w),this)); // h interrupt vector
 		}
 	}
 
@@ -777,7 +777,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15104_w )
 		m_32x_68k_a15104_reg = (m_32x_68k_a15104_reg & 0x00ff) | (data & 0xff00);
 	}
 
-	space.machine().root_device().membank("bank12")->set_base(space.machine().root_device().memregion("gamecart")->base()+((m_32x_68k_a15104_reg&0x3)*0x100000) );
+	machine().root_device().membank("bank12")->set_base(machine().root_device().memregion("gamecart")->base()+((m_32x_68k_a15104_reg&0x3)*0x100000) );
 }
 
 /**********************************************************************************************/
@@ -792,7 +792,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_68k_a15104_w )
 // reads
 READ16_MEMBER( sega_32x_device::_32x_68k_m_commsram_r )
 {
-	if (_32X_COMMS_PORT_SYNC) space.machine().scheduler().synchronize();
+	if (_32X_COMMS_PORT_SYNC) machine().scheduler().synchronize();
 	return m_commsram[offset];
 }
 
@@ -800,7 +800,7 @@ READ16_MEMBER( sega_32x_device::_32x_68k_m_commsram_r )
 WRITE16_MEMBER( sega_32x_device::_32x_68k_m_commsram_w )
 {
 	COMBINE_DATA(&m_commsram[offset]);
-	if (_32X_COMMS_PORT_SYNC) space.machine().scheduler().synchronize();
+	if (_32X_COMMS_PORT_SYNC) machine().scheduler().synchronize();
 }
 
 /**********************************************************************************************/
@@ -1068,7 +1068,7 @@ WRITE16_MEMBER( sega_32x_device::_32x_common_vdp_regs_w )
 {
 	// what happens if the z80 accesses it, what authorization do we use? which address space do we get?? the z80 *can* write here and to the framebuffer via the window
 
-	address_space& _68kspace = space.machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& _68kspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
 
 	if (&space!= &_68kspace)
 	{
@@ -1771,7 +1771,7 @@ const rom_entry *sega_32x_device::device_rom_region() const
 #define _32X_INTERLEAVE_LEVEL \
 	MCFG_QUANTUM_TIME(attotime::from_hz(1800000))
 
-static MACHINE_CONFIG_FRAGMENT( _32x_ntsc )
+MACHINE_CONFIG_MEMBER( sega_32x_ntsc_device::device_add_mconfig )
 
 #ifndef _32X_SWAP_MASTER_SLAVE_HACK
 	MCFG_CPU_ADD("32x_master_sh2", SH2, (MASTER_CLOCK_NTSC*3)/7 )
@@ -1793,15 +1793,14 @@ static MACHINE_CONFIG_FRAGMENT( _32x_ntsc )
 #endif
 
 	MCFG_SOUND_ADD("ldac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":lspeaker", 0.4) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":rspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	_32X_INTERLEAVE_LEVEL
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_FRAGMENT( _32x_pal )
+MACHINE_CONFIG_MEMBER( sega_32x_pal_device::device_add_mconfig )
 
 #ifndef _32X_SWAP_MASTER_SLAVE_HACK
 	MCFG_CPU_ADD("32x_master_sh2", SH2, (MASTER_CLOCK_PAL*3)/7 )
@@ -1823,25 +1822,12 @@ static MACHINE_CONFIG_FRAGMENT( _32x_pal )
 #endif
 
 	MCFG_SOUND_ADD("ldac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":lspeaker", 0.4) // unknown DAC
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 	MCFG_SOUND_ADD("rdac", DAC_16BIT_R2R, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, ":rspeaker", 0.4) // unknown DAC
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "ldac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "ldac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "rdac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "rdac", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	_32X_INTERLEAVE_LEVEL
 MACHINE_CONFIG_END
-
-
-
-machine_config_constructor sega_32x_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( _32x_ntsc );
-}
-
-machine_config_constructor sega_32x_pal_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( _32x_pal );
-}
 
 
 void sega_32x_device::device_start()

@@ -76,10 +76,8 @@ FEATURES
 
 #ifdef _MSC_VER
 #define FUNCNAME __func__
-#define LLFORMAT "%I64d"
 #else
 #define FUNCNAME __PRETTY_FUNCTION__
-#define LLFORMAT "%lld"
 #endif
 
 //**************************************************************************
@@ -205,8 +203,6 @@ void mpcc_device::device_start()
 	save_item(NAME(m_ccr));
 	save_item(NAME(m_ecr));
 	LOG(" - MPCC variant %02x\n", m_variant);
-
-	device_serial_interface::register_save_state(machine().save(), this);
 }
 
 //-------------------------------------------------
@@ -259,11 +255,6 @@ void mpcc_device::device_reset()
 /*
  * Serial device implementation
  */
-void mpcc_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	device_serial_interface::device_timer(timer, id, param, ptr);
-}
-
 WRITE_LINE_MEMBER(mpcc_device::cts_w)
 {
 	if (state == CLEAR_LINE)
@@ -471,7 +462,7 @@ void mpcc_device::update_serial()
 	stop_bits_t stop_bits = get_stop_bits();
 	parity_t    parity    = get_parity();
 
-	LOGSETUP(" %s() %s Setting data frame %d+%d%c%s\n", FUNCNAME, m_owner->tag(), 1,
+	LOGSETUP(" %s() %s Setting data frame %d+%d%c%s\n", FUNCNAME, owner()->tag(), 1,
 		 data_bits, parity == PARITY_NONE ? 'N' : parity == PARITY_EVEN ? 'E' : 'O',
 		stop_bits == STOP_BITS_1 ? "1" : (stop_bits == STOP_BITS_2 ? "2" : "1.5"));
 
@@ -554,7 +545,7 @@ void mpcc_device::tra_callback()
 	// Otherwise we don't know why we are called...
 	else
 	{
-		logerror("%s %s Failed to transmit\n", FUNCNAME, m_owner->tag());
+		logerror("%s %s Failed to transmit\n", FUNCNAME, owner()->tag());
 	}
 }
 
@@ -596,7 +587,7 @@ void mpcc_device::tra_complete()
 }
 
 //-------------------------------------------------
-//  rcv_callback - called when it is time to sample incomming data bit
+//  rcv_callback - called when it is time to sample incoming data bit
 //-------------------------------------------------
 void mpcc_device::rcv_callback()
 {
@@ -834,7 +825,7 @@ READ8_MEMBER( mpcc_device::read )
 	case 0x1d: data = do_brdr2(); break;
 	case 0x1e: data = do_ccr(); break;
 	case 0x1f: data = do_ecr(); break;
-	default: logerror("%s:%s invalid register accessed: %02x\n", m_owner->tag(), tag(), offset);
+	default: logerror("%s:%s invalid register accessed: %02x\n", owner()->tag(), tag(), offset);
 	}
 	LOGR(" * %s Reg %02x -> %02x  \n", tag(), offset, data);
 	return data;
@@ -870,7 +861,7 @@ WRITE8_MEMBER( mpcc_device::write )
 	case 0x1d: do_brdr2(data); break;
 	case 0x1e: do_ccr(data); break;
 	case 0x1f: do_ecr(data); break;
-	default: logerror("%s:%s invalid register accessed: %02x\n", m_owner->tag(), tag(), offset);
+	default: logerror("%s:%s invalid register accessed: %02x\n", owner()->tag(), tag(), offset);
 	}
 }
 

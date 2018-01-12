@@ -8,12 +8,13 @@
     - Black Knight 2000 randomly goes nuts or resets
       (some bug possibly relating to the 'lighting draws the "Ball 1"' animation???);
       if you insert 2 or more credits and hit start 2 times quickly so it doesn't
-      play the animation, the game seems more stable afterward; original
+      play the animation, the game seems more stable afterwards; original
       game bug or 6802 core bug or something else?
       This bug behaves slightly differently in the different sets, depending on whether
       nvram is cleared beforehand or not, and whether the last reset was soft or hard.
     - Black Knight 2000 LG-1 set reports U26 ROM FAILURE. Bad/hacked dump or original bug?
     - Advance button doesn't seem to work well (TODO: check if this may have been fixed with the irq and diagnostic button masking changes)
+    - Jokerz has an entirely different "Pin Sound '88" stereo audio board (D-12338-567)
 
     Known keys necessary to get games to start (so the proper number of balls are detected):
     - Black Knight 2000: Hold "D" "F" "Y" and press "1" after inserting 1 or more credits. press 'x' to get the main music started.
@@ -25,7 +26,6 @@
 
 #include "cpu/m6800/m6800.h"
 #include "cpu/m6809/m6809.h"
-#include "sound/volt_reg.h"
 #include "speaker.h"
 
 #include "s11b.lh"
@@ -176,9 +176,9 @@ WRITE8_MEMBER( s11b_state::dig1_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe()+16, BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe()+16, bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		else
-			output().set_digit_value(get_strobe()+16, BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe()+16, bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		seg |= 0x40000;
 	}
 	set_segment2(seg);
@@ -192,9 +192,9 @@ WRITE8_MEMBER( s11b_state::pia2c_pa_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe(), BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe(), bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		else
-			output().set_digit_value(get_strobe(), BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe(), bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		seg |= 0x40000;
 	}
 	set_segment1(seg);
@@ -208,9 +208,9 @@ WRITE8_MEMBER( s11b_state::pia2c_pb_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe(), BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe(), bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		else
-			output().set_digit_value(get_strobe(), BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe(), bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		seg |= 0x40000;
 	}
 	set_segment1(seg);
@@ -224,18 +224,12 @@ WRITE8_MEMBER( s11b_state::pia34_pa_w )
 	if((seg & 0x70000) == 0x30000)
 	{
 		if(m_invert)
-			output().set_digit_value(get_strobe()+16, BITSWAP16(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe()+16, bitswap<16>(~seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		else
-			output().set_digit_value(get_strobe()+16, BITSWAP16(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
+			output().set_digit_value(get_strobe()+16, bitswap<16>(seg, 7, 15, 12, 10, 8, 14, 13, 9, 11, 6, 5, 4, 3, 2, 1, 0));
 		seg |= 0x40000;
 	}
 	set_segment2(seg);
-}
-
-WRITE_LINE_MEMBER( s11b_state::pia40_ca2_w)
-{
-	if(state == ASSERT_LINE)
-		m_ym->reset();
 }
 
 DRIVER_INIT_MEMBER( s11b_state, s11b )
@@ -316,9 +310,7 @@ static MACHINE_CONFIG_START( s11b )
 
 	MCFG_SPEAKER_STANDARD_MONO("speaker")
 	MCFG_SOUND_ADD("dac", MC1408, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 0.25)
-	MCFG_DEVICE_ADD("vref", VOLTAGE_REGULATOR, 0) MCFG_VOLTAGE_REGULATOR_OUTPUT(5.0)
-	MCFG_SOUND_ROUTE_EX(0, "dac", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac", -1.0, DAC_VREF_NEG_INPUT)
-	MCFG_SOUND_ROUTE_EX(0, "dac1", 1.0, DAC_VREF_POS_INPUT) MCFG_SOUND_ROUTE_EX(0, "dac1", -1.0, DAC_VREF_NEG_INPUT)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SPEAKER_STANDARD_MONO("speech")
 	MCFG_SOUND_ADD("hc55516", HC55516, 0)
@@ -334,7 +326,7 @@ static MACHINE_CONFIG_START( s11b )
 	MCFG_PIA_IRQB_HANDLER(INPUTLINE("audiocpu", M6802_IRQ_LINE))
 
 	/* Add the background music card */
-	MCFG_CPU_ADD("bgcpu", M6809E, XTAL_8MHz) // MC68B09E (note: schematics show this as 8mhz/2, but games crash very quickly with that speed?)
+	MCFG_CPU_ADD("bgcpu", MC6809E, XTAL_8MHz / 4) // MC68B09E
 	MCFG_CPU_PROGRAM_MAP(s11b_bg_map)
 	MCFG_QUANTUM_TIME(attotime::from_hz(50))
 
@@ -344,6 +336,7 @@ static MACHINE_CONFIG_START( s11b )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.25)
 
 	MCFG_SOUND_ADD("dac1", MC1408, 0) MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.25)
+	MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_POS_INPUT, 1.0) MCFG_SOUND_REFERENCE_INPUT(DAC_VREF_NEG_INPUT, -1.0)
 
 	MCFG_SOUND_ADD("hc55516_bg", HC55516, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speech", 0.50)
@@ -351,7 +344,7 @@ static MACHINE_CONFIG_START( s11b )
 	MCFG_DEVICE_ADD("pia40", PIA6821, 0)
 	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8("dac1", dac_byte_interface, write))
 	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, pia40_pb_w))
-	MCFG_PIA_CA2_HANDLER(WRITELINE(s11b_state, pia40_ca2_w))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE("ym2151", ym2151_device, reset_w))
 	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia40_cb2_w))
 	MCFG_PIA_IRQA_HANDLER(INPUTLINE("bgcpu", M6809_FIRQ_LINE))
 	MCFG_PIA_IRQB_HANDLER(INPUTLINE("bgcpu", INPUT_LINE_NMI))
@@ -544,9 +537,21 @@ ROM_START(bk2k_pu1)
 	ROM_LOAD("bk2k_u19.l1", 0x18000, 0x8000, CRC(58e162b2) SHA1(891f810ae18b46593f570d719f0290a1d08a1a10))
 ROM_END
 
+ROM_START(bk2k_pf1)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("bk2k_u26.pf7", 0x4000, 0x4000, CRC(79a77d26) SHA1(dfecd3f1fa80f0e7a84cafe7f45a96dd1c847090))
+	ROM_LOAD("bk2k_u27.pf1", 0x8000, 0x8000, CRC(2a84db98) SHA1(58438763ec702c1a1e73ab853c58352fe97c27e7))
+	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
+	ROM_LOAD("bk2k_u21.l1", 0x18000, 0x8000, CRC(08be36ad) SHA1(0f4c448e003df54ed8ccf0e0c57f6123ce1e2027))
+	ROM_LOAD("bk2k_u22.l1", 0x10000, 0x8000, CRC(9c8becd8) SHA1(9090e8104dad63f14246caabafec428d94d5e18d))
+	ROM_REGION(0x30000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("bk2k_u4.l2", 0x10000, 0x8000, CRC(1d87281b) SHA1(609288b017aac6ce6da8717a35fdf87013adeb3c))
+	ROM_LOAD("bk2k_u19.l1", 0x18000, 0x8000, CRC(58e162b2) SHA1(891f810ae18b46593f570d719f0290a1d08a1a10))
+ROM_END
+
 ROM_START(bk2k_la2)
 	ROM_REGION(0x10000, "maincpu", 0)
-	ROM_LOAD("bk2k_u26.la2", 0x4000, 0x4000, CRC(2da07403) SHA1(4b48c5d7b0a03aa4593dc6053dc5e94df22d2a64))
+	ROM_LOAD("u26-pu1.rom",  0x4000, 0x4000, CRC(2da07403) SHA1(4b48c5d7b0a03aa4593dc6053dc5e94df22d2a64))
 	ROM_LOAD("bk2k_u27.la2", 0x8000, 0x8000, CRC(531e7752) SHA1(e51a93d40bc316876488ae0a7691ff5fd514472d))
 	ROM_REGION(0x20000, "audiocpu", ROMREGION_ERASEFF)
 	ROM_LOAD("bk2k_u21.l1", 0x18000, 0x8000, CRC(08be36ad) SHA1(0f4c448e003df54ed8ccf0e0c57f6123ce1e2027))
@@ -1081,6 +1086,7 @@ GAME(1989,  bk2k_l4,        0,          s11b,   s11b, s11b_state,   s11b_invert,
 GAME(1989,  bk2k_lg1,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LG-1)",              MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1989,  bk2k_lg3,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LG-3)",              MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1989,  bk2k_pu1,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PU-1)",              MACHINE_IS_SKELETON_MECHANICAL)
+GAME(1989,  bk2k_pf1,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PF-1)",              MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1989,  bk2k_la2,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (LA-2)",              MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1989,  bk2k_pa7,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PA-7)",              MACHINE_IS_SKELETON_MECHANICAL)
 GAME(1989,  bk2k_pa5,       bk2k_l4,    s11b,   s11b, s11b_state,   s11b_invert,    ROT0,   "Williams",             "Black Knight 2000 (PA-5)",              MACHINE_IS_SKELETON_MECHANICAL)
