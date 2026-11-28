@@ -831,7 +831,9 @@ h89bus_device::h89bus_device(const machine_config &mconfig, device_type type, co
 	m_mem_installed(false),
 	m_fmwe(false),
 	m_sys_rom_bank(*this, "sys_rom"),
-	m_sys_rom_card(nullptr)
+	m_sys_rom_card(nullptr),
+	m_io_wait_states(0),
+	m_installing_io_tap(false)
 {
 }
 
@@ -850,6 +852,14 @@ void h89bus_device::device_start()
 	save_item(NAME(m_gpp));
 	save_item(NAME(m_mem_map));
 	save_item(NAME(m_fmwe));
+	save_item(NAME(m_io_wait_states));
+
+	m_io_space_notifier = m_io_space->add_change_notifier([this] (read_or_write) { install_io_wait_tap(); });
+}
+
+void h89bus_device::device_post_load()
+{
+	install_io_wait_tap();
 }
 
 //-------------------------------------------------
@@ -918,6 +928,39 @@ void h89bus_device::install_io_device(offs_t start, offs_t end, read8smo_delegat
 void h89bus_device::install_io_device(offs_t start, offs_t end, write8smo_delegate whandler)
 {
 	m_io_space->install_write_handler(start, end, whandler);
+}
+
+void h89bus_device::set_io_wait_states(u8 cycles)
+{
+	m_io_wait_states = cycles;
+	install_io_wait_tap();
+}
+
+void h89bus_device::install_io_wait_tap()
+{
+	// The tap adds the wait states, but is lost wherever a handler is installed over it.
+	// The I/O space change notifier calls this to put the tap back.
+
+	// installing or removing the tap changes the I/O space, which calls this again
+	if (m_installing_io_tap)
+		return;
+
+	m_installing_io_tap = true;
+	m_io_wait_tap.remove();
+
+	if (m_io_wait_states)
+	{
+		device_execute_interface &cpu = m_io_space->device().execute();
+		auto const wait = [this, &cpu] (offs_t offset, u8 &data, u8 mem_mask)
+		{
+			if (!machine().side_effects_disabled())
+				cpu.adjust_icount(-m_io_wait_states);
+		};
+
+		m_io_wait_tap = m_io_space->install_readwrite_tap(0x00, 0xff, "io_wait", wait, wait, &m_io_wait_tap);
+	}
+
+	m_installing_io_tap = false;
 }
 
 h89bus::addr_ranges h89bus_device::get_address_ranges(u8 select_bits, bool p506_signals)

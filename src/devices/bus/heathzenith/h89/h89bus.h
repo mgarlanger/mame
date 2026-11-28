@@ -298,6 +298,8 @@ protected:
 	void set_cpu_clock(u32 clock);
 	void set_bus_clock(u32 clock);
 
+	void set_io_wait_states(u8 cycles);
+
 private:
 	h89bus_cpu_board_mod_slot_device *m_slot;
 };
@@ -609,6 +611,7 @@ class h89bus_device : public device_t
 	friend class h89bus_right_slot_device;
 	friend class device_h89bus_left_card_interface;
 	friend class device_h89bus_right_card_interface;
+	friend class device_h89bus_cpu_board_mod_interface;
 
 public:
 	// construction/destruction
@@ -652,6 +655,7 @@ protected:
 
 	// device_t implementation
 	virtual void device_start() override ATTR_COLD;
+	virtual void device_post_load() override ATTR_COLD;
 	virtual void device_reset() override ATTR_COLD;
 	virtual void device_reset_after_children() override ATTR_COLD;
 	virtual void device_clock_changed() override;
@@ -665,6 +669,7 @@ protected:
 	void set_fmwe_line(int state);
 	void set_wait_line(int state);
 	void select_card_sys_rom(device_h89bus_left_card_interface &card, bool state);
+	void set_io_wait_states(u8 cycles);
 
 	// internal state
 	required_address_space m_program_space, m_io_space;
@@ -686,6 +691,7 @@ private:
 	std::vector<u8 *> select_line_targets(cpu_board_mem const &mem, u8 pri, offs_t addr) const ATTR_COLD;
 	void install_mem_view_entry(cpu_board_mem const &mem, memory_view::memory_view_entry &entry, u32 map, bool fmwe, u8 jumpers) ATTR_COLD;
 	void update_mem_view();
+	void install_io_wait_tap();
 
 	devcb_write_line m_out_int3_cb, m_out_int4_cb, m_out_int5_cb;
 	devcb_write_line m_out_wait_cb;
@@ -702,6 +708,11 @@ private:
 
 	u8 m_gpp;
 	std::vector<std::pair<u8, write8smo_delegate>> m_gpp_handlers;
+
+	u8 m_io_wait_states;
+	bool m_installing_io_tap; // flag to indicate if the I/O wait tap is currently being installed
+	memory_passthrough_handler m_io_wait_tap;
+	util::notifier_subscription m_io_space_notifier;
 
 	std::vector<std::reference_wrapper<device_h89bus_left_card_interface>> m_left_device_list;
 	std::vector<std::reference_wrapper<device_h89bus_right_card_interface>> m_right_device_list;
@@ -749,6 +760,11 @@ inline void device_h89bus_cpu_board_mod_interface::set_cpu_clock(u32 clock)
 inline void device_h89bus_cpu_board_mod_interface::set_bus_clock(u32 clock)
 {
 	h89bus().set_clock(clock);
+}
+
+inline void device_h89bus_cpu_board_mod_interface::set_io_wait_states(u8 cycles)
+{
+	h89bus().set_io_wait_states(cycles);
 }
 
 // device type declaration

@@ -15,15 +15,12 @@
     the KMR-100 ROM nor SETCLK reads it; SETCLK times the CPU to find its speed.
 
   Jumpers
-    JJ1 - wait states added to each I/O operation
+    JJ1 - add two wait states to I/O operations
     JJ2 - bus speed at power up and reset
     JJ3 - CPU speed at power up and reset
 
   The board has its own 16.384 MHz crystal, divided by 8 for 2.048 MHz and
   by 4 for 4.096 MHz.
-
-  TODO
-    - JJ1 wait states.
 
 ****************************************************************************/
 
@@ -44,9 +41,6 @@ namespace {
 class dsm240_device : public device_t, public device_h89bus_cpu_board_mod_interface
 {
 public:
-	// JJ1 wait states aren't emulated
-	static constexpr feature_type imperfect_features() { return feature::TIMING; }
-
 	dsm240_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock);
 
 protected:
@@ -62,6 +56,9 @@ private:
 	static constexpr XTAL CLOCK_2MHZ = DSM240_XTAL / 8;
 	static constexpr XTAL CLOCK_4MHZ = DSM240_XTAL / 4;
 
+	// JJ1 adds this many wait states to each I/O operation
+	static constexpr u8 IO_WAIT_STATES = 2;
+
 	void write(u8 data);
 
 	void update_speeds();
@@ -72,7 +69,6 @@ private:
 
 	bool m_installed;
 
-	bool m_add_wait_state;
 	bool m_cpu_fast;
 	bool m_bus_cpu;
 };
@@ -120,7 +116,6 @@ void dsm240_device::device_start()
 	m_installed = false;
 
 	save_item(NAME(m_installed));
-	save_item(NAME(m_add_wait_state));
 	save_item(NAME(m_cpu_fast));
 	save_item(NAME(m_bus_cpu));
 }
@@ -136,9 +131,10 @@ void dsm240_device::device_reset()
 	}
 
 	// jumpers select the power-up configuration
-	m_add_wait_state = bool(m_jj1->read());
 	m_bus_cpu = bool(m_jj2->read());
 	m_cpu_fast = bool(m_jj3->read());
+
+	set_io_wait_states(m_jj1->read() ? IO_WAIT_STATES : 0);
 
 	update_speeds();
 }
