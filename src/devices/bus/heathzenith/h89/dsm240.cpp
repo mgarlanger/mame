@@ -19,8 +19,8 @@
     JJ2 - bus speed at power up and reset
     JJ3 - CPU speed at power up and reset
 
-  The board derives 2.048 and 4.096 MHz from its own 16.384 MHz source. The
-  device clock is the 2.048 MHz rate, which matches the CPU board's clock.
+  The board has its own 16.384 MHz crystal, divided by 8 for 2.048 MHz and
+  by 4 for 4.096 MHz.
 
   TODO
     - JJ1 wait states.
@@ -58,8 +58,9 @@ protected:
 private:
 	static constexpr u8 DSM240_ADDR = 0x74;
 
-	// 4 MHz is twice the 2 MHz clock
-	static constexpr u32 MULTIPLIER_4MHZ = 2;
+	static constexpr XTAL DSM240_XTAL = 16.384_MHz_XTAL;
+	static constexpr XTAL CLOCK_2MHZ = DSM240_XTAL / 8;
+	static constexpr XTAL CLOCK_4MHZ = DSM240_XTAL / 4;
 
 	void write(u8 data);
 
@@ -149,12 +150,12 @@ ioport_constructor dsm240_device::device_input_ports() const
 
 void dsm240_device::update_speeds()
 {
-	u32 const cpu_clock = m_cpu_fast ? clock() * MULTIPLIER_4MHZ : clock();
+	XTAL const cpu_clock = m_cpu_fast ? CLOCK_4MHZ : CLOCK_2MHZ;
 
-	set_cpu_clock(cpu_clock);
+	set_cpu_clock(cpu_clock.value());
 
 	// the bus clock is either fixed at 2 MHz or follows the CPU clock
-	set_bus_clock(m_bus_cpu ? cpu_clock : clock());
+	set_bus_clock((m_bus_cpu ? cpu_clock : CLOCK_2MHZ).value());
 }
 
 } // anonymous namespace

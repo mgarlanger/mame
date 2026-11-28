@@ -12,7 +12,8 @@
   2 / 6 MHz - offered by at least ANAPRO, and a how to article in the CHUG
               newsletter.
 
-  The device clock is the CPU board's 2 MHz clock.
+  The device clock is the CPU board's 12.288 MHz crystal, which is divided
+  by 6 for the normal 2 MHz, and by 3 or 2 for 4 or 6 MHz.
 
 ****************************************************************************/
 
@@ -25,7 +26,7 @@ namespace {
 class h89_gpp_speed_device : public device_t, public device_h89bus_cpu_board_mod_interface
 {
 protected:
-	h89_gpp_speed_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u32 fast_multiplier);
+	h89_gpp_speed_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u32 fast_divisor);
 
 	// device_t implementation
 	virtual void device_start() override ATTR_COLD;
@@ -33,14 +34,17 @@ protected:
 private:
 	void gpp_w(u8 data);
 
-	// the fast speed as a multiple of the CPU board's 2 MHz clock
-	u32 const m_fast_multiplier;
+	// divisor of the CPU board's crystal for the normal 2 MHz speed
+	static constexpr u32 SLOW_DIVISOR = 6;
+
+	// divisor of the CPU board's crystal for the fast speed
+	u32 const m_fast_divisor;
 };
 
-h89_gpp_speed_device::h89_gpp_speed_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u32 fast_multiplier)
+h89_gpp_speed_device::h89_gpp_speed_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock, u32 fast_divisor)
 	: device_t(mconfig, type, tag, owner, clock)
 	, device_h89bus_cpu_board_mod_interface(mconfig, *this)
-	, m_fast_multiplier(fast_multiplier)
+	, m_fast_divisor(fast_divisor)
 {
 }
 
@@ -51,7 +55,7 @@ void h89_gpp_speed_device::device_start()
 
 void h89_gpp_speed_device::gpp_w(u8 data)
 {
-	set_cpu_clock((data & h89bus::GPP_MEM0) ? clock() * m_fast_multiplier : clock());
+	set_cpu_clock(clock() / ((data & h89bus::GPP_MEM0) ? m_fast_divisor : SLOW_DIVISOR));
 }
 
 
@@ -59,7 +63,7 @@ class h89_gpp_speed_4mhz_device : public h89_gpp_speed_device
 {
 public:
 	h89_gpp_speed_4mhz_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-		: h89_gpp_speed_device(mconfig, H89BUS_GPP_SPEED_4MHZ, tag, owner, clock, 2)
+		: h89_gpp_speed_device(mconfig, H89BUS_GPP_SPEED_4MHZ, tag, owner, clock, 3)
 	{
 	}
 };
@@ -68,7 +72,7 @@ class h89_gpp_speed_6mhz_device : public h89_gpp_speed_device
 {
 public:
 	h89_gpp_speed_6mhz_device(const machine_config &mconfig, const char *tag, device_t *owner, u32 clock)
-		: h89_gpp_speed_device(mconfig, H89BUS_GPP_SPEED_6MHZ, tag, owner, clock, 3)
+		: h89_gpp_speed_device(mconfig, H89BUS_GPP_SPEED_6MHZ, tag, owner, clock, 2)
 	{
 	}
 };

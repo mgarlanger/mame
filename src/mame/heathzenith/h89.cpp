@@ -136,8 +136,9 @@ protected:
 	bool m_installed;
 
 	// Clocks
-	static constexpr XTAL H89_CLOCK                      = XTAL(12'288'000) / 6;
-	static constexpr XTAL INS8250_CLOCK                  = XTAL(1'843'200);
+	static constexpr XTAL H89_XTAL                       = 12.288_MHz_XTAL;
+	static constexpr XTAL H89_CLOCK                      = H89_XTAL / 6;
+	static constexpr XTAL INS8250_CLOCK                  = 1.8432_MHz_XTAL;
 
 	void gpp_single_step_w(u8 data);
 	void gpp_timer_intr_w(u8 data);
@@ -825,9 +826,9 @@ void h89_base_state::h89_right_p506_cards(device_slot_interface &device)
 
 void h89_base_state::h89_cpu_upgrades(device_slot_interface &device)
 {
-	device.option_add("dsm240",   H89BUS_DSM240).clock(H89_CLOCK);
-	device.option_add("gpp_4mhz", H89BUS_GPP_SPEED_4MHZ).clock(H89_CLOCK);
-	device.option_add("gpp_6mhz", H89BUS_GPP_SPEED_6MHZ).clock(H89_CLOCK);
+	device.option_add("dsm240",   H89BUS_DSM240);
+	device.option_add("gpp_4mhz", H89BUS_GPP_SPEED_4MHZ).clock(H89_XTAL);
+	device.option_add("gpp_6mhz", H89BUS_GPP_SPEED_6MHZ).clock(H89_XTAL);
 }
 
 void h89_base_state::cpu_clock_w(u32 clock)
